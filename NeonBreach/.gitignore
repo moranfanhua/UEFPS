@@ -1,0 +1,49 @@
+# Unreal Engine generated files
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Build/
+
+# Visual Studio / Rider / Xcode generated files
+.vs/
+.idea/
+.vscode/
+*.sln
+*.suo
+*.user
+*.userprefs
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.VC.opendb
+*.xcodeproj
+*.xcworkspace
+
+# Unreal-generated project files
+*.generated.h
+
+# Logs and crash reports
+*.log
+crashinfo-*
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# Optional project-specific asset pipeline and validation scripts
+Scripts/*.py
+Scripts/*.ps1
+
+# Optional local launch/build shortcuts. The project can be opened, compiled,
+# and played directly from Unreal Editor without these files.
+Build.bat
+Play.bat
+OpenEditor.bat

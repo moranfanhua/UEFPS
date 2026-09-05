@@ -1,0 +1,3388 @@
+[
+  {
+    "type": "Geometry",
+    "props": [
+      2032701715232,
+      "Bang\u0000\u0001Geometry",
+      "Mesh"
+    ],
+    "children": [
+      [
+        "Vertices",
+        10500
+      ],
+      [
+        "PolygonVertexIndex",
+        11724
+      ],
+      [
+        "GeometryVersion",
+        [
+          124
+        ]
+      ],
+      [
+        "LayerElementNormal",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementTangent",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementColor",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementUV",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementMaterial",
+        [
+          0
+        ]
+      ],
+      [
+        "Layer",
+        [
+          0
+        ]
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2032701715680,
+      "Body\u0000\u0001Geometry",
+      "Mesh"
+    ],
+    "children": [
+      [
+        "Vertices",
+        124935
+      ],
+      [
+        "PolygonVertexIndex",
+        133593
+      ],
+      [
+        "GeometryVersion",
+        [
+          124
+        ]
+      ],
+      [
+        "LayerElementNormal",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementTangent",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementColor",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementUV",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementNormalMapUV",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementMaterial",
+        [
+          0
+        ]
+      ],
+      [
+        "Layer",
+        [
+          0
+        ]
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047528288,
+      "Brow\u0000\u0001Geometry",
+      "Mesh"
+    ],
+    "children": [
+      [
+        "Vertices",
+        156
+      ],
+      [
+        "PolygonVertexIndex",
+        144
+      ],
+      [
+        "GeometryVersion",
+        [
+          124
+        ]
+      ],
+      [
+        "LayerElementNormal",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementColor",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementUV",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementMaterial",
+        [
+          0
+        ]
+      ],
+      [
+        "Layer",
+        [
+          0
+        ]
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047534112,
+      "EffectMesh\u0000\u0001Geometry",
+      "Mesh"
+    ],
+    "children": [
+      [
+        "Vertices",
+        303
+      ],
+      [
+        "PolygonVertexIndex",
+        252
+      ],
+      [
+        "GeometryVersion",
+        [
+          124
+        ]
+      ],
+      [
+        "LayerElementNormal",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementUV",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementMaterial",
+        [
+          0
+        ]
+      ],
+      [
+        "Layer",
+        [
+          0
+        ]
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047531872,
+      "EyeStar\u0000\u0001Geometry",
+      "Mesh"
+    ],
+    "children": [
+      [
+        "Vertices",
+        96
+      ],
+      [
+        "PolygonVertexIndex",
+        84
+      ],
+      [
+        "GeometryVersion",
+        [
+          124
+        ]
+      ],
+      [
+        "LayerElementNormal",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementTangent",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementColor",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementUV",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementMaterial",
+        [
+          0
+        ]
+      ],
+      [
+        "Layer",
+        [
+          0
+        ]
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047534560,
+      "Face\u0000\u0001Geometry",
+      "Mesh"
+    ],
+    "children": [
+      [
+        "Vertices",
+        2487
+      ],
+      [
+        "PolygonVertexIndex",
+        3882
+      ],
+      [
+        "GeometryVersion",
+        [
+          124
+        ]
+      ],
+      [
+        "LayerElementNormal",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementTangent",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementColor",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementUV",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementMaterial",
+        [
+          0
+        ]
+      ],
+      [
+        "Layer",
+        [
+          0
+        ]
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047535008,
+      "Face_Eye\u0000\u0001Geometry",
+      "Mesh"
+    ],
+    "children": [
+      [
+        "Vertices",
+        7560
+      ],
+      [
+        "PolygonVertexIndex",
+        10620
+      ],
+      [
+        "GeometryVersion",
+        [
+          124
+        ]
+      ],
+      [
+        "LayerElementNormal",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementTangent",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementColor",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementUV",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementNormalMapUV",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementMaterial",
+        [
+          0
+        ]
+      ],
+      [
+        "Layer",
+        [
+          0
+        ]
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047532320,
+      "Pupil\u0000\u0001Geometry",
+      "Mesh"
+    ],
+    "children": [
+      [
+        "Vertices",
+        1380
+      ],
+      [
+        "PolygonVertexIndex",
+        1608
+      ],
+      [
+        "GeometryVersion",
+        [
+          124
+        ]
+      ],
+      [
+        "LayerElementNormal",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementColor",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementUV",
+        [
+          0
+        ]
+      ],
+      [
+        "LayerElementMaterial",
+        [
+          0
+        ]
+      ],
+      [
+        "Layer",
+        [
+          0
+        ]
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047607584,
+      "Brow_Default\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        1
+      ],
+      [
+        "Vertices",
+        3
+      ],
+      [
+        "Normals",
+        3
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047612480,
+      "Brow_Trouble_L\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047605856,
+      "Brow_Trouble_R\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047608160,
+      "Brow_Smily_L\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047617088,
+      "Brow_Smily_R\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047615360,
+      "Brow_Angry_L\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047603552,
+      "Brow_Angry_R\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047616800,
+      "Brow_Shy_L\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047617376,
+      "Brow_Shy_R\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047611328,
+      "Brow_Up_L\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047608448,
+      "Brow_Up_R\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047609024,
+      "Brow_Down_L\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047610464,
+      "Brow_Down_R\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047612192,
+      "Brow_Squeeze_L\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047611040,
+      "Brow_Squeeze_R\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        26
+      ],
+      [
+        "Vertices",
+        78
+      ],
+      [
+        "Normals",
+        78
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033047611904,
+      "Mouth_Default\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        307
+      ],
+      [
+        "Vertices",
+        921
+      ],
+      [
+        "Normals",
+        921
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2032705060560,
+      "Mouth_A01\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        709
+      ],
+      [
+        "Vertices",
+        2127
+      ],
+      [
+        "Normals",
+        2127
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2032705057104,
+      "Mouth_Open01\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        176
+      ],
+      [
+        "Vertices",
+        528
+      ],
+      [
+        "Normals",
+        528
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2032700531376,
+      "Mouth_Smile01\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        299
+      ],
+      [
+        "Vertices",
+        897
+      ],
+      [
+        "Normals",
+        897
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2032700526192,
+      "Mouth_Smile02\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        723
+      ],
+      [
+        "Vertices",
+        2169
+      ],
+      [
+        "Normals",
+        2169
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2032700240320,
+      "Mouth_Angry01\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        284
+      ],
+      [
+        "Vertices",
+        852
+      ],
+      [
+        "Normals",
+        852
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2032700243200,
+      "Mouth_Angry02\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        561
+      ],
+      [
+        "Vertices",
+        1683
+      ],
+      [
+        "Normals",
+        1683
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2032701124944,
+      "Mouth_Angry03\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        553
+      ],
+      [
+        "Vertices",
+        1659
+      ],
+      [
+        "Normals",
+        1659
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2032697581568,
+      "Mouth_Fury01\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        711
+      ],
+      [
+        "Vertices",
+        2133
+      ],
+      [
+        "Normals",
+        2133
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2032701953104,
+      "Mouth_Doya01\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        303
+      ],
+      [
+        "Vertices",
+        909
+      ],
+      [
+        "Normals",
+        909
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2032698019536,
+      "Mouth_Doya02\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        489
+      ],
+      [
+        "Vertices",
+        1467
+      ],
+      [
+        "Normals",
+        1467
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106974592,
+      "Mouth_Neko01\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        301
+      ],
+      [
+        "Vertices",
+        903
+      ],
+      [
+        "Normals",
+        903
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106982656,
+      "Mouth_Pero01\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        448
+      ],
+      [
+        "Vertices",
+        1344
+      ],
+      [
+        "Normals",
+        1344
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106982944,
+      "Mouth_Pero02\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        448
+      ],
+      [
+        "Vertices",
+        1344
+      ],
+      [
+        "Normals",
+        1344
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106983232,
+      "Mouth_Line01\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        288
+      ],
+      [
+        "Vertices",
+        864
+      ],
+      [
+        "Normals",
+        864
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106984672,
+      "Mouth_Line02\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        263
+      ],
+      [
+        "Vertices",
+        789
+      ],
+      [
+        "Normals",
+        789
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106983520,
+      "Mouth_BigTongue01\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        128
+      ],
+      [
+        "Vertices",
+        384
+      ],
+      [
+        "Normals",
+        384
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106986112,
+      "Eye_Default\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        1
+      ],
+      [
+        "Vertices",
+        3
+      ],
+      [
+        "Normals",
+        3
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106983808,
+      "Eye_WinkA_L\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        792
+      ],
+      [
+        "Vertices",
+        2376
+      ],
+      [
+        "Normals",
+        2376
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106978336,
+      "Eye_WinkA_R\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        792
+      ],
+      [
+        "Vertices",
+        2376
+      ],
+      [
+        "Normals",
+        2376
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106984960,
+      "Eye_WinkB_L\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        776
+      ],
+      [
+        "Vertices",
+        2328
+      ],
+      [
+        "Normals",
+        2328
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106979776,
+      "Eye_WinkB_R\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        776
+      ],
+      [
+        "Vertices",
+        2328
+      ],
+      [
+        "Normals",
+        2328
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106984096,
+      "Eye_WinkC_L\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        764
+      ],
+      [
+        "Vertices",
+        2292
+      ],
+      [
+        "Normals",
+        2292
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106973152,
+      "Eye_WinkC_R\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        764
+      ],
+      [
+        "Vertices",
+        2292
+      ],
+      [
+        "Normals",
+        2292
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106974880,
+      "Eye_Ha\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        1520
+      ],
+      [
+        "Vertices",
+        4560
+      ],
+      [
+        "Normals",
+        4560
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106979488,
+      "Eye_Jito\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        1334
+      ],
+      [
+        "Vertices",
+        4002
+      ],
+      [
+        "Normals",
+        4002
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106984384,
+      "Eye_Wail\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        1542
+      ],
+      [
+        "Vertices",
+        4626
+      ],
+      [
+        "Normals",
+        4626
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106980064,
+      "Eye_Hostility\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        1522
+      ],
+      [
+        "Vertices",
+        4566
+      ],
+      [
+        "Normals",
+        4566
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106986688,
+      "Eye_Tired\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        1602
+      ],
+      [
+        "Vertices",
+        4806
+      ],
+      [
+        "Normals",
+        4806
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106978624,
+      "Eye_WUp\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        1110
+      ],
+      [
+        "Vertices",
+        3330
+      ],
+      [
+        "Normals",
+        3330
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106980352,
+      "Eye_WDown\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        1112
+      ],
+      [
+        "Vertices",
+        3336
+      ],
+      [
+        "Normals",
+        3336
+      ]
+    ]
+  },
+  {
+    "type": "Geometry",
+    "props": [
+      2033106985248,
+      "Eye_Lowereyelid\u0000\u0001Geometry",
+      "Shape"
+    ],
+    "children": [
+      [
+        "Version",
+        [
+          100
+        ]
+      ],
+      [
+        "Indexes",
+        196
+      ],
+      [
+        "Vertices",
+        588
+      ],
+      [
+        "Normals",
+        588
+      ]
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121232800,
+      "BrowBlendShape\u0000\u0001Deformer",
+      "BlendShape"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121541280,
+      "FaceBlendShape\u0000\u0001Deformer",
+      "BlendShape"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121545168,
+      "Face_EyeBlendShape\u0000\u0001Deformer",
+      "BlendShape"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121282192,
+      "Brow_Default\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121282832,
+      "Brow_Trouble_L\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121281072,
+      "Brow_Trouble_R\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121282992,
+      "Brow_Smily_L\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121283152,
+      "Brow_Smily_R\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121283312,
+      "Brow_Angry_L\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121283952,
+      "Brow_Angry_R\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121286032,
+      "Brow_Shy_L\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121286832,
+      "Brow_Shy_R\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121284912,
+      "Brow_Up_L\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121285072,
+      "Brow_Up_R\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121285712,
+      "Brow_Down_L\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121288752,
+      "Brow_Down_R\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121286352,
+      "Brow_Squeeze_L\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121285232,
+      "Brow_Squeeze_R\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121286192,
+      "Mouth_Default\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121286672,
+      "Mouth_A01\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121287472,
+      "Mouth_Open01\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121287632,
+      "Mouth_Smile01\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121287792,
+      "Mouth_Smile02\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121287952,
+      "Mouth_Angry01\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121288112,
+      "Mouth_Angry02\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121290512,
+      "Mouth_Angry03\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121291952,
+      "Mouth_Fury01\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121292752,
+      "Mouth_Doya01\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121292432,
+      "Mouth_Doya02\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121296272,
+      "Mouth_Neko01\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121295792,
+      "Mouth_Pero01\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121292912,
+      "Mouth_Pero02\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121291792,
+      "Mouth_Line01\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121290992,
+      "Mouth_Line02\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121294192,
+      "Mouth_BigTongue01\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121291632,
+      "Eye_Default\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121293392,
+      "Eye_WinkA_L\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121293552,
+      "Eye_WinkA_R\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121293712,
+      "Eye_WinkB_L\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121294512,
+      "Eye_WinkB_R\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121293072,
+      "Eye_WinkC_L\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121295952,
+      "Eye_WinkC_R\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121294672,
+      "Eye_Ha\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121291152,
+      "Eye_Jito\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121290672,
+      "Eye_Wail\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121292272,
+      "Eye_Hostility\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121295152,
+      "Eye_Tired\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121290832,
+      "Eye_WUp\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121291472,
+      "Eye_WDown\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  },
+  {
+    "type": "Deformer",
+    "props": [
+      2033121292592,
+      "Eye_Lowereyelid\u0000\u0001SubDeformer",
+      "BlendShapeChannel"
+    ],
+    "children": [
+      {
+        "name": "Version",
+        "props": [
+          100
+        ],
+        "children": []
+      },
+      {
+        "name": "DeformPercent",
+        "props": [
+          0.0
+        ],
+        "children": []
+      },
+      {
+        "name": "FullWeights",
+        "props": [
+          [
+            100.0
+          ]
+        ],
+        "children": []
+      }
+    ]
+  }
+]

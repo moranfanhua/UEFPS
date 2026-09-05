@@ -1,0 +1,86 @@
+# Unreal Engine generated output
+**/Binaries/
+**/DerivedDataCache/
+**/Intermediate/
+**/Saved/
+**/Build/
+
+# Visual Studio / Rider / VS Code local files
+**/.vs/
+**/.idea/
+**/.vscode/
+*.sln
+*.suo
+*.user
+*.userprefs
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.VC.opendb
+*.xcodeproj
+*.xcworkspace
+
+# Unreal generated headers and local logs
+*.generated.h
+*.log
+crashinfo-*
+
+# Python caches
+**/__pycache__/
+*.py[cod]
+
+# Local compiler artifacts used by the FBX preparation helper
+/Tools/*.exe
+/Tools/*.obj
+/Tools/*.pdb
+/Tools/*.ilk
+/Tools/*.exp
+/Tools/*.lib
+
+# Local UE commandlet/editor user directories
+/Tools/UE*/
+
+# Optional project-specific asset pipeline and validation tools
+/Tools/
+/NeonBreach/Scripts/*.py
+/NeonBreach/Scripts/*.ps1
+
+# Optional local launch/build shortcuts. The project can be opened, compiled,
+# and played directly from Unreal Editor without these files.
+/启动FPS.bat
+/打开UE项目.bat
+/NeonBreach/Build.bat
+/NeonBreach/Play.bat
+/NeonBreach/OpenEditor.bat
+
+# Original downloaded model archives (the imported UE assets are in Content)
+/*.zip
+/*.7z
+
+# Generated model-conversion intermediates
+/SourceAssets/Converted/
+/SourceAssets/*_download_page.html
+
+# Original model sources and imported audio kept outside the repository.
+# The playable UE assets are already stored under NeonBreach/Content.
+# Remove these source-folder rules only if you have redistribution permission and
+# want GitHub users to repeat the source-model import pipeline.
+/SourceAssets/Eula/
+/SourceAssets/EulaCasual/
+/SourceAssets/Lizhiyan/
+/SourceAssets/Marionette/
+/SourceAssets/Audio/
+
+# The imported character .uassets are required for the playable build, so
+# they remain tracked for a private repository. If this will be public and
+# you do not have redistribution permission, uncomment the next rule too.
+# /NeonBreach/Content/Characters/
+
+# OS/editor temporary files
+Thumbs.db
+ehthumbs.db
+.DS_Store
+*.tmp
+*.temp
+*.bak
+*.swp
