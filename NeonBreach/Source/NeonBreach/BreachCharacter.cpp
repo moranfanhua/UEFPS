@@ -32,19 +32,32 @@ ABreachCharacter::ABreachCharacter()
     Camera->SetFirstPersonScale(.3f);
     WeaponRoot = CreateDefaultSubobject<USceneComponent>(TEXT("WeaponRoot"));
     WeaponRoot->SetupAttachment(Camera);
-    WeaponRoot->SetRelativeLocation(FVector(35, 19, -19));
+    WeaponRoot->SetRelativeLocation(FVector(30, 15, -19));
     WeaponRoot->SetRelativeScale3D(FVector(.8f));
-    const auto AddPart = [this](const TCHAR* Name, const FVector& Position, const FVector& Size, const TCHAR* Mat)
+    WorldWeaponRoot=CreateDefaultSubobject<USceneComponent>(TEXT("WorldWeaponRoot"));
+    WorldWeaponRoot->SetupAttachment(Camera);
+    WorldWeaponRoot->SetRelativeTransform(WeaponRoot->GetRelativeTransform());
+    const auto AddPart = [this](const TCHAR* Name, const FVector& Position, const FVector& Size, const TCHAR* Mat,FRotator Rotation=FRotator::ZeroRotator)
     {
         auto* Part = CreateDefaultSubobject<UStaticMeshComponent>(Name);
         Part->SetupAttachment(WeaponRoot);
         Part->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube")));
         Part->SetRelativeLocation(Position);
         Part->SetRelativeScale3D(Size / 100.f);
+        Part->SetRelativeRotation(Rotation);
         Part->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         Part->CastShadow = false;
         Part->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
+        Part->SetOnlyOwnerSee(true);
         Part->SetMaterial(0, Breach::Material(Mat));
+        auto* WorldPart=CreateDefaultSubobject<UStaticMeshComponent>(*FString::Printf(TEXT("World_%s"),Name));
+        WorldPart->SetupAttachment(WorldWeaponRoot);
+        WorldPart->SetStaticMesh(Part->GetStaticMesh());
+        WorldPart->SetRelativeTransform(Part->GetRelativeTransform());
+        WorldPart->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        WorldPart->SetOwnerNoSee(true);
+        WorldPart->SetCastHiddenShadow(true);
+        WorldPart->SetMaterial(0,Breach::Material(Mat));
         return Part;
     };
     AddPart(TEXT("Receiver"), FVector(0,0,0), FVector(36,7,8), TEXT("M_Gun"));
@@ -53,8 +66,8 @@ ABreachCharacter::ABreachCharacter()
     AddPart(TEXT("MuzzleBrake"), FVector(39,0,1), FVector(6,5,5), TEXT("M_Gun"));
     AddPart(TEXT("EnergyStripe"), FVector(3,-3.6f,1), FVector(28,.5f,1.3f), TEXT("M_Cyan"));
     AddPart(TEXT("RightStripe"), FVector(3,3.6f,1), FVector(28,.5f,1.3f), TEXT("M_Cyan"));
-    AddPart(TEXT("Magazine"), FVector(-1,0,-9), FVector(8,5,12), TEXT("M_Metal"))->SetRelativeRotation(FRotator(12,0,0));
-    AddPart(TEXT("Grip"), FVector(-12,0,-8), FVector(5,5,12), TEXT("M_Gun"))->SetRelativeRotation(FRotator(-16,0,0));
+    AddPart(TEXT("Magazine"), FVector(-1,0,-9), FVector(8,5,12), TEXT("M_Metal"),FRotator(12,0,0));
+    AddPart(TEXT("Grip"), FVector(-12,0,-8), FVector(5,5,12), TEXT("M_Gun"),FRotator(-16,0,0));
     AddPart(TEXT("Stock"), FVector(-25,0,-1), FVector(17,6,7), TEXT("M_Gun"));
     AddPart(TEXT("SightLeft"), FVector(5,-2.8f,9), FVector(3,1,7), TEXT("M_Metal"));
     AddPart(TEXT("SightRight"), FVector(5,2.8f,9), FVector(3,1,7), TEXT("M_Metal"));
@@ -71,12 +84,17 @@ ABreachCharacter::ABreachCharacter()
     Body->SetupAttachment(GetCapsuleComponent());
     Body->SetRelativeLocation(FVector(-10,0,-92));
     Body->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    Body->SetOwnerNoSee(false);
-    FirstPersonArms=CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("OperatorFirstPersonArms"));
-    FirstPersonArms->SetupAttachment(Camera);
-    FirstPersonArms->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    FirstPersonArms->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
-    FirstPersonArms->SetOnlyOwnerSee(true);
+    Body->SetOnlyOwnerSee(true);
+    Body->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
+    Body->CastShadow=false;
+    Body->SetBoundsScale(2.f);
+    WorldBody=CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("OperatorWorldBody"));
+    WorldBody->SetupAttachment(GetCapsuleComponent());
+    WorldBody->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    WorldBody->SetOwnerNoSee(true);
+    WorldBody->SetCastHiddenShadow(true);
+    WorldBody->SetCastShadow(true);
+    WorldBody->SetBoundsScale(2.f);
 }
 
 void ABreachCharacter::BeginPlay()
@@ -132,8 +150,8 @@ void ABreachCharacter::Tick(float Dt)
     Camera->SetFirstPersonFieldOfView(Camera->FieldOfView);
     Bob += Dt * (bSprint ? 13.f : 9.f);
     const float Movement = FMath::Clamp(GetVelocity().Size2D()/510.f,0.f,1.f);
-    const FVector Hip(35,19,-19);
-    const FVector Aim(32,0,-8);
+    const FVector Hip(30,15,-19);
+    const FVector Aim(27,0,-6.4f);
     FVector Target = bAiming ? Aim : Hip;
     Target.Z += FMath::Sin(Bob)*Movement*(bAiming?.12f:.65f);
     Target.X -= Recoil*2.7f;
@@ -144,6 +162,7 @@ void ABreachCharacter::Tick(float Dt)
     }
     WeaponRoot->SetRelativeLocation(FMath::VInterpTo(WeaponRoot->GetRelativeLocation(),Target,Dt,18));
     WeaponRoot->SetRelativeRotation(FRotator(Recoil*2.f,0,bReloading?FMath::Sin(ReloadProgress*PI)*-25.f:0));
+    WorldWeaponRoot->SetRelativeTransform(WeaponRoot->GetRelativeTransform());
     UpdateOperatorPose(Dt);
     Recoil = FMath::FInterpTo(Recoil,0,Dt,15);
     MuzzleLight->SetIntensity(Recoil>.55f ? 5000.f : 0.f);
@@ -216,17 +235,12 @@ void ABreachCharacter::SelectOperator(int32 Index)
         Body->SetSkinnedAssetAndUpdate(CharacterAsset);
         const FBoxSphereBounds Bounds=CharacterAsset->GetBounds();
         const float Scale=178.f/FMath::Max(1.f,float(Bounds.BoxExtent.Z*2));
-        OperatorScale=Scale;
         Body->SetRelativeScale3D(FVector(Scale));
         Body->SetRelativeRotation(FRotator(0,-90.f,0));
-        Body->SetRelativeLocation(FVector(-10,0,-92-(Bounds.Origin.Z-Bounds.BoxExtent.Z)*Scale));
-        BodyPose.Init(CharacterAsset,OperatorIndex);
-        auto* ArmsAsset=LoadObject<USkeletalMesh>(nullptr,*FString::Printf(TEXT("/Game/Characters/%s/SK_%s_FPArms.SK_%s_FPArms"),Breach::Keys[OperatorIndex],Breach::Keys[OperatorIndex],Breach::Keys[OperatorIndex]));
-        FirstPersonArms->SetSkinnedAssetAndUpdate(ArmsAsset);
-        FirstPersonArms->SetRelativeScale3D(FVector(Scale));
-        FirstPersonArms->SetRelativeRotation(FRotator(0,-90,0));
-        FirstPersonArms->SetRelativeLocation(FVector(8,0,-159-(Bounds.Origin.Z-Bounds.BoxExtent.Z)*Scale));
-        bArmsRigReady=ArmsPose.Init(ArmsAsset,OperatorIndex);
+        Body->SetRelativeLocation(FVector(-8,0,-92-(Bounds.Origin.Z-Bounds.BoxExtent.Z)*Scale));
+        WorldBody->SetSkinnedAssetAndUpdate(CharacterAsset);
+        WorldBody->SetRelativeTransform(Body->GetRelativeTransform());
+        bBodyRigReady=BodyPose.Init(CharacterAsset,OperatorIndex);
         UpdateOperatorPose(0);
     }
     if(auto* GM=GetWorld()->GetAuthGameMode<ABreachGameMode>())
@@ -237,37 +251,43 @@ void ABreachCharacter::SelectOperator(int32 Index)
 
 static FVector OperatorGrip(const ABreachCharacter* Player,int32 Side)
 {
-    FVector Grip=Side?FVector(-12,1,-11):FVector(14,-2,-6);
+    FVector Grip=Side?FVector(-18,7,-10):FVector(14,-11,-7);
     if(!Side && Player->bReloading)
         Grip=FMath::Lerp(Grip,FVector(-1,-10,-24),FMath::Sin(Player->ReloadProgress*PI));
     return Player->WeaponRoot->GetComponentTransform().TransformPosition(Grip);
 }
 void ABreachCharacter::UpdateOperatorPose(float Dt)
 {
+    if(!bBodyRigReady) return;
     BodyPose.Walk(Bob,GetVelocity().Size2D());
-    BodyPose.Apply(Body,true,true);
-    if(!bArmsRigReady) return;
-    ArmsPose.Reset();
-    const FTransform ToArms=FirstPersonArms->GetComponentTransform().Inverse();
+    const float Pitch=FMath::Clamp(FRotator::NormalizeAxis(GetControlRotation().Pitch),-80.f,80.f);
+    BodyPose.Rotate(EBreachBone::Spine,FVector::ForwardVector,Pitch*.12f);
+    BodyPose.Rotate(EBreachBone::Neck,FVector::ForwardVector,Pitch*.88f);
+    const FTransform ToBody=Body->GetComponentTransform().Inverse();
     const FTransform View=Camera->GetComponentTransform();
     for(int32 Side=0;Side<2;++Side)
     {
         const FVector Hint=View.TransformPosition(FVector(2,Side?39.f:-39.f,-40));
-        ArmsPose.SolveArm(Side,ToArms.TransformPosition(OperatorGrip(this,Side)),ToArms.TransformPosition(Hint));
-        const FVector Direction=View.TransformVectorNoScale(Side?FVector(.5f,-.35f,-.8f):FVector(.05f,.9f,.35f));
-        const FVector Palm=View.TransformVectorNoScale(Side?FVector(0,-1,.05f):FVector(0,0,1));
-        ArmsPose.PoseHand(Side,ToArms.TransformVectorNoScale(Direction),ToArms.TransformVectorNoScale(Palm),.85f);
+        BodyPose.SolveArm(Side,ToBody.TransformPosition(OperatorGrip(this,Side)),ToBody.TransformPosition(Hint));
+        const FVector Direction=View.TransformVectorNoScale(Side?FVector(1,-.2f,0):FVector(.1f,1,0));
+        const FVector Palm=View.TransformVectorNoScale(Side?FVector(0,-1,0):FVector(0,0,1));
+        BodyPose.PoseHand(Side,ToBody.TransformVectorNoScale(Direction),ToBody.TransformVectorNoScale(Palm),.85f);
     }
-    ArmsPose.Apply(FirstPersonArms);
+    // Both representations use the complete source mesh and the same body pose.
+    // Only the owning camera hides the head; world views and shadows keep it.
+    BodyPose.Apply(WorldBody);
+    BodyPose.Apply(Body,true);
+    WorldBody->RefreshBoneTransforms();
+    Body->RefreshBoneTransforms();
 }
 float ABreachCharacter::GripError() const
 {
-    if(!bArmsRigReady) return BIG_NUMBER;
+    if(!bBodyRigReady) return BIG_NUMBER;
     float Error=0;
     for(int32 S=0;S<2;++S)
     {
-        const int32 Hand=ArmsPose.Bone(S?EBreachBone::RHand:EBreachBone::LHand);
-        Error=FMath::Max(Error,float(FVector::Distance(OperatorGrip(this,S),FirstPersonArms->GetComponentTransform().TransformPosition(ArmsPose.CS[Hand].GetLocation()))));
+        const int32 Hand=BodyPose.Bone(S?EBreachBone::RHand:EBreachBone::LHand);
+        Error=FMath::Max(Error,float(FVector::Distance(OperatorGrip(this,S),Body->GetBoneLocationByName(Body->GetBoneName(Hand),EBoneSpaces::WorldSpace))));
     }
     return Error;
 }

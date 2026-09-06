@@ -13,6 +13,7 @@ class UPoseableMeshComponent;
 class USoundBase;
 class USkeletalMesh;
 class USkeleton;
+class UAnimSequence;
 class ABreachEnemy;
 
 UCLASS()
@@ -27,9 +28,10 @@ public:
     virtual float TakeDamage(float Damage, const FDamageEvent& Event, AController* Instigator, AActor* Causer) override;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> Camera;
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> WeaponRoot;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> WorldWeaponRoot;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPointLightComponent> MuzzleLight;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Body;
-    UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> FirstPersonArms;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> WorldBody;
     UPROPERTY(EditAnywhere, Category="Weapon") float FireInterval = 0.105f;
     UPROPERTY(EditAnywhere, Category="Weapon") float ShotDamage = 34.f;
     UPROPERTY(EditAnywhere, Category="Weapon") int32 MagazineSize = 30;
@@ -54,12 +56,11 @@ public:
     void RestartRun();
     void TogglePause();
     void UpdateOperatorPose(float DeltaSeconds);
-    bool HasFirstPersonRig() const { return bArmsRigReady; }
+    bool HasFirstPersonRig() const { return bBodyRigReady; }
     float GripError() const;
 private:
-    FBreachPose BodyPose,ArmsPose;
-    bool bArmsRigReady=false;
-    float OperatorScale=1.f;
+    FBreachPose BodyPose;
+    bool bBodyRigReady=false;
     void MoveForward(float Value);
     void MoveRight(float Value);
     void Turn(float Value);
@@ -106,7 +107,10 @@ public:
     void Configure(int32 Index, int32 Wave);
     void UpdatePose(float DeltaSeconds);
     void UpdateDeathPose(float DeltaSeconds);
+    bool HasDeathAnimation() const { return DeathAnimation!=nullptr; }
 private:
+    UPROPERTY() TObjectPtr<UAnimSequence> DeathAnimation;
+    TArray<int32> DeathBoneIndices;
     FBreachPose Pose;
     TArray<FTransform> DeathStartPose;
     float DeathFloorZ=0.f;
@@ -149,6 +153,7 @@ public:
     UFUNCTION(BlueprintCallable) static void BindSkeleton(USkeletalMesh* CharacterAsset, USkeleton* SkeletonAsset);
     UFUNCTION(BlueprintCallable) static USkeleton* EnsureSkeleton(USkeletalMesh* CharacterAsset);
     UFUNCTION(BlueprintCallable) static int32 PrepareFirstPersonArms(USkeletalMesh* CharacterAsset,int32 ModelIndex);
+    UFUNCTION(BlueprintCallable) static UAnimSequence* BakeDeathAnimation(USkeletalMesh* CharacterAsset,int32 ModelIndex,const FString& MotionFile,const FString& PackageName);
     UPROPERTY() TArray<TObjectPtr<ABreachEnemy>> Displays;
 };
 

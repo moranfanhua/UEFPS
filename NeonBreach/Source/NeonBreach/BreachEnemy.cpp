@@ -1,12 +1,13 @@
 #include "BreachGame.h"
 #include "BreachVisuals.h"
-#include "CharacterBones.h"
 #include "AIController.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PoseableMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/Skeleton.h"
 #include "Engine/DamageEvents.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -24,6 +25,7 @@ ABreachEnemy::ABreachEnemy()
     Visual->SetupAttachment(GetCapsuleComponent());
     Visual->SetRelativeLocation(FVector(0,0,-89));
     Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    Visual->SetCastShadow(true);
 }
 void ABreachEnemy::BeginPlay()
 {
@@ -52,6 +54,11 @@ void ABreachEnemy::Configure(int32 Index,int32 Wave)
         // PMX -> glTF front maps to +Y; align it with Unreal's +X forward.
         Visual->SetRelativeRotation(FRotator(0,-90.f,0));
         Pose.Init(CharacterAsset,ModelIndex);
+        DeathAnimation=LoadObject<UAnimSequence>(nullptr,*FString::Printf(TEXT("/Game/Animations/Death/A_%s_Death01.A_%s_Death01"),Breach::Keys[ModelIndex],Breach::Keys[ModelIndex]));
+        DeathBoneIndices.Reset();
+        if(DeathAnimation)
+            for(int32 I=0;I<Pose.Reference.Num();++I)
+                DeathBoneIndices.Add(DeathAnimation->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(CharacterAsset->GetRefSkeleton().GetBoneName(I)));
     }
 }
 void ABreachEnemy::UpdatePose(float Dt)
@@ -136,8 +143,28 @@ void ABreachEnemy::UpdateDeathPose(float Dt)
 {
     DespawnTime+=Dt;
     if(DespawnTime>9.f) { Destroy(); return; }
-    if(DespawnTime-Dt>=1.4f) return;
     if(Pose.ReferenceCS.IsEmpty()) return;
+    if(DeathAnimation)
+    {
+        const float Duration=DeathAnimation->GetPlayLength();
+        if(DespawnTime-Dt>=Duration) return;
+        Pose.Reset();
+        for(int32 I=0;I<Pose.Local.Num();++I)
+            if(DeathBoneIndices.IsValidIndex(I) && DeathBoneIndices[I]>=0)
+                DeathAnimation->GetBoneTransform(Pose.Local[I],FSkeletonPoseBoneIndex(DeathBoneIndices[I]),FAnimExtractContext(double(FMath::Min(DespawnTime,Duration)),false),false);
+        Pose.Rebuild();
+        const float Blend=FMath::Clamp(DespawnTime/.15f,0.f,1.f);
+        const float GroundOffset=(DeathFloorZ-(GetActorLocation().Z-89.f))/DeathScale.X;
+        for(int32 I=0;I<Pose.CS.Num();++I)
+        {
+            FTransform Target=Pose.CS[I]; Target.AddToTranslation(FVector(0,0,GroundOffset));
+            if(DeathStartPose.IsValidIndex(I)) Pose.CS[I].Blend(DeathStartPose[I],Target,Blend);
+            else Pose.CS[I]=Target;
+        }
+        Pose.Apply(Visual);
+        return;
+    }
+    if(DespawnTime-Dt>=1.4f) return;
     struct FKey { float Time,Tilt,Drop,Thigh,Knee; };
     static const FKey Keys[]={{0,0,0,0,0},{.18f,8,.08f,12,-20},{.5f,32,.44f,45,-68},{.95f,77,.85f,28,-42},{1.4f,90,1,7,-16}};
     const float T=FMath::Min(DespawnTime,1.4f);
@@ -151,12 +178,13 @@ void ABreachEnemy::UpdateDeathPose(float Dt)
     Pose.Rotate(EBreachBone::Neck,FVector::ForwardVector,6*Drop*DeathDirection);
     for(int32 S=0;S<2;++S)
     {
-        Pose.Rotate(S?EBreachBone::RThigh:EBreachBone::LThigh,FVector::ForwardVector,Value(&FKey::Thigh)*DeathDirection);
-        Pose.Rotate(S?EBreachBone::RKnee:EBreachBone::LKnee,FVector::ForwardVector,Value(&FKey::Knee)*DeathDirection);
+        Pose.Rotate(S?EBreachBone::RThigh:EBreachBone::LThigh,FVector::ForwardVector,Value(&FKey::Thigh));
+        Pose.Rotate(S?EBreachBone::RKnee:EBreachBone::LKnee,FVector::ForwardVector,Value(&FKey::Knee));
         const int32 Arm=Pose.Bone(S?EBreachBone::RArm:EBreachBone::LArm),Elbow=Pose.Bone(S?EBreachBone::RElbow:EBreachBone::LElbow),Hand=Pose.Bone(S?EBreachBone::RHand:EBreachBone::LHand);
         const float Side=FMath::Sign(Pose.ReferenceCS[Elbow].GetLocation().X-Pose.ReferenceCS[Arm].GetLocation().X);
-        Pose.Aim(Arm,Elbow,FVector(Side*FMath::Lerp(.3f,.95f,Drop),.12f*DeathDirection,FMath::Lerp(-.9f,-.12f,Drop)));
-        Pose.Aim(Elbow,Hand,FVector(Side*.65f,.16f*DeathDirection,-.25f));
+        const float Spread=.28f+FMath::Sin(Drop*PI)*.6f;
+        Pose.Aim(Arm,Elbow,FVector(Side*Spread,.08f*DeathDirection,-FMath::Sqrt(1-Spread*Spread)));
+        Pose.Aim(Elbow,Hand,FVector(Side*(S?.35f:.48f),.08f*DeathDirection,-.85f));
     }
     // Blend out of the exact pose at the hit before the knees buckle.
     const float Blend=FMath::Clamp(T/.22f,0.f,1.f);

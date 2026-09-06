@@ -69,6 +69,16 @@ void ABreachGameMode::BeginPlay()
                 P->SelectOperator(FMath::Clamp(Operator,0,3));
                 P->GetController()->SetControlRotation(FRotator(Pitch,0,0));
                 if(FParse::Param(FCommandLine::Get(),TEXT("BreachAim"))) P->SetAim(true);
+                if(FParse::Param(FCommandLine::Get(),TEXT("BreachWorldView")))
+                {
+                    const FVector Focus=P->GetActorLocation()+FVector(0,0,-15);
+                    const FVector Position=Focus+FVector(440,360,190);
+                    auto* Preview=GetWorld()->SpawnActor<ACameraActor>(Position,(Focus-Position).Rotation());
+                    Preview->GetCameraComponent()->SetFieldOfView(45);
+                    auto* PC=Cast<APlayerController>(P->GetController());
+                    PC->bAutoManageActiveCameraTarget=false; PC->SetViewTarget(Preview);
+                    if(PC->GetHUD()) PC->GetHUD()->bShowHUD=false;
+                }
             }
         },.2f,false);
     }
@@ -87,13 +97,21 @@ void ABreachGameMode::BeginPlay()
             auto* Enemy=GetWorld()->SpawnActor<ABreachEnemy>(FVector(-450,-390+I*260,89),FRotator(0,180,0),Params);
             Enemy->Configure(I,1);
             FTimerHandle Kill;
-            GetWorldTimerManager().SetTimer(Kill,[Enemy,PC]() { UGameplayStatics::ApplyDamage(Enemy,1000,PC,PC->GetPawn(),UDamageType::StaticClass()); },4.f,false);
+            GetWorldTimerManager().SetTimer(Kill,[Enemy,PC]()
+            {
+                const float Direction=FParse::Param(FCommandLine::Get(),TEXT("BreachDeathForward"))?1.f:-1.f;
+                UGameplayStatics::ApplyPointDamage(Enemy,1000,Enemy->GetActorForwardVector()*Direction,FHitResult(),PC,PC->GetPawn(),UDamageType::StaticClass());
+            },4.f,false);
         }
-        const float Times[]={3.5f,4.25f,4.65f,5.05f,5.6f,9.f};
+        const float Times[]={3.5f,4.5f,5.f,5.6f,6.6f,9.f};
         for(int32 I=0;I<6;++I)
         {
             FTimerHandle Frame;
-            GetWorldTimerManager().SetTimer(Frame,[I]() { FScreenshotRequest::RequestScreenshot(FPaths::ProjectDir()/FString::Printf(TEXT("Saved/Death_%02d.png"),I),false,false); },Times[I],false);
+            GetWorldTimerManager().SetTimer(Frame,[I]()
+            {
+                const TCHAR* Prefix=FParse::Param(FCommandLine::Get(),TEXT("BreachDeathForward"))?TEXT("DeathFront"):TEXT("Death");
+                FScreenshotRequest::RequestScreenshot(FPaths::ProjectDir()/FString::Printf(TEXT("Saved/%s_%02d.png"),Prefix,I),false,false);
+            },Times[I],false);
         }
         FTimerHandle Exit;
         GetWorldTimerManager().SetTimer(Exit,[PC]() { PC->ConsoleCommand(TEXT("quit")); },10.f,false);
@@ -227,8 +245,11 @@ void ABreachGameMode::RunSmokeTest()
         for(int32 I=0;I<4;++I)
         {
             P->SelectOperator(I); P->UpdateOperatorPose(0);
-            Check(P->HasFirstPersonRig(),*FString::Printf(TEXT("%s first-person rig and arms loaded"),Breach::Keys[I]));
+            Check(P->HasFirstPersonRig() && P->Body->GetSkinnedAsset()==Breach::CharacterMesh(I) && P->WorldBody->GetSkinnedAsset()==Breach::CharacterMesh(I),*FString::Printf(TEXT("%s first-person and world views use complete source mesh"),Breach::Keys[I]));
             Check(P->GripError()<5.f,*FString::Printf(TEXT("%s hands reach both weapon grips (%.2f cm)"),Breach::Keys[I],P->GripError()));
+            FBreachPose Rig; Rig.Init(Breach::CharacterMesh(I),I);
+            const FName Head=P->WorldBody->GetBoneName(Rig.Bone(EBreachBone::Head));
+            Check(P->WorldBody->bCastHiddenShadow && P->WorldBody->GetBoneTransformByName(Head,EBoneSpaces::ComponentSpace).GetScale3D().GetMin()>.1f && P->Body->GetBoneTransformByName(Head,EBoneSpaces::ComponentSpace).GetScale3D().IsNearlyZero(),*FString::Printf(TEXT("%s owner view hides head while complete world body casts shadow"),Breach::Keys[I]));
         }
         P->SelectOperator(3); Check(P->Body->GetSkinnedAsset()==Breach::CharacterMesh(3),TEXT("Operator switching uses supplied mesh"));
         P->Ammo=3; P->Reserve=7; P->Reload();
@@ -251,11 +272,12 @@ void ABreachGameMode::RunSmokeTest()
         {
             auto* Fallen=I==0?E:GetWorld()->SpawnActor<ABreachEnemy>(FVector(-1000,-300+I*200,89),FRotator(0,180,0),Params);
             if(I) { Fallen->Configure(I,1); UGameplayStatics::ApplyDamage(Fallen,1000,P->GetController(),P,UDamageType::StaticClass()); }
+            Check(Fallen->HasDeathAnimation(),*FString::Printf(TEXT("%s uses retargeted Quaternius Death01 asset"),Breach::Keys[I]));
             const FVector Scale=Fallen->Visual->GetRelativeScale3D();
             const int32 ScoreBefore=Score;
             Fallen->UpdateDeathPose(.7f);
             Check(IsValid(Fallen) && Fallen->Visual->GetRelativeScale3D().Equals(Scale),*FString::Printf(TEXT("%s fall keeps character size"),Breach::Keys[I]));
-            Fallen->UpdateDeathPose(.8f);
+            Fallen->UpdateDeathPose(1.8f);
             FBreachPose Rig; Rig.Init(Breach::CharacterMesh(I),I);
             const FVector Pelvis=Fallen->Visual->GetBoneLocationByName(Fallen->Visual->GetBoneName(Rig.Bone(EBreachBone::Pelvis)),EBoneSpaces::WorldSpace);
             Check(Pelvis.Z>=0 && Pelvis.Z<45,*FString::Printf(TEXT("%s body reaches floor (pelvis %.2f cm)"),Breach::Keys[I],Pelvis.Z));

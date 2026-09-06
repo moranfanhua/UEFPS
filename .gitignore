@@ -1,11 +1,11 @@
-# Unreal Engine generated output
+# Unreal Engine 生成文件
 **/Binaries/
 **/DerivedDataCache/
 **/Intermediate/
 **/Saved/
 **/Build/
 
-# Visual Studio / Rider / VS Code local files
+# Visual Studio / Rider / VS Code 本地文件
 **/.vs/
 **/.idea/
 **/.vscode/
@@ -20,16 +20,16 @@
 *.xcodeproj
 *.xcworkspace
 
-# Unreal generated headers and local logs
+# Unreal 自动生成的头文件和本地日志
 *.generated.h
 *.log
 crashinfo-*
 
-# Python caches
+# Python 缓存
 **/__pycache__/
 *.py[cod]
 
-# Local compiler artifacts used by the FBX preparation helper
+# FBX 准备工具生成的本地编译文件
 /Tools/*.exe
 /Tools/*.obj
 /Tools/*.pdb
@@ -37,46 +37,44 @@ crashinfo-*
 /Tools/*.exp
 /Tools/*.lib
 
-# Local UE commandlet/editor user directories
+# UE 命令行工具和编辑器的本地用户目录
 /Tools/UE*/
 
-# Optional project-specific asset pipeline and validation tools
+# 可选的项目资源处理和验证工具
 /Tools/
 /NeonBreach/Scripts/*.py
 /NeonBreach/Scripts/*.ps1
 
-# Optional local launch/build shortcuts. The project can be opened, compiled,
-# and played directly from Unreal Editor without these files.
+# 可选的本地启动和编译快捷方式。没有这些文件也可以直接用 Unreal Editor
+# 打开、编译和运行项目。
 /启动FPS.bat
 /打开UE项目.bat
 /NeonBreach/Build.bat
 /NeonBreach/Play.bat
 /NeonBreach/OpenEditor.bat
 
-# Original downloaded model archives (the imported UE assets are in Content)
+# 原始下载模型压缩包（导入后的 UE 资源位于 Content）
 /*.zip
 /*.7z
 
-# Generated model-conversion intermediates
+# 模型转换生成的中间文件
 /SourceAssets/Converted/
 /SourceAssets/*_download_page.html
 
-# Original model sources and imported audio kept outside the repository.
-# The playable UE assets are already stored under NeonBreach/Content.
-# Remove these source-folder rules only if you have redistribution permission and
-# want GitHub users to repeat the source-model import pipeline.
+# 下载的动画源文件和重定向中间文件。
+# 可运行的 UE 动画资源保留在 NeonBreach/Content/Animations/ 中。
+/SourceAssets/Animations/
+
+# 原始模型源文件和导入用音频保留在仓库外。
+# 可运行的 UE 资源已经存放在 NeonBreach/Content 中。
+# 只有在拥有再分发许可并希望 GitHub 用户重复资源导入流程时，
+# 才需要删除下面这些源文件夹规则。
 /SourceAssets/Eula/
 /SourceAssets/EulaCasual/
 /SourceAssets/Lizhiyan/
 /SourceAssets/Marionette/
 /SourceAssets/Audio/
-
-# The imported character .uassets are required for the playable build, so
-# they remain tracked for a private repository. If this will be public and
-# you do not have redistribution permission, uncomment the next rule too.
-# /NeonBreach/Content/Characters/
-
-# OS/editor temporary files
+# 操作系统和编辑器临时文件
 Thumbs.db
 ehthumbs.db
 .DS_Store

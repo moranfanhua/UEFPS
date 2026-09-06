@@ -67,7 +67,18 @@ namespace Breach
 
 void ABreachGameMode::BuildArena()
 {
-    for(TActorIterator<AActor> It(GetWorld());It;++It) if(It->ActorHasTag(TEXT("BreachArena"))) return;
+    bool HasArena=false;
+    for(TActorIterator<AActor> It(GetWorld());It;++It) if(It->ActorHasTag(TEXT("BreachArena"))) HasArena=true;
+    if(HasArena)
+    {
+        for(TActorIterator<APointLight> It(GetWorld());It;++It)
+            if(It->ActorHasTag(TEXT("BreachArena")) && It->GetActorLocation().Z>500)
+            {
+                It->GetLightComponent()->SetCastShadows(true);
+                Cast<UPointLightComponent>(It->GetLightComponent())->SetSourceRadius(12.f);
+            }
+        return;
+    }
     UStaticMesh* Cube=LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube"));
     UStaticMesh* Cylinder=LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
     const auto Shape=[&](FVector Pos,FVector Size,const TCHAR* Mat,bool Collision=true,UStaticMesh* Mesh=nullptr,FRotator Rot=FRotator::ZeroRotator)
@@ -170,9 +181,9 @@ void ABreachGameMode::BuildArena()
         L->Tags.Add(TEXT("BreachArena"));
         Cast<UPointLightComponent>(L->GetLightComponent())->SetIntensity(42000);
         Cast<UPointLightComponent>(L->GetLightComponent())->SetAttenuationRadius(1800);
-        Cast<UPointLightComponent>(L->GetLightComponent())->SetSourceRadius(100);
+        Cast<UPointLightComponent>(L->GetLightComponent())->SetSourceRadius(12);
         Cast<UPointLightComponent>(L->GetLightComponent())->SetLightColor(FLinearColor(.73f,.85f,1));
-        Cast<UPointLightComponent>(L->GetLightComponent())->SetCastShadows(false);
+        Cast<UPointLightComponent>(L->GetLightComponent())->SetCastShadows(true);
     }
     auto* Sun=GetWorld()->SpawnActor<ADirectionalLight>(FVector(0,0,500),FRotator(-62,-30,0));
     Sun->Tags.Add(TEXT("BreachArena"));

@@ -83,7 +83,7 @@ void FBreachPose::PoseHand(int32 Side,const FVector& Direction,const FVector& No
     for(int32 Finger=0;Finger<5;++Finger) for(int32 Joint=0;Joint<3;++Joint)
     {
         const float Amount=(Finger==0?.25f:(Side==1 && Finger==1?.4f:1.f))*Curl;
-        Rotate(Fingers[Side][Finger*3+Joint],FQuat(Axis,FMath::DegreesToRadians((Joint==1?65.f:42.f)*Amount)));
+        Rotate(Fingers[Side][Finger*3+Joint],FQuat(Axis,FMath::DegreesToRadians((Joint==1?80.f:(Joint==0?65.f:50.f))*Amount)));
     }
 }
 void FBreachPose::Walk(float Phase,float Speed)
