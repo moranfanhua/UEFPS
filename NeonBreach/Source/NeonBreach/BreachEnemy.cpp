@@ -48,6 +48,18 @@ void ABreachEnemy::Configure(int32 Index,int32 Wave)
     if(auto* CharacterAsset=Breach::CharacterMesh(ModelIndex))
     {
         Visual->SetSkinnedAssetAndUpdate(CharacterAsset);
+        // Reset any live component overrides when an enemy is reconfigured.
+        for(int32 Slot : {10,11,12,13,14}) Visual->SetMaterial(Slot,nullptr);
+        if(ModelIndex==0)
+        {
+            // The imported Eula mesh keeps its original SkeletalMaterial array
+            // on reload, so bind the verified cape material on the live mesh.
+            if(auto* Cape=Breach::Material(TEXT("M_Eula_CapeCorrect")))
+                for(int32 Slot : {10,11,12,13,14}) Visual->SetMaterial(Slot,Cape);
+        }
+        if(ModelIndex==0)
+            for(int32 Slot=0;Slot<Visual->GetNumMaterials();++Slot)
+                UE_LOG(LogTemp,Display,TEXT("EULA_MATERIAL_SLOT %d %s"),Slot,*Visual->GetMaterial(Slot)->GetName());
         const FBoxSphereBounds B=CharacterAsset->GetBounds();
         const float Scale=178.f/FMath::Max(1.f,float(B.BoxExtent.Z*2));
         Visual->SetRelativeScale3D(FVector(Scale));

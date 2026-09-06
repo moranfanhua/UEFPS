@@ -236,6 +236,18 @@ void ABreachCharacter::SelectOperator(int32 Index)
     if(auto* CharacterAsset=Breach::CharacterMesh(OperatorIndex))
     {
         Body->SetSkinnedAssetAndUpdate(CharacterAsset);
+        // Component material overrides survive SetSkinnedAssetAndUpdate.
+        // Clear the Eula cape overrides before switching to another operator.
+        for(int32 Slot : {10,11,12,13,14})
+        {
+            Body->SetMaterial(Slot,nullptr);
+            WorldBody->SetMaterial(Slot,nullptr);
+        }
+        // The source PMX assigns Eula's large cape panel to the clothing atlas.
+        // That atlas contains a warm yellow region, while the actual cape art is
+        // the dedicated blue snowflake texture.  Keep the original slot and
+        // remap only this cape material at runtime so both body representations
+        // show the supplied blue cape.
         const FBoxSphereBounds Bounds=CharacterAsset->GetBounds();
         const float Scale=178.f/FMath::Max(1.f,float(Bounds.BoxExtent.Z*2));
         Body->SetRelativeScale3D(FVector(Scale));
@@ -243,6 +255,15 @@ void ABreachCharacter::SelectOperator(int32 Index)
         Body->SetRelativeLocation(FVector(-8,0,-92-(Bounds.Origin.Z-Bounds.BoxExtent.Z)*Scale));
         WorldBody->SetSkinnedAssetAndUpdate(CharacterAsset);
         WorldBody->SetRelativeTransform(Body->GetRelativeTransform());
+        if(OperatorIndex==0)
+        {
+            if(auto* Cape=Breach::Material(TEXT("M_Eula_CapeCorrect")))
+                for(int32 Slot : {10,11,12,13,14})
+                {
+                    Body->SetMaterial(Slot,Cape);
+                    WorldBody->SetMaterial(Slot,Cape);
+                }
+        }
         bBodyRigReady=BodyPose.Init(CharacterAsset,OperatorIndex);
         UpdateOperatorPose(0);
     }
