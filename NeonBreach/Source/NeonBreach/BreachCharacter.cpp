@@ -23,7 +23,7 @@ ABreachCharacter::ABreachCharacter()
     GetCharacterMovement()->BrakingDecelerationWalking = 2200.f;
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
     Camera->SetupAttachment(GetCapsuleComponent());
-    Camera->SetRelativeLocation(FVector(0, 0, 67));
+    Camera->SetRelativeLocation(FVector(12, 0, 67));
     Camera->bUsePawnControlRotation = true;
     Camera->FieldOfView = 96;
     Camera->SetEnableFirstPersonFieldOfView(true);
@@ -32,7 +32,7 @@ ABreachCharacter::ABreachCharacter()
     Camera->SetFirstPersonScale(.3f);
     WeaponRoot = CreateDefaultSubobject<USceneComponent>(TEXT("WeaponRoot"));
     WeaponRoot->SetupAttachment(Camera);
-    WeaponRoot->SetRelativeLocation(FVector(30, 15, -19));
+    WeaponRoot->SetRelativeLocation(FVector(18, 15, -19));
     WeaponRoot->SetRelativeScale3D(FVector(.8f));
     WorldWeaponRoot=CreateDefaultSubobject<USceneComponent>(TEXT("WorldWeaponRoot"));
     WorldWeaponRoot->SetupAttachment(Camera);
@@ -57,6 +57,8 @@ ABreachCharacter::ABreachCharacter()
         WorldPart->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         WorldPart->SetOwnerNoSee(true);
         WorldPart->SetCastHiddenShadow(true);
+        WorldPart->SetCastShadow(true);
+        WorldPart->bCastCinematicShadow=true;
         WorldPart->SetMaterial(0,Breach::Material(Mat));
         return Part;
     };
@@ -94,6 +96,7 @@ ABreachCharacter::ABreachCharacter()
     WorldBody->SetOwnerNoSee(true);
     WorldBody->SetCastHiddenShadow(true);
     WorldBody->SetCastShadow(true);
+    WorldBody->bCastCinematicShadow=true;
     WorldBody->SetBoundsScale(2.f);
 }
 
@@ -150,8 +153,8 @@ void ABreachCharacter::Tick(float Dt)
     Camera->SetFirstPersonFieldOfView(Camera->FieldOfView);
     Bob += Dt * (bSprint ? 13.f : 9.f);
     const float Movement = FMath::Clamp(GetVelocity().Size2D()/510.f,0.f,1.f);
-    const FVector Hip(30,15,-19);
-    const FVector Aim(27,0,-6.4f);
+    const FVector Hip(18,15,-19);
+    const FVector Aim(15,0,-6.4f);
     FVector Target = bAiming ? Aim : Hip;
     Target.Z += FMath::Sin(Bob)*Movement*(bAiming?.12f:.65f);
     Target.X -= Recoil*2.7f;
@@ -251,7 +254,7 @@ void ABreachCharacter::SelectOperator(int32 Index)
 
 static FVector OperatorGrip(const ABreachCharacter* Player,int32 Side)
 {
-    FVector Grip=Side?FVector(-18,7,-10):FVector(14,-11,-7);
+    FVector Grip=Side?FVector(-18,7,-10):FVector(7,-11,-7);
     if(!Side && Player->bReloading)
         Grip=FMath::Lerp(Grip,FVector(-1,-10,-24),FMath::Sin(Player->ReloadProgress*PI));
     return Player->WeaponRoot->GetComponentTransform().TransformPosition(Grip);

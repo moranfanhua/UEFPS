@@ -71,6 +71,12 @@ void ABreachGameMode::BuildArena()
     for(TActorIterator<AActor> It(GetWorld());It;++It) if(It->ActorHasTag(TEXT("BreachArena"))) HasArena=true;
     if(HasArena)
     {
+        for(TActorIterator<ADirectionalLight> It(GetWorld());It;++It)
+            if(It->ActorHasTag(TEXT("BreachArena")))
+            {
+                It->GetLightComponent()->bCastShadowsFromCinematicObjectsOnly=true;
+                It->GetLightComponent()->SetCastShadows(true);
+            }
         for(TActorIterator<APointLight> It(GetWorld());It;++It)
             if(It->ActorHasTag(TEXT("BreachArena")) && It->GetActorLocation().Z>500)
             {
@@ -189,7 +195,8 @@ void ABreachGameMode::BuildArena()
     Sun->Tags.Add(TEXT("BreachArena"));
     Sun->GetLightComponent()->SetIntensity(2.0f);
     Sun->GetLightComponent()->SetLightColor(FLinearColor(.68f,.80f,1));
-    Sun->GetLightComponent()->SetCastShadows(false);
+    Sun->GetLightComponent()->bCastShadowsFromCinematicObjectsOnly=true;
+    Sun->GetLightComponent()->SetCastShadows(true);
     auto* PP=GetWorld()->SpawnActor<APostProcessVolume>(); PP->Tags.Add(TEXT("BreachArena")); PP->bUnbound=true;
     PP->Settings.bOverride_AutoExposureMethod=true; PP->Settings.AutoExposureMethod=EAutoExposureMethod::AEM_Manual;
     PP->Settings.bOverride_AutoExposureBias=true; PP->Settings.AutoExposureBias=1;

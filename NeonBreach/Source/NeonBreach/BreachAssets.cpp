@@ -90,7 +90,8 @@ UAnimSequence* ABreachGameMode::BakeDeathAnimation(USkeletalMesh* Asset,int32 Mo
         const auto& Motion=Frame->AsArray(); Rig.Reset();
         // PMX cloth/control chains can branch above the pelvis. Give the whole
         // rig the fall rotation, then solve mapped joints in component space.
-        Rig.Rotate(0,Rotation(Motion[0])*Rotation(SourceRef[0]).Inverse());
+        for(int32 I=0;I<Rig.Parents.Num();++I)
+            if(Rig.Parents[I]<0) Rig.Rotate(I,Rotation(Motion[0])*Rotation(SourceRef[0]).Inverse());
         for(int32 I=0;I<47;++I) if(Mapping[I]>=0)
         {
             const int32 B=Mapping[I];
@@ -113,6 +114,26 @@ UAnimSequence* ABreachGameMode::BakeDeathAnimation(USkeletalMesh* Asset,int32 Mo
         }
     }
     UPackage* Package=CreatePackage(*PackageName);
+    if(FMeshDescription* Description=Asset->GetMeshDescription(0))
+    {
+        FSkeletalMeshAttributes Attributes(*Description);
+        const auto Positions=Attributes.GetVertexPositions();
+        const auto Weights=Attributes.GetVertexSkinWeights();
+        float Highest=-BIG_NUMBER; FString Influences;
+        for(FVertexID Vertex:Description->Vertices().GetElementIDs())
+        {
+            FVector Skinned=FVector::ZeroVector;
+            for(const auto W:Weights.Get(Vertex))
+                Skinned+=Rig.CS[W.GetBoneIndex()].TransformPosition(Rig.ReferenceCS[W.GetBoneIndex()].InverseTransformPosition(FVector(Positions[Vertex])))*W.GetWeight();
+            if(Skinned.Z>Highest)
+            {
+                Highest=Skinned.Z; Influences.Empty();
+                for(const auto W:Weights.Get(Vertex))
+                    Influences+=FString::Printf(TEXT(" %s:%.2f"),*Asset->GetRefSkeleton().GetBoneName(W.GetBoneIndex()).ToString(),W.GetWeight());
+            }
+        }
+        UE_LOG(LogTemp,Display,TEXT("DEATH_SKIN_AUDIT %s highest=%.2fcm weights:%s"),*Asset->GetName(),(Highest-Ground)*WorldScale,*Influences);
+    }
     auto* Sequence=NewObject<UAnimSequence>(Package,FName(*FPackageName::GetLongPackageAssetName(PackageName)),RF_Public|RF_Standalone);
     Sequence->SetSkeleton(Asset->GetSkeleton());
     Sequence->SetPreviewMesh(Asset);

@@ -26,6 +26,7 @@ ABreachEnemy::ABreachEnemy()
     Visual->SetRelativeLocation(FVector(0,0,-89));
     Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Visual->SetCastShadow(true);
+    Visual->bCastCinematicShadow=true;
 }
 void ABreachEnemy::BeginPlay()
 {
