@@ -2,6 +2,8 @@
 #include "CharacterRigData.h"
 #include "Engine/SkeletalMesh.h"
 #include "Components/PoseableMeshComponent.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/Skeleton.h"
 
 bool FBreachPose::Init(USkeletalMesh* Asset,int32 ModelIndex)
 {
@@ -9,6 +11,9 @@ bool FBreachPose::Init(USkeletalMesh* Asset,int32 ModelIndex)
     const FReferenceSkeleton& Ref=Asset->GetRefSkeleton();
     Reference=Ref.GetRefBonePose(); Parents.SetNum(Reference.Num());
     for(int32 i=0;i<Parents.Num();++i) Parents[i]=Ref.GetParentIndex(i);
+    AnimationBones.Reset();
+    for(int32 I=0;I<Reference.Num();++I)
+        AnimationBones.Add(Asset->GetSkeleton()?Asset->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(Ref.GetBoneName(I)):INDEX_NONE);
     const auto Find=[&](const TCHAR* Name)
     {
         int32 I=Ref.FindBoneIndex(FName(Name));
@@ -101,6 +106,17 @@ void FBreachPose::Walk(float Phase,float Speed)
         Rotate(S?EBreachBone::RThigh:EBreachBone::LThigh,FVector::ForwardVector,Swing*23.f);
         Rotate(S?EBreachBone::RKnee:EBreachBone::LKnee,FVector::ForwardVector,-FMath::Max(0.f,-Swing)*30.f);
     }
+}
+bool FBreachPose::Sample(UAnimSequence* Animation,float Time,bool Loop)
+{
+    if(!Animation || Animation->GetPlayLength()<=0) return false;
+    const double Position=Loop?FMath::Fmod(FMath::Max(Time,0.f),Animation->GetPlayLength()):FMath::Clamp(Time,0.f,Animation->GetPlayLength());
+    Local=Reference;
+    for(int32 I=0;I<Local.Num();++I)
+        if(AnimationBones.IsValidIndex(I) && AnimationBones[I]>=0)
+            Animation->GetBoneTransform(Local[I],FSkeletonPoseBoneIndex(AnimationBones[I]),FAnimExtractContext(Position,false),false);
+    Rebuild();
+    return true;
 }
 void FBreachPose::Apply(UPoseableMeshComponent* Mesh,bool HideHead,bool HideArms) const
 {

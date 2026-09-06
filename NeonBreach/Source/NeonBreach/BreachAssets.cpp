@@ -50,12 +50,25 @@ int32 ABreachGameMode::PrepareFirstPersonArms(USkeletalMesh* Asset,int32 ModelIn
 
 UAnimSequence* ABreachGameMode::BakeDeathAnimation(USkeletalMesh* Asset,int32 ModelIndex,const FString& MotionFile,const FString& PackageName)
 {
+    return BakeCharacterAnimation(Asset,ModelIndex,MotionFile,PackageName);
+}
+
+UAnimSequence* ABreachGameMode::BakeCharacterAnimation(USkeletalMesh* Asset,int32 ModelIndex,const FString& MotionFile,const FString& PackageName)
+{
 #if WITH_EDITOR
     FBreachPose Rig;
     if(!Asset || !Rig.Init(Asset,ModelIndex)) return nullptr;
     FString Text; TSharedPtr<FJsonObject> Data;
     if(!FFileHelper::LoadFileToString(Text,*MotionFile) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text),Data)) return nullptr;
+    FString CoordinateSpace;
+    if(!Data->TryGetStringField(TEXT("coordinate_space"),CoordinateSpace) || CoordinateSpace!=TEXT("UE_Interchange_XZY"))
+    {
+        UE_LOG(LogTemp,Error,TEXT("Death source uses an unverified coordinate basis. Run Tools/prepare_death_animation.py again."));
+        return nullptr;
+    }
     const auto& Frames=Data->GetArrayField(TEXT("frames"));
+    FString MotionKind=TEXT("death"); Data->TryGetStringField(TEXT("motion_kind"),MotionKind);
+    const bool bDeath=MotionKind==TEXT("death"), bAirborne=MotionKind==TEXT("airborne");
     const auto& SourceRef=Data->GetArrayField(TEXT("reference"));
     if(Frames.Num()<2 || SourceRef.Num()!=47) return nullptr;
     const auto Position=[](const TSharedPtr<FJsonValue>& V)
@@ -74,7 +87,10 @@ UAnimSequence* ABreachGameMode::BakeDeathAnimation(USkeletalMesh* Asset,int32 Mo
     for(int32 I=0;I<47;++I)
     {
         FQuat Correction=FQuat::Identity;
-        if(Child[I]>=0 && Mapping[I]>=0 && Mapping[Child[I]]>=0)
+        // Match limb proportions / A-pose arms. Spine and pelvis positions
+        // are rig-specific offsets, not orientation axes; aligning those
+        // offsets tilts the hips independently of the feet in the first frame.
+        if(I>=5 && Child[I]>=0 && Mapping[I]>=0 && Mapping[Child[I]]>=0)
             Correction=FQuat::FindBetweenNormals((Rig.ReferenceCS[Mapping[Child[I]]].GetLocation()-Rig.ReferenceCS[Mapping[I]].GetLocation()).GetSafeNormal(),(Position(SourceRef[Child[I]])-Position(SourceRef[I])).GetSafeNormal());
         Alignment.Add(Correction);
     }
@@ -98,13 +114,20 @@ UAnimSequence* ABreachGameMode::BakeDeathAnimation(USkeletalMesh* Asset,int32 Mo
             const FQuat Desired=Rotation(Motion[I])*Rotation(SourceRef[I]).Inverse()*Alignment[I]*Rig.ReferenceCS[B].GetRotation();
             Rig.Rotate(B,Desired*Rig.CS[B].GetRotation().Inverse());
         }
-        const FVector Offset=Hip+(Position(Motion[0])-Position(SourceRef[0]))*RetargetScale-Rig.CS[Rig.Bones[0]].GetLocation();
+        FVector HipOffset=(Position(Motion[0])-Position(SourceRef[0]))*RetargetScale;
+        if(!bDeath) { HipOffset.X=0; HipOffset.Y=0; }
+        // The movement component owns airborne displacement; retain the limb
+        // pose without applying the source jump trajectory a second time.
+        if(bAirborne) HipOffset.Z=0;
+        const FVector Offset=Hip+HipOffset-Rig.CS[Rig.Bones[0]].GetLocation();
         for(auto& Transform:Rig.CS) Transform.AddToTranslation(Offset);
         float Lift=0;
         for(EBreachBone Contact:{EBreachBone::Pelvis,EBreachBone::Chest,EBreachBone::Head,EBreachBone::LHand,EBreachBone::RHand,EBreachBone::LFoot,EBreachBone::RFoot})
         {
+            if(bAirborne || (!bDeath && Contact!=EBreachBone::LFoot && Contact!=EBreachBone::RFoot)) continue;
             const float Radius=Contact==EBreachBone::Head?9.f:(Contact==EBreachBone::Pelvis || Contact==EBreachBone::Chest?12.f:3.f);
-            Lift=FMath::Max(Lift,float(Ground+Radius/WorldScale-Rig.CS[Rig.Bone(Contact)].GetLocation().Z));
+            const float ContactHeight=bDeath?Ground+Radius/WorldScale:Rig.ReferenceCS[Rig.Bone(Contact)].GetLocation().Z;
+            Lift=FMath::Max(Lift,float(ContactHeight-Rig.CS[Rig.Bone(Contact)].GetLocation().Z));
         }
         for(auto& Transform:Rig.CS) Transform.AddToTranslation(FVector(0,0,Lift));
         for(int32 I=0;I<Tracks.Num();++I)
@@ -114,7 +137,7 @@ UAnimSequence* ABreachGameMode::BakeDeathAnimation(USkeletalMesh* Asset,int32 Mo
         }
     }
     UPackage* Package=CreatePackage(*PackageName);
-    if(FMeshDescription* Description=Asset->GetMeshDescription(0))
+    if(FMeshDescription* Description=bDeath?Asset->GetMeshDescription(0):nullptr)
     {
         FSkeletalMeshAttributes Attributes(*Description);
         const auto Positions=Attributes.GetVertexPositions();
@@ -139,7 +162,7 @@ UAnimSequence* ABreachGameMode::BakeDeathAnimation(USkeletalMesh* Asset,int32 Mo
     Sequence->SetPreviewMesh(Asset);
     auto& Controller=Sequence->GetController();
     Controller.InitializeModel();
-    Controller.OpenBracket(FText::FromString(TEXT("Retarget Quaternius Death01")),false);
+    Controller.OpenBracket(FText::FromString(TEXT("Retarget Quaternius character animation")),false);
     Controller.SetFrameRate(FFrameRate(int32(Data->GetNumberField(TEXT("fps"))),1),false);
     Controller.SetNumberOfFrames(FFrameNumber(Frames.Num()-1),false);
     for(int32 I=0;I<Tracks.Num();++I)

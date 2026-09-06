@@ -41,7 +41,7 @@ void ABreachHUD::DrawHUD()
     // Crosshair expands during movement and contracts while aiming.
     const float Cx=W*.5f,Cy=H*.5f;
     const float Gap=P->bAiming?5:9+FMath::Clamp(P->GetVelocity().Size2D()/100.f,0.f,6.f);
-    if(!G->bGameOver)
+    if(!G->bGameOver && !P->bUnarmed)
     {
         Box(Cx-1,Cy-1,2,2,White);
         if(!P->bAiming)
@@ -63,17 +63,25 @@ void ABreachHUD::DrawHUD()
     Box(159,H-108,184*P->Health/100.f,8,P->Health<30?Orange:Cyan);
     Text(Breach::Names[P->OperatorIndex],46,H-76,13,Cyan);
     Box(W-318,H-150,290,98,Panel); Box(W-31,H-150,3,98,Cyan);
-    Text(TEXT("VX-30   /   PULSE RIFLE"),W-298,H-138,12,Muted);
-    Text(FString::Printf(TEXT("%02d"),P->Ammo),W-299,H-121,45,P->Ammo<=5?Orange:White);
-    Text(FString::Printf(TEXT("/ %03d"),P->Reserve),W-225,H-101,20,Muted);
-    Text(P->bReloading?TEXT("RELOADING"):P->Ammo==0?TEXT("R  /  RELOAD"):TEXT("AUTO    /    5.56 ENERGY"),W-298,H-74,12,P->bReloading?Orange:Cyan);
+    Text(P->bUnarmed?TEXT("UNARMED   /   FREE HANDS"):TEXT("VX-30   /   PULSE RIFLE"),W-298,H-138,12,Muted);
+    if(P->bUnarmed)
+    {
+        Text(P->bIsCrouched?TEXT("CROUCH"):TEXT("RUN"),W-298,H-118,30,White);
+        Text(TEXT("3  /  DRAW RIFLE"),W-298,H-74,12,Cyan);
+    }
+    else
+    {
+        Text(FString::Printf(TEXT("%02d"),P->Ammo),W-299,H-121,45,P->Ammo<=5?Orange:White);
+        Text(FString::Printf(TEXT("/ %03d"),P->Reserve),W-225,H-101,20,Muted);
+        Text(P->bReloading?TEXT("RELOADING"):P->Ammo==0?TEXT("R  /  RELOAD"):TEXT("AUTO    /    5.56 ENERGY"),W-298,H-74,12,P->bReloading?Orange:Cyan);
+    }
     if(P->bReloading)
     {
         Box(Cx-85,Cy+54,170,4,Panel); Box(Cx-85,Cy+54,170*P->ReloadProgress,4,Cyan);
         Text(TEXT("RELOADING"),Cx-42,Cy+68,11,White);
     }
-    Text(TEXT("WASD MOVE   /   SHIFT SPRINT   /   SPACE JUMP   /   LMB FIRE   /   RMB AIM   /   R RELOAD"),28,H-30,11,Muted);
-    Text(TEXT("1-4 OPERATOR   /   ESC PAUSE   /   ENTER RESTART"),W-408,H-30,11,Muted);
+    Text(TEXT("WASD MOVE  /  3 UNARMED-RUN  /  CTRL CROUCH  /  SPACE JUMP  /  LMB FIRE  /  RMB AIM  /  R RELOAD"),28,H-30,11,Muted);
+    Text(TEXT("F1-F4 OPERATOR  /  ESC PAUSE  /  ENTER RESTART"),W-400,H-30,11,Muted);
     for(TActorIterator<ABreachEnemy> It(GetWorld());It;++It)
     {
         if(It->bDisplayOnly || It->bDefeated) continue;

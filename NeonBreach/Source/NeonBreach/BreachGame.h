@@ -44,6 +44,13 @@ public:
     bool bReloading = false;
     bool bAiming = false;
     bool bSprint = false;
+    bool bUnarmed = false;
+    EBreachLocomotion LocomotionState=EBreachLocomotion::Idle;
+    void ToggleUnarmed();
+    void SetUnarmed(bool Enabled);
+    void CrouchOn();
+    void CrouchOff();
+    bool HasLocomotionAnimations() const;
     float ReloadProgress = 0.f;
     float HitMarker = 0.f;
     float DamageFlash = 0.f;
@@ -60,6 +67,13 @@ public:
     float GripError() const;
 private:
     FBreachPose BodyPose;
+    UPROPERTY() TArray<TObjectPtr<UAnimSequence>> LocomotionAnimations;
+    void LoadLocomotionAnimations();
+    void UpdateLocomotion(float DeltaSeconds);
+    TArray<FTransform> LocomotionBlendFrom;
+    float LocomotionTime=0.f,LocomotionBlendTime=1.f;
+    float AirTime=0.f,LandTime=10.f,CrouchAmount=0.f;
+    bool bWasFalling=false,bJumpTakingOff=false;
     bool bBodyRigReady=false;
     void MoveForward(float Value);
     void MoveRight(float Value);
@@ -69,8 +83,6 @@ private:
     void StopFire();
     void AimOn() { SetAim(true); }
     void AimOff() { SetAim(false); }
-    void SprintOn() { bSprint = true; }
-    void SprintOff() { bSprint = false; }
     void Select1() { SelectOperator(0); }
     void Select2() { SelectOperator(1); }
     void Select3() { SelectOperator(2); }
@@ -141,6 +153,7 @@ public:
     void StartWave();
     void SpawnEnemy();
     void RunSmokeTest();
+    void RunMovementTest();
     UFUNCTION(Exec) void BreachSmokeTest();
     UFUNCTION(Exec) void BreachGallery();
     UFUNCTION(Exec) void BreachAutoPlay();
@@ -154,6 +167,7 @@ public:
     UFUNCTION(BlueprintCallable) static USkeleton* EnsureSkeleton(USkeletalMesh* CharacterAsset);
     UFUNCTION(BlueprintCallable) static int32 PrepareFirstPersonArms(USkeletalMesh* CharacterAsset,int32 ModelIndex);
     UFUNCTION(BlueprintCallable) static UAnimSequence* BakeDeathAnimation(USkeletalMesh* CharacterAsset,int32 ModelIndex,const FString& MotionFile,const FString& PackageName);
+    UFUNCTION(BlueprintCallable) static UAnimSequence* BakeCharacterAnimation(USkeletalMesh* CharacterAsset,int32 ModelIndex,const FString& MotionFile,const FString& PackageName);
     UPROPERTY() TArray<TObjectPtr<ABreachEnemy>> Displays;
 };
 

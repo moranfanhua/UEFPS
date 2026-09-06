@@ -21,9 +21,12 @@ ABreachCharacter::ABreachCharacter()
     GetCharacterMovement()->JumpZVelocity = 540.f;
     GetCharacterMovement()->AirControl = .45f;
     GetCharacterMovement()->BrakingDecelerationWalking = 2200.f;
+    GetCharacterMovement()->GetNavAgentPropertiesRef().bCanCrouch=true;
+    GetCharacterMovement()->SetCrouchedHalfHeight(54.f);
+    GetCharacterMovement()->MaxWalkSpeedCrouched=200.f;
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
     Camera->SetupAttachment(GetCapsuleComponent());
-    Camera->SetRelativeLocation(FVector(12, 0, 67));
+    Camera->SetRelativeLocation(FVector(8, 0, 67));
     Camera->bUsePawnControlRotation = true;
     Camera->FieldOfView = 96;
     Camera->SetEnableFirstPersonFieldOfView(true);
@@ -32,7 +35,7 @@ ABreachCharacter::ABreachCharacter()
     Camera->SetFirstPersonScale(.3f);
     WeaponRoot = CreateDefaultSubobject<USceneComponent>(TEXT("WeaponRoot"));
     WeaponRoot->SetupAttachment(Camera);
-    WeaponRoot->SetRelativeLocation(FVector(18, 15, -19));
+    WeaponRoot->SetRelativeLocation(FVector(34, 10, -5));
     WeaponRoot->SetRelativeScale3D(FVector(.8f));
     WorldWeaponRoot=CreateDefaultSubobject<USceneComponent>(TEXT("WorldWeaponRoot"));
     WorldWeaponRoot->SetupAttachment(Camera);
@@ -127,8 +130,9 @@ void ABreachCharacter::SetupPlayerInputComponent(UInputComponent* Input)
     Input->BindAction("Reload", IE_Pressed, this, &ABreachCharacter::Reload);
     Input->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
     Input->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
-    Input->BindAction("Sprint", IE_Pressed, this, &ABreachCharacter::SprintOn);
-    Input->BindAction("Sprint", IE_Released, this, &ABreachCharacter::SprintOff);
+    Input->BindAction("Unarmed", IE_Pressed, this, &ABreachCharacter::ToggleUnarmed);
+    Input->BindAction("Crouch", IE_Pressed, this, &ABreachCharacter::CrouchOn);
+    Input->BindAction("Crouch", IE_Released, this, &ABreachCharacter::CrouchOff);
     Input->BindAction("Pause", IE_Pressed, this, &ABreachCharacter::TogglePause).bExecuteWhenPaused = true;
     Input->BindAction("Restart", IE_Pressed, this, &ABreachCharacter::RestartRun).bExecuteWhenPaused = true;
     Input->BindAction("Character1", IE_Pressed, this, &ABreachCharacter::Select1);
@@ -140,21 +144,27 @@ void ABreachCharacter::MoveForward(float V) { if(Health>0) AddMovementInput(FRot
 void ABreachCharacter::MoveRight(float V) { if(Health>0) AddMovementInput(FRotationMatrix(FRotator(0,GetControlRotation().Yaw,0)).GetUnitAxis(EAxis::Y), V); }
 void ABreachCharacter::Turn(float V) { if(Health>0) AddControllerYawInput(V * (bAiming ? .45f : .75f)); }
 void ABreachCharacter::LookUp(float V) { if(Health>0) AddControllerPitchInput(V * (bAiming ? .45f : .75f)); }
-void ABreachCharacter::StartFire() { bTrigger=true; Fire(); }
+void ABreachCharacter::StartFire() { if(!bUnarmed) { bTrigger=true; Fire(); } }
 void ABreachCharacter::StopFire() { bTrigger=false; }
-void ABreachCharacter::SetAim(bool Value) { bAiming=Value; }
+void ABreachCharacter::SetAim(bool Value) { bAiming=Value && !bUnarmed; }
 
 void ABreachCharacter::Tick(float Dt)
 {
     Super::Tick(Dt);
     if (bTrigger) Fire();
-    GetCharacterMovement()->MaxWalkSpeed = bAiming ? 300.f : (bSprint && !bTrigger ? 790.f : 510.f);
+    bSprint=bUnarmed && !bIsCrouched;
+    GetCharacterMovement()->MaxWalkSpeed = bAiming ? 300.f : (bSprint ? 790.f : 510.f);
+    CrouchAmount=FMath::FInterpTo(CrouchAmount,bIsCrouched?1.f:0.f,Dt,12.f);
+    // Lean the eye position forward with the head when looking down, so the
+    // owning camera sees the torso and feet instead of looking into the collar.
+    const float LookDown=FMath::Clamp(-FRotator::NormalizeAxis(GetControlRotation().Pitch)/80.f,0.f,1.f);
+    Camera->SetRelativeLocation(FVector(FMath::Lerp(8.f,24.f,LookDown*LookDown),0,67+92-GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight()-50*CrouchAmount));
     Camera->SetFieldOfView(FMath::FInterpTo(Camera->FieldOfView, bAiming ? 66.f : (bSprint && GetVelocity().Size2D()>100 ? 103.f : 96.f), Dt, 12));
     Camera->SetFirstPersonFieldOfView(Camera->FieldOfView);
     Bob += Dt * (bSprint ? 13.f : 9.f);
     const float Movement = FMath::Clamp(GetVelocity().Size2D()/510.f,0.f,1.f);
-    const FVector Hip(18,15,-19);
-    const FVector Aim(15,0,-6.4f);
+    const FVector Hip(34,10,-5);
+    const FVector Aim(30,0,-6.4f);
     FVector Target = bAiming ? Aim : Hip;
     Target.Z += FMath::Sin(Bob)*Movement*(bAiming?.12f:.65f);
     Target.X -= Recoil*2.7f;
@@ -175,7 +185,7 @@ void ABreachCharacter::Tick(float Dt)
 
 void ABreachCharacter::Fire()
 {
-    if(Health<=0 || bReloading || UGameplayStatics::IsGamePaused(this)) return;
+    if(Health<=0 || bUnarmed || bReloading || UGameplayStatics::IsGamePaused(this)) return;
     const float Now=GetWorld()->GetTimeSeconds();
     if(Now<NextShot) return;
     if(Ammo<=0) { Reload(); return; }
@@ -208,14 +218,14 @@ void ABreachCharacter::Fire()
 
 void ABreachCharacter::Reload()
 {
-    if(Health<=0 || bReloading || Ammo>=MagazineSize || Reserve<=0) return;
+    if(Health<=0 || bUnarmed || bReloading || Ammo>=MagazineSize || Reserve<=0) return;
     bReloading=true; ReloadStarted=GetWorld()->GetTimeSeconds(); ReloadProgress=0;
     if(ReloadSound) UGameplayStatics::PlaySound2D(this,ReloadSound,.5f);
     GetWorldTimerManager().SetTimer(ReloadTimer,this,&ABreachCharacter::FinishReload,1.55f,false);
 }
 void ABreachCharacter::FinishReload()
 {
-    if(Health<=0) { bReloading=false; return; }
+    if(Health<=0 || bUnarmed) { bReloading=false; return; }
     const int32 Count=FMath::Min(MagazineSize-Ammo,Reserve);
     Ammo+=Count; Reserve-=Count; bReloading=false;
 }
@@ -252,7 +262,7 @@ void ABreachCharacter::SelectOperator(int32 Index)
         const float Scale=178.f/FMath::Max(1.f,float(Bounds.BoxExtent.Z*2));
         Body->SetRelativeScale3D(FVector(Scale));
         Body->SetRelativeRotation(FRotator(0,-90.f,0));
-        Body->SetRelativeLocation(FVector(-8,0,-92-(Bounds.Origin.Z-Bounds.BoxExtent.Z)*Scale));
+        Body->SetRelativeLocation(FVector(0,0,-92-(Bounds.Origin.Z-Bounds.BoxExtent.Z)*Scale));
         WorldBody->SetSkinnedAssetAndUpdate(CharacterAsset);
         WorldBody->SetRelativeTransform(Body->GetRelativeTransform());
         if(OperatorIndex==0)
@@ -265,6 +275,7 @@ void ABreachCharacter::SelectOperator(int32 Index)
                 }
         }
         bBodyRigReady=BodyPose.Init(CharacterAsset,OperatorIndex);
+        LoadLocomotionAnimations();
         UpdateOperatorPose(0);
     }
     if(auto* GM=GetWorld()->GetAuthGameMode<ABreachGameMode>())
@@ -275,7 +286,7 @@ void ABreachCharacter::SelectOperator(int32 Index)
 
 static FVector OperatorGrip(const ABreachCharacter* Player,int32 Side)
 {
-    FVector Grip=Side?FVector(-18,7,-10):FVector(7,-11,-7);
+    FVector Grip=Side?FVector(-18,7,-10):FVector(0,-9,-7);
     if(!Side && Player->bReloading)
         Grip=FMath::Lerp(Grip,FVector(-1,-10,-24),FMath::Sin(Player->ReloadProgress*PI));
     return Player->WeaponRoot->GetComponentTransform().TransformPosition(Grip);
@@ -283,13 +294,17 @@ static FVector OperatorGrip(const ABreachCharacter* Player,int32 Side)
 void ABreachCharacter::UpdateOperatorPose(float Dt)
 {
     if(!bBodyRigReady) return;
-    BodyPose.Walk(Bob,GetVelocity().Size2D());
+    UpdateLocomotion(Dt);
+    const auto Bounds=Body->GetSkinnedAsset()->GetBounds();
+    const float BaseZ=-GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight()-(Bounds.Origin.Z-Bounds.BoxExtent.Z)*Body->GetRelativeScale3D().Z;
+    Body->SetRelativeLocation(FVector(0,0,BaseZ));
+    WorldBody->SetRelativeLocation(Body->GetRelativeLocation());
     const float Pitch=FMath::Clamp(FRotator::NormalizeAxis(GetControlRotation().Pitch),-80.f,80.f);
     BodyPose.Rotate(EBreachBone::Spine,FVector::ForwardVector,Pitch*.12f);
     BodyPose.Rotate(EBreachBone::Neck,FVector::ForwardVector,Pitch*.88f);
     const FTransform ToBody=Body->GetComponentTransform().Inverse();
     const FTransform View=Camera->GetComponentTransform();
-    for(int32 Side=0;Side<2;++Side)
+    for(int32 Side=0;Side<2 && !bUnarmed;++Side)
     {
         const FVector Hint=View.TransformPosition(FVector(2,Side?39.f:-39.f,-40));
         BodyPose.SolveArm(Side,ToBody.TransformPosition(OperatorGrip(this,Side)),ToBody.TransformPosition(Hint));

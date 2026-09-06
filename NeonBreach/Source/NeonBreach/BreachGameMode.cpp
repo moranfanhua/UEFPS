@@ -10,6 +10,8 @@
 #include "EngineUtils.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/SkeletalMesh.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/Skeleton.h"
 #include "Engine/GameViewportClient.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -69,6 +71,8 @@ void ABreachGameMode::BeginPlay()
                 P->SelectOperator(FMath::Clamp(Operator,0,3));
                 P->GetController()->SetControlRotation(FRotator(Pitch,0,0));
                 if(FParse::Param(FCommandLine::Get(),TEXT("BreachAim"))) P->SetAim(true);
+                if(FParse::Param(FCommandLine::Get(),TEXT("BreachUnarmed"))) P->SetUnarmed(true);
+                if(FParse::Param(FCommandLine::Get(),TEXT("BreachCrouch"))) P->CrouchOn();
                 if(FParse::Param(FCommandLine::Get(),TEXT("BreachWorldView")))
                 {
                     const FVector Focus=P->GetActorLocation()+FVector(0,0,-15);
@@ -120,6 +124,12 @@ void ABreachGameMode::BeginPlay()
     {
         FTimerHandle TestTimer;
         GetWorldTimerManager().SetTimer(TestTimer,this,&ABreachGameMode::RunSmokeTest,3.f,false);
+    }
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachMovementTest")))
+    {
+        bGallery=true;
+        FTimerHandle MovementTimer;
+        GetWorldTimerManager().SetTimer(MovementTimer,this,&ABreachGameMode::RunMovementTest,.6f,false);
     }
     if(FParse::Param(FCommandLine::Get(),TEXT("BreachCapture")))
     {
@@ -250,6 +260,22 @@ void ABreachGameMode::RunSmokeTest()
             FBreachPose Rig; Rig.Init(Breach::CharacterMesh(I),I);
             const FName Head=P->WorldBody->GetBoneName(Rig.Bone(EBreachBone::Head));
             Check(P->WorldBody->bCastHiddenShadow && P->WorldBody->GetBoneTransformByName(Head,EBoneSpaces::ComponentSpace).GetScale3D().GetMin()>.1f && P->Body->GetBoneTransformByName(Head,EBoneSpaces::ComponentSpace).GetScale3D().IsNearlyZero(),*FString::Printf(TEXT("%s owner view hides head while complete world body casts shadow"),Breach::Keys[I]));
+            // The first death frame must not inject a large hip tilt while
+            // the upper body and feet are still standing upright.
+            auto* Death=LoadObject<UAnimSequence>(nullptr,*FString::Printf(TEXT("/Game/Animations/Death/A_%s_Death01.A_%s_Death01"),Breach::Keys[I],Breach::Keys[I]));
+            if(Death)
+            {
+                for(int32 B=0;B<Rig.Local.Num();++B)
+                {
+                    const int32 Track=Death->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(P->WorldBody->GetBoneName(B));
+                    if(Track>=0) Death->GetBoneTransform(Rig.Local[B],FSkeletonPoseBoneIndex(Track),FAnimExtractContext(0.,false),false);
+                }
+                Rig.Rebuild();
+                const auto Delta=[&](EBreachBone B) { const int32 J=Rig.Bone(B); return Rig.CS[J].GetRotation()*Rig.ReferenceCS[J].GetRotation().Inverse(); };
+                Check(Delta(EBreachBone::Pelvis).RotateVector(FVector::UpVector).Z>.94f,*FString::Printf(TEXT("%s death starts with upright hips"),Breach::Keys[I]));
+                const FVector Facing=Delta(EBreachBone::Chest).RotateVector(FVector::RightVector).GetSafeNormal2D();
+                Check(FVector::DotProduct(Facing,Delta(EBreachBone::LFoot).RotateVector(FVector::RightVector).GetSafeNormal2D())>.85f && FVector::DotProduct(Facing,Delta(EBreachBone::RFoot).RotateVector(FVector::RightVector).GetSafeNormal2D())>.85f,*FString::Printf(TEXT("%s torso and both feet face the same way"),Breach::Keys[I]));
+            }
         }
         P->SelectOperator(3); Check(P->Body->GetSkinnedAsset()==Breach::CharacterMesh(3),TEXT("Operator switching uses supplied mesh"));
         P->Ammo=3; P->Reserve=7; P->Reload();
@@ -281,6 +307,8 @@ void ABreachGameMode::RunSmokeTest()
             FBreachPose Rig; Rig.Init(Breach::CharacterMesh(I),I);
             const FVector Pelvis=Fallen->Visual->GetBoneLocationByName(Fallen->Visual->GetBoneName(Rig.Bone(EBreachBone::Pelvis)),EBoneSpaces::WorldSpace);
             Check(Pelvis.Z>=0 && Pelvis.Z<45,*FString::Printf(TEXT("%s body reaches floor (pelvis %.2f cm)"),Breach::Keys[I],Pelvis.Z));
+            const FVector Head=Fallen->Visual->GetBoneLocationByName(Fallen->Visual->GetBoneName(Rig.Bone(EBreachBone::Head)),EBoneSpaces::WorldSpace);
+            Check(FVector::DotProduct(Head-Pelvis,Fallen->GetActorForwardVector()) < -20.f,*FString::Printf(TEXT("%s Death01 falls backward in character facing space"),Breach::Keys[I]));
             UGameplayStatics::ApplyDamage(Fallen,1000,P->GetController(),P,UDamageType::StaticClass());
             Check(Score==ScoreBefore && Fallen->GetCapsuleComponent()->GetCollisionEnabled()==ECollisionEnabled::NoCollision,*FString::Printf(TEXT("%s defeated body cannot score twice or block player"),Breach::Keys[I]));
         }
