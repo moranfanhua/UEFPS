@@ -12,6 +12,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/Paths.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 namespace
 {
@@ -29,6 +31,21 @@ namespace
         }
         FCanvasTriangleItem Item(Triangles,GWhiteTexture);Item.BlendMode=SE_BLEND_Translucent;Canvas->DrawItem(Item);
     }
+}
+
+void ABreachHUD::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+    // Wait for possession and pawn BeginPlay before assigning the opening camera/input mode.
+    if(!bStartupPending || !GetOwningPawn() || !GetOwningPawn()->HasActorBegunPlay()) return;
+    bStartupPending=false;
+    // Existing arena diagnostics run directly in gameplay. Selection tests use the normal opening flow.
+    for(const TCHAR* Flag:{TEXT("BreachTest"),TEXT("BreachMovementTest"),TEXT("BreachViewTest"),TEXT("BreachGallery"),TEXT("BreachAutoPlay"),TEXT("BreachDeathPreview"),TEXT("BreachCapture")})
+        if(FParse::Param(FCommandLine::Get(),Flag)) return;
+    int32 InspectIndex=INDEX_NONE;
+    if(FParse::Value(FCommandLine::Get(),TEXT("BreachInspect="),InspectIndex)) return;
+    bInitialSelection=true;
+    if(!bSelectionOpen) ToggleSelection();
 }
 
 void ABreachHUD::ToggleSelection()
@@ -55,7 +72,7 @@ void ABreachHUD::ToggleSelection()
     }
     else
     {
-        bSelectionOpen=false;HoveredOperator=INDEX_NONE;
+        bSelectionOpen=false;bInitialSelection=false;HoveredOperator=INDEX_NONE;
         SelectionStage->SetOpen(false);
         PC->SetViewTarget(PreviousViewTarget.IsValid()?PreviousViewTarget.Get():Player);
         PC->bAutoManageActiveCameraTarget=bWasAutoCamera;PC->SetSelectionPauseTick(bWasPauseTick);
@@ -99,7 +116,7 @@ void ABreachHUD::DrawSelection()
     MenuText(TEXT("选择角色"),70,65,30,White,true);
     MenuText(TEXT("OPERATOR ARCHIVE     /     04 AVAILABLE"),73,112,10,Muted);
     Box(W-190,46,138,40,FLinearColor(.03f,.06f,.08f,.85f));
-    MenuText(TEXT("H   /   返回"),W-173,55,14,White,true);
+    MenuText(bInitialSelection?TEXT("开始游戏"):TEXT("H   /   返回"),W-173,55,14,White,true);
     AddHitBox(FVector2D((W-190)*Scale,46*Scale),FVector2D(138*Scale,40*Scale),TEXT("SelectionClose"),true,10);
     const int32 Selected=SelectionStage->SelectedIndex;
     static const TCHAR* Titles[]={TEXT("EULA"),TEXT("EULA / CITY"),TEXT("LI ZHIYAN"),TEXT("MARIONETTE")};
@@ -125,7 +142,7 @@ void ABreachHUD::DrawSelection()
         AddHitBox(FVector2D(X*Scale,Y*Scale),FVector2D(164*Scale,142*Scale),FName(*FString::Printf(TEXT("Operator_%d"),I)),true,5);
     }
     MenuText(TEXT("点击头像选择角色 · 再次点击重播动作"),54,869,12,Muted,true);
-    MenuText(TEXT("H / ESC  返回作战"),W-208,869,12,Muted,true);
+    MenuText(bInitialSelection?TEXT("ENTER / H / ESC  开始游戏"):TEXT("H / ESC  返回作战"),bInitialSelection?W-284:W-208,869,12,Muted,true);
 }
 void ABreachHUD::NotifyHitBoxClick(FName BoxName)
 {

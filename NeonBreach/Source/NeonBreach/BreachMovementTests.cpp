@@ -167,9 +167,8 @@ void ABreachGameMode::RunMovementTest()
         P->Ammo=5; P->Reserve=100; P->Reload();
         Check(P->bReloading,TEXT("Armed reload starts")); Key(EKeys::Three,IE_Pressed);
     });
-    At(5.16f,[=]() { Key(EKeys::Three,IE_Released); Key(EKeys::F3,IE_Pressed); });
-    At(5.22f,[=]() { Key(EKeys::F3,IE_Released); });
-    At(5.4f,[=]() { Check(P->OperatorIndex==2 && P->bUnarmed && P->HasLocomotionAnimations(),TEXT("F3 changes character while preserving unarmed mode")); });
+    At(5.16f,[=]() { Key(EKeys::Three,IE_Released); P->SelectOperator(2); });
+    At(5.4f,[=]() { Check(P->OperatorIndex==2 && P->bUnarmed && P->HasLocomotionAnimations(),TEXT("Changing character preserves unarmed mode")); });
     At(5.55f,[=]() { P->SelectOperator(Index); P->CrouchOn(); PC->SetControlRotation(FRotator(-35,0,0)); });
     At(5.95f,[=,this]()
     {

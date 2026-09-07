@@ -82,7 +82,7 @@ void ABreachHUD::DrawHUD()
         Text(TEXT("RELOADING"),Cx-42,Cy+68,11,White);
     }
     Text(TEXT("WASD MOVE  /  1 RIFLE  /  3 UNARMED-RUN  /  CTRL CROUCH  /  SPACE JUMP  /  LMB FIRE  /  RMB AIM  /  R RELOAD"),28,H-30,11,Muted);
-    Text(TEXT("H SELECT  /  F1-F4 OPERATOR  /  ESC PAUSE  /  ENTER RESTART"),W-455,H-30,11,Muted);
+    Text(TEXT("H SELECT  /  ESC PAUSE  /  ENTER RESTART"),W-340,H-30,11,Muted);
     for(TActorIterator<ABreachEnemy> It(GetWorld());It;++It)
     {
         if(It->bDisplayOnly || It->bDefeated) continue;

@@ -137,10 +137,6 @@ void ABreachCharacter::SetupPlayerInputComponent(UInputComponent* Input)
     Input->BindAction("Pause", IE_Pressed, this, &ABreachCharacter::TogglePause).bExecuteWhenPaused = true;
     Input->BindAction("Selection", IE_Pressed, this, &ABreachCharacter::ToggleSelection).bExecuteWhenPaused = true;
     Input->BindAction("Restart", IE_Pressed, this, &ABreachCharacter::RestartRun).bExecuteWhenPaused = true;
-    Input->BindAction("Character1", IE_Pressed, this, &ABreachCharacter::Select1);
-    Input->BindAction("Character2", IE_Pressed, this, &ABreachCharacter::Select2);
-    Input->BindAction("Character3", IE_Pressed, this, &ABreachCharacter::Select3);
-    Input->BindAction("Character4", IE_Pressed, this, &ABreachCharacter::Select4);
 }
 void ABreachCharacter::MoveForward(float V) { if(Health>0) AddMovementInput(FRotationMatrix(FRotator(0,GetControlRotation().Yaw,0)).GetUnitAxis(EAxis::X), V); }
 void ABreachCharacter::MoveRight(float V) { if(Health>0) AddMovementInput(FRotationMatrix(FRotator(0,GetControlRotation().Yaw,0)).GetUnitAxis(EAxis::Y), V); }

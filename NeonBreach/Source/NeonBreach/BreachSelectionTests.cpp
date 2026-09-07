@@ -33,11 +33,10 @@ void ABreachGameMode::TickSelectionTest()
         PC()->InputKey(FInputKeyEventArgs(nullptr,FInputDeviceId::CreateFromInternalId(0),Button,Event,Event==IE_Released?0.f:1.f,false,FPlatformTime::Cycles64()));
     };
     const auto Add=[Run](float Delay,TFunction<void()> Fn) { Run->Steps.Emplace(Delay,MoveTemp(Fn)); };
-    Add(2,[=]() { Run->Ammo=Player()->Ammo;Run->Health=Player()->Health;Key(EKeys::H,IE_Pressed); });
-    Add(.2f,[=]() { Key(EKeys::H,IE_Released); });
+    Add(2,[=]() { Run->Ammo=Player()->Ammo;Run->Health=Player()->Health; });
     Add(1,[=,this]()
     {
-        Check(HUD()->IsSelectionOpen(),TEXT("H opens character selection through the input binding"));
+        Check(HUD()->IsSelectionOpen(),TEXT("Game starts in character selection without any key press"));
         Check(UGameplayStatics::IsGamePaused(this) && PC()->bShowMouseCursor,TEXT("Selection pauses combat and enables cursor"));
         Check(PC()->GetViewTarget()==HUD()->GetSelectionStage(),TEXT("Selection uses the preview camera"));
         Run->WorldTime=GetWorld()->GetTimeSeconds();
@@ -65,16 +64,30 @@ void ABreachGameMode::TickSelectionTest()
     {
         Check(FMath::IsNearlyEqual(GetWorld()->GetTimeSeconds(),Run->WorldTime),TEXT("World time remains paused while the menu animates"));
         Check(Player()->Health==Run->Health && Player()->Ammo==Run->Ammo,TEXT("Selection and clicks preserve health and ammo"));
-        Key(EKeys::H,IE_Pressed);
+        Key(EKeys::Enter,IE_Pressed);
     });
-    Add(.2f,[=]() { Key(EKeys::H,IE_Released); });
+    Add(.2f,[=]() { Key(EKeys::Enter,IE_Released); });
     Add(.4f,[=,this]()
     {
-        Check(!HUD()->IsSelectionOpen() && !UGameplayStatics::IsGamePaused(this),TEXT("H closes selection and resumes combat"));
+        Check(!HUD()->IsSelectionOpen() && !UGameplayStatics::IsGamePaused(this),TEXT("Enter starts gameplay from the opening selection"));
+        Check(Player()->OperatorIndex==3,TEXT("Starting gameplay keeps the chosen character"));
         Check(PC()->GetViewTarget()==Player() && !PC()->bShowMouseCursor && !PC()->IsMoveInputIgnored() && !PC()->IsLookInputIgnored(),TEXT("FPS camera and controls restored"));
         Key(EKeys::LeftMouseButton,IE_Pressed);
     });
     Add(.1f,[=]() { Key(EKeys::LeftMouseButton,IE_Released); });
+    const FKey RemovedKeys[]={EKeys::F1,EKeys::F2,EKeys::F3,EKeys::F4};
+    for(int32 I=0;I<4;++I)
+    {
+        const FKey Button=RemovedKeys[I];const int32 Selected=(I+1)%4;
+        Add(.3f,[=]() { Player()->SelectOperator(Selected);Key(Button,IE_Pressed); });
+        Add(.2f,[=]() { Key(Button,IE_Released); });
+        Add(.2f,[=]() { Check(Player()->OperatorIndex==Selected,FString::Printf(TEXT("%s no longer switches characters"),*Button.ToString())); });
+    }
+    Add(.3f,[=]() { Key(EKeys::H,IE_Pressed); });
+    Add(.2f,[=]() { Key(EKeys::H,IE_Released); });
+    Add(.3f,[=]() { Check(HUD()->IsSelectionOpen(),TEXT("H reopens selection during gameplay"));Key(EKeys::H,IE_Pressed); });
+    Add(.2f,[=]() { Key(EKeys::H,IE_Released); });
+    Add(.3f,[=,this]() { Check(!HUD()->IsSelectionOpen() && !UGameplayStatics::IsGamePaused(this),TEXT("H returns to gameplay after reopening selection")); });
     Add(.3f,[=]() { Check(Player()->Ammo<Run->Ammo,TEXT("Rifle fires after returning from selection"));Key(EKeys::Escape,IE_Pressed); });
     Add(.2f,[=]() { Key(EKeys::Escape,IE_Released);Key(EKeys::H,IE_Pressed); });
     Add(.2f,[=]() { Key(EKeys::H,IE_Released); });

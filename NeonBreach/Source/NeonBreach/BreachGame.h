@@ -101,10 +101,6 @@ private:
     void StopFire();
     void AimOn() { SetAim(true); }
     void AimOff() { SetAim(false); }
-    void Select1() { SelectOperator(0); }
-    void Select2() { SelectOperator(1); }
-    void Select3() { SelectOperator(2); }
-    void Select4() { SelectOperator(3); }
     bool bTrigger = false;
     float NextShot = 0.f;
     float ReloadStarted = 0.f;
@@ -196,6 +192,7 @@ class NEONBREACH_API ABreachHUD : public AHUD
 {
     GENERATED_BODY()
 public:
+    virtual void Tick(float DeltaSeconds) override;
     virtual void DrawHUD() override;
     virtual void NotifyHitBoxClick(FName BoxName) override;
     virtual void NotifyHitBoxBeginCursorOver(FName BoxName) override;
@@ -209,6 +206,7 @@ private:
     UPROPERTY() TObjectPtr<ABreachSelectionStage> SelectionStage;
     TWeakObjectPtr<AActor> PreviousViewTarget;
     bool bSelectionOpen=false,bWasPaused=false,bWasAutoCamera=true,bWasPauseTick=false,bWasClickEvents=false;
+    bool bStartupPending=true,bInitialSelection=false;
     int32 HoveredOperator=INDEX_NONE;
     void DrawSelection();
     void MenuText(const FString& Value,float X,float Y,float Size,FLinearColor Color,bool Chinese=false);
