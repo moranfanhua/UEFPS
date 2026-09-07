@@ -135,6 +135,7 @@ void ABreachCharacter::SetupPlayerInputComponent(UInputComponent* Input)
     Input->BindAction("Crouch", IE_Pressed, this, &ABreachCharacter::CrouchOn);
     Input->BindAction("Crouch", IE_Released, this, &ABreachCharacter::CrouchOff);
     Input->BindAction("Pause", IE_Pressed, this, &ABreachCharacter::TogglePause).bExecuteWhenPaused = true;
+    Input->BindAction("Selection", IE_Pressed, this, &ABreachCharacter::ToggleSelection).bExecuteWhenPaused = true;
     Input->BindAction("Restart", IE_Pressed, this, &ABreachCharacter::RestartRun).bExecuteWhenPaused = true;
     Input->BindAction("Character1", IE_Pressed, this, &ABreachCharacter::Select1);
     Input->BindAction("Character2", IE_Pressed, this, &ABreachCharacter::Select2);
@@ -375,13 +376,24 @@ float ABreachCharacter::GripError() const
 }
 void ABreachCharacter::RestartRun()
 {
+    if(auto* PC=Cast<APlayerController>(Controller))
+        if(auto* HUD=Cast<ABreachHUD>(PC->GetHUD()); HUD && HUD->IsSelectionOpen()) { HUD->ToggleSelection(); return; }
     UGameplayStatics::SetGamePaused(this,false);
     UGameplayStatics::OpenLevel(this,FName(TEXT("/Game/Maps/Arena")));
 }
 void ABreachCharacter::TogglePause()
 {
+    if(auto* PC=Cast<APlayerController>(Controller))
+        if(auto* HUD=Cast<ABreachHUD>(PC->GetHUD()); HUD && HUD->IsSelectionOpen()) { HUD->ToggleSelection(); return; }
     const bool Paused=!UGameplayStatics::IsGamePaused(this);
     StopFire(); bAiming=false; bSprint=false;
     UGameplayStatics::SetGamePaused(this,Paused);
+}
+void ABreachCharacter::ToggleSelection()
+{
+    if(Health<=0) return;
+    StopFire();bAiming=false;
+    if(auto* PC=Cast<APlayerController>(Controller))
+        if(auto* HUD=Cast<ABreachHUD>(PC->GetHUD())) HUD->ToggleSelection();
 }
 

@@ -3,6 +3,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/HUD.h"
+#include "GameFramework/PlayerController.h"
 #include "BreachPose.h"
 #include "BreachGame.generated.h"
 
@@ -15,6 +16,20 @@ class USkeletalMesh;
 class USkeleton;
 class UAnimSequence;
 class ABreachEnemy;
+class ABreachSelectionStage;
+
+UCLASS()
+class NEONBREACH_API ABreachPlayerController : public APlayerController
+{
+    GENERATED_BODY()
+public:
+    bool SetSelectionPauseTick(bool Enabled)
+    {
+        const bool Previous=bShouldPerformFullTickWhenPaused;
+        bShouldPerformFullTickWhenPaused=Enabled;
+        return Previous;
+    }
+};
 
 UCLASS()
 class NEONBREACH_API ABreachCharacter : public ACharacter
@@ -63,6 +78,7 @@ public:
     void SetAim(bool bEnabled);
     void RestartRun();
     void TogglePause();
+    void ToggleSelection();
     void UpdateOperatorPose(float DeltaSeconds);
     bool HasFirstPersonRig() const { return bBodyRigReady; }
     float GripError() const;
@@ -156,6 +172,8 @@ public:
     void SpawnEnemy();
     void RunSmokeTest();
     void RunMovementTest();
+    void TickSelectionTest();
+    TFunction<void()> SelectionTestStep;
     UFUNCTION(Exec) void BreachSmokeTest();
     UFUNCTION(Exec) void BreachGallery();
     UFUNCTION(Exec) void BreachAutoPlay();
@@ -179,7 +197,21 @@ class NEONBREACH_API ABreachHUD : public AHUD
     GENERATED_BODY()
 public:
     virtual void DrawHUD() override;
+    virtual void NotifyHitBoxClick(FName BoxName) override;
+    virtual void NotifyHitBoxBeginCursorOver(FName BoxName) override;
+    virtual void NotifyHitBoxEndCursorOver(FName BoxName) override;
+    void ToggleSelection();
+    void ChooseOperator(int32 Index);
+    bool IsSelectionOpen() const { return bSelectionOpen; }
+    ABreachSelectionStage* GetSelectionStage() const { return SelectionStage; }
+    FVector2D OperatorCardCenter(int32 Index) const;
 private:
+    UPROPERTY() TObjectPtr<ABreachSelectionStage> SelectionStage;
+    TWeakObjectPtr<AActor> PreviousViewTarget;
+    bool bSelectionOpen=false,bWasPaused=false,bWasAutoCamera=true,bWasPauseTick=false,bWasClickEvents=false;
+    int32 HoveredOperator=INDEX_NONE;
+    void DrawSelection();
+    void MenuText(const FString& Value,float X,float Y,float Size,FLinearColor Color,bool Chinese=false);
     void Text(const FString& Value, float X, float Y, float Size, FLinearColor Color);
     void Box(float X, float Y, float W, float H, FLinearColor Color);
 };

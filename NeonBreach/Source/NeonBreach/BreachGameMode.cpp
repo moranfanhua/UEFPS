@@ -24,6 +24,7 @@ ABreachGameMode::ABreachGameMode()
 {
     PrimaryActorTick.bCanEverTick=true;
     DefaultPawnClass=ABreachCharacter::StaticClass();
+    PlayerControllerClass=ABreachPlayerController::StaticClass();
     HUDClass=ABreachHUD::StaticClass();
 }
 void ABreachGameMode::BeginPlay()
@@ -131,6 +132,11 @@ void ABreachGameMode::BeginPlay()
         FTimerHandle MovementTimer;
         GetWorldTimerManager().SetTimer(MovementTimer,this,&ABreachGameMode::RunMovementTest,.6f,false);
     }
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachSelectionTest")))
+    {
+        bGallery=true;PrimaryActorTick.bTickEvenWhenPaused=true;
+        TickSelectionTest();
+    }
     if(FParse::Param(FCommandLine::Get(),TEXT("BreachCapture")))
     {
         FTimerHandle CaptureTimer;
@@ -150,6 +156,8 @@ void ABreachGameMode::BeginPlay()
 void ABreachGameMode::Tick(float Dt)
 {
     Super::Tick(Dt);
+    if(SelectionTestStep) SelectionTestStep();
+    if(UGameplayStatics::IsGamePaused(this)) return;
     NoticeTime=FMath::Max(0.f,NoticeTime-Dt);
     if(bGallery || bGameOver) return;
     if(EnemiesAlive==0 && RemainingToSpawn==0)

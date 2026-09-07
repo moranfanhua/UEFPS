@@ -24,6 +24,7 @@ void ABreachHUD::DrawHUD()
     auto* P=Cast<ABreachCharacter>(GetOwningPawn());
     auto* G=GetWorld()->GetAuthGameMode<ABreachGameMode>();
     if(!P || !G || !Canvas) return;
+    if(bSelectionOpen) { DrawSelection(); return; }
     const float S=Canvas->SizeY/900.f, W=Canvas->SizeX/S, H=900;
     const FLinearColor Cyan(.22f,.82f,1,1), White(.86f,.94f,1,1), Muted(.44f,.60f,.68f,1), Orange(1,.4f,.13f,1), Panel(.008f,.018f,.026f,.84f);
     Box(28,28,286,83,Panel); Box(28,28,3,83,Cyan);
@@ -81,7 +82,7 @@ void ABreachHUD::DrawHUD()
         Text(TEXT("RELOADING"),Cx-42,Cy+68,11,White);
     }
     Text(TEXT("WASD MOVE  /  1 RIFLE  /  3 UNARMED-RUN  /  CTRL CROUCH  /  SPACE JUMP  /  LMB FIRE  /  RMB AIM  /  R RELOAD"),28,H-30,11,Muted);
-    Text(TEXT("F1-F4 OPERATOR  /  ESC PAUSE  /  ENTER RESTART"),W-400,H-30,11,Muted);
+    Text(TEXT("H SELECT  /  F1-F4 OPERATOR  /  ESC PAUSE  /  ENTER RESTART"),W-455,H-30,11,Muted);
     for(TActorIterator<ABreachEnemy> It(GetWorld());It;++It)
     {
         if(It->bDisplayOnly || It->bDefeated) continue;
