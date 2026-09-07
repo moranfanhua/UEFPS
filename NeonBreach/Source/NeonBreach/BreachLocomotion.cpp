@@ -6,7 +6,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TimerManager.h"
 
-void ABreachCharacter::ToggleUnarmed() { SetUnarmed(!bUnarmed); }
+void ABreachCharacter::HolsterRifle() { if(!bUnarmed) SetUnarmed(true); }
+void ABreachCharacter::DrawRifle() { if(bUnarmed) SetUnarmed(false); }
 void ABreachCharacter::SetUnarmed(bool Enabled)
 {
     if(Health<=0) return;

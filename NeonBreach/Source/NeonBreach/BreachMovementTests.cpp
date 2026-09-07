@@ -118,12 +118,12 @@ void ABreachGameMode::RunMovementTest()
     At(4.8f,[=]()
     {
         Check(!P->bIsCrouched && P->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight()>90,TEXT("Standing resumes when overhead space is clear"));
-        Key(EKeys::Three,IE_Pressed);
+        Key(EKeys::One,IE_Pressed);
     });
-    At(4.86f,[=]() { Key(EKeys::Three,IE_Released); });
+    At(4.86f,[=]() { Key(EKeys::One,IE_Released); });
     At(5.1f,[=]()
     {
-        Check(!P->bUnarmed && P->WeaponRoot->IsVisible() && P->WorldWeaponRoot->IsVisible(),TEXT("Second 3 press restores rifle"));
+        Check(!P->bUnarmed && P->WeaponRoot->IsVisible() && P->WorldWeaponRoot->IsVisible(),TEXT("1 restores rifle"));
         const int32 Ammo=P->Ammo; P->Fire(); Check(P->Ammo==Ammo-1,TEXT("Restored rifle can fire"));
         P->Ammo=5; P->Reserve=100; P->Reload();
         Check(P->bReloading,TEXT("Armed reload starts")); Key(EKeys::Three,IE_Pressed);

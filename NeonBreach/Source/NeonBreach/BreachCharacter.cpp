@@ -130,7 +130,8 @@ void ABreachCharacter::SetupPlayerInputComponent(UInputComponent* Input)
     Input->BindAction("Reload", IE_Pressed, this, &ABreachCharacter::Reload);
     Input->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
     Input->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
-    Input->BindAction("Unarmed", IE_Pressed, this, &ABreachCharacter::ToggleUnarmed);
+    Input->BindAction("Unarmed", IE_Pressed, this, &ABreachCharacter::HolsterRifle);
+    Input->BindAction("DrawRifle", IE_Pressed, this, &ABreachCharacter::DrawRifle);
     Input->BindAction("Crouch", IE_Pressed, this, &ABreachCharacter::CrouchOn);
     Input->BindAction("Crouch", IE_Released, this, &ABreachCharacter::CrouchOff);
     Input->BindAction("Pause", IE_Pressed, this, &ABreachCharacter::TogglePause).bExecuteWhenPaused = true;
@@ -299,6 +300,15 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     const float BaseZ=-GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight()-(Bounds.Origin.Z-Bounds.BoxExtent.Z)*Body->GetRelativeScale3D().Z;
     Body->SetRelativeLocation(FVector(0,0,BaseZ));
     WorldBody->SetRelativeLocation(Body->GetRelativeLocation());
+    // The unarmed clips lean the torso and head freely. With a rifle, the
+    // aiming layer keeps the upper body aligned with the camera while the
+    // hips and legs continue to play the crouch / jump / movement clip.
+    if(!bUnarmed)
+        for(EBreachBone Joint:{EBreachBone::Spine,EBreachBone::Chest,EBreachBone::Neck,EBreachBone::Head})
+        {
+            const int32 I=BodyPose.Bone(Joint);
+            BodyPose.Rotate(I,BodyPose.ReferenceCS[I].GetRotation()*BodyPose.CS[I].GetRotation().Inverse());
+        }
     const float Pitch=FMath::Clamp(FRotator::NormalizeAxis(GetControlRotation().Pitch),-80.f,80.f);
     BodyPose.Rotate(EBreachBone::Spine,FVector::ForwardVector,Pitch*.12f);
     BodyPose.Rotate(EBreachBone::Neck,FVector::ForwardVector,Pitch*.88f);

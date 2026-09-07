@@ -46,7 +46,8 @@ public:
     bool bSprint = false;
     bool bUnarmed = false;
     EBreachLocomotion LocomotionState=EBreachLocomotion::Idle;
-    void ToggleUnarmed();
+    void HolsterRifle();
+    void DrawRifle();
     void SetUnarmed(bool Enabled);
     void CrouchOn();
     void CrouchOff();

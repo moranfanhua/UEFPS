@@ -67,7 +67,7 @@ void ABreachHUD::DrawHUD()
     if(P->bUnarmed)
     {
         Text(P->bIsCrouched?TEXT("CROUCH"):TEXT("RUN"),W-298,H-118,30,White);
-        Text(TEXT("3  /  DRAW RIFLE"),W-298,H-74,12,Cyan);
+        Text(TEXT("1  /  DRAW RIFLE"),W-298,H-74,12,Cyan);
     }
     else
     {
@@ -80,7 +80,7 @@ void ABreachHUD::DrawHUD()
         Box(Cx-85,Cy+54,170,4,Panel); Box(Cx-85,Cy+54,170*P->ReloadProgress,4,Cyan);
         Text(TEXT("RELOADING"),Cx-42,Cy+68,11,White);
     }
-    Text(TEXT("WASD MOVE  /  3 UNARMED-RUN  /  CTRL CROUCH  /  SPACE JUMP  /  LMB FIRE  /  RMB AIM  /  R RELOAD"),28,H-30,11,Muted);
+    Text(TEXT("WASD MOVE  /  1 RIFLE  /  3 UNARMED-RUN  /  CTRL CROUCH  /  SPACE JUMP  /  LMB FIRE  /  RMB AIM  /  R RELOAD"),28,H-30,11,Muted);
     Text(TEXT("F1-F4 OPERATOR  /  ESC PAUSE  /  ENTER RESTART"),W-400,H-30,11,Muted);
     for(TActorIterator<ABreachEnemy> It(GetWorld());It;++It)
     {
