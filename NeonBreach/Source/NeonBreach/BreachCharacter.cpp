@@ -155,11 +155,6 @@ void ABreachCharacter::Tick(float Dt)
     if (bTrigger) Fire();
     bSprint=bUnarmed && !bIsCrouched;
     GetCharacterMovement()->MaxWalkSpeed = bAiming ? 300.f : (bSprint ? 790.f : 510.f);
-    CrouchAmount=FMath::FInterpTo(CrouchAmount,bIsCrouched?1.f:0.f,Dt,12.f);
-    // Lean the eye position forward with the head when looking down, so the
-    // owning camera sees the torso and feet instead of looking into the collar.
-    const float LookDown=FMath::Clamp(-FRotator::NormalizeAxis(GetControlRotation().Pitch)/80.f,0.f,1.f);
-    Camera->SetRelativeLocation(FVector(FMath::Lerp(8.f,24.f,LookDown*LookDown),0,67+92-GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight()-50*CrouchAmount));
     Camera->SetFieldOfView(FMath::FInterpTo(Camera->FieldOfView, bAiming ? 66.f : (bSprint && GetVelocity().Size2D()>100 ? 103.f : 96.f), Dt, 12));
     Camera->SetFirstPersonFieldOfView(Camera->FieldOfView);
     Bob += Dt * (bSprint ? 13.f : 9.f);
@@ -300,11 +295,10 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     const float BaseZ=-GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight()-(Bounds.Origin.Z-Bounds.BoxExtent.Z)*Body->GetRelativeScale3D().Z;
     Body->SetRelativeLocation(FVector(0,0,BaseZ));
     WorldBody->SetRelativeLocation(Body->GetRelativeLocation());
-    // The unarmed clips lean the torso and head freely. With a rifle, the
-    // aiming layer keeps the upper body aligned with the camera while the
-    // hips and legs continue to play the crouch / jump / movement clip.
-    if(!bUnarmed)
-        for(EBreachBone Joint:{EBreachBone::Spine,EBreachBone::Chest,EBreachBone::Neck,EBreachBone::Head})
+    // Locomotion owns the unarmed torso; the head always looks where the
+    // player aims. Rifle aiming also stabilizes the spine and chest.
+    for(EBreachBone Joint:{EBreachBone::Spine,EBreachBone::Chest,EBreachBone::Neck,EBreachBone::Head})
+        if(!bUnarmed || Joint==EBreachBone::Neck || Joint==EBreachBone::Head)
         {
             const int32 I=BodyPose.Bone(Joint);
             BodyPose.Rotate(I,BodyPose.ReferenceCS[I].GetRotation()*BodyPose.CS[I].GetRotation().Inverse());
@@ -312,19 +306,51 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     const float Pitch=FMath::Clamp(FRotator::NormalizeAxis(GetControlRotation().Pitch),-80.f,80.f);
     BodyPose.Rotate(EBreachBone::Spine,FVector::ForwardVector,Pitch*.12f);
     BodyPose.Rotate(EBreachBone::Neck,FVector::ForwardVector,Pitch*.88f);
+    // Place the eye relative to this frame's animated neck, before solving
+    // the weapon grips. A capsule-fixed eye ends up behind a leaning torso
+    // and exposes the hidden head's collar during sprinting and crouching.
+    FTransform StandingBody=Body->GetRelativeTransform();
+    StandingBody.SetTranslation(FVector(0,0,-92-(Bounds.Origin.Z-Bounds.BoxExtent.Z)*Body->GetRelativeScale3D().Z));
+    const int32 Neck=BodyPose.Bone(EBreachBone::Neck);
+    const FVector ReferenceNeck=StandingBody.TransformPosition(BodyPose.ReferenceCS[Neck].GetLocation());
+    const FVector EyeOffset=FRotator(Pitch,0,0).RotateVector(FVector(8,0,67)-ReferenceNeck);
+    const FVector AnimatedNeck=Body->GetRelativeTransform().TransformPosition(BodyPose.CS[Neck].GetLocation());
+    const FVector Eye=AnimatedNeck+EyeOffset;
+    const FTransform ActorTransform=GetActorTransform();
+    const float EyeLimit=GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight()-6.f;
+    const FVector Start=ActorTransform.TransformPosition(FVector(0,0,FMath::Clamp(Eye.Z,-EyeLimit,EyeLimit)));
+    const FVector End=ActorTransform.TransformPosition(Eye);
+    FHitResult CameraHit;
+    FCollisionQueryParams CameraQuery(SCENE_QUERY_STAT(BreachEye),false,this);
+    const bool Obstructed=GetWorld()->SweepSingleByChannel(CameraHit,Start,End,FQuat::Identity,ECC_Camera,FCollisionShape::MakeSphere(6.f),CameraQuery);
+    const FVector SafeEye=Obstructed?ActorTransform.InverseTransformPosition(CameraHit.Location):Eye;
+    Camera->SetRelativeLocation(SafeEye);
+    // When a wall limits the eye, keep the complete owner mesh at the same
+    // eye-relative position. The world body and its shadow stay on the capsule.
+    Body->SetRelativeLocation(Body->GetRelativeLocation()+SafeEye-Eye);
     const FTransform ToBody=Body->GetComponentTransform().Inverse();
     const FTransform View=Camera->GetComponentTransform();
-    for(int32 Side=0;Side<2 && !bUnarmed;++Side)
+    const auto PoseArms=[&](FBreachPose& Pose,const FTransform& ToMesh)
     {
-        const FVector Hint=View.TransformPosition(FVector(2,Side?39.f:-39.f,-40));
-        BodyPose.SolveArm(Side,ToBody.TransformPosition(OperatorGrip(this,Side)),ToBody.TransformPosition(Hint));
-        const FVector Direction=View.TransformVectorNoScale(Side?FVector(1,-.2f,0):FVector(.1f,1,0));
-        const FVector Palm=View.TransformVectorNoScale(Side?FVector(0,-1,0):FVector(0,0,1));
-        BodyPose.PoseHand(Side,ToBody.TransformVectorNoScale(Direction),ToBody.TransformVectorNoScale(Palm),.85f);
+        for(int32 Side=0;Side<2 && !bUnarmed;++Side)
+        {
+            const FVector Hint=View.TransformPosition(FVector(2,Side?39.f:-39.f,-40));
+            Pose.SolveArm(Side,ToMesh.TransformPosition(OperatorGrip(this,Side)),ToMesh.TransformPosition(Hint));
+            const FVector Direction=View.TransformVectorNoScale(Side?FVector(1,-.2f,0):FVector(.1f,1,0));
+            const FVector Palm=View.TransformVectorNoScale(Side?FVector(0,-1,0):FVector(0,0,1));
+            Pose.PoseHand(Side,ToMesh.TransformVectorNoScale(Direction),ToMesh.TransformVectorNoScale(Palm),.85f);
+        }
+    };
+    if(Obstructed && !bUnarmed)
+    {
+        FBreachPose WorldPose=BodyPose;
+        PoseArms(WorldPose,WorldBody->GetComponentTransform().Inverse());
+        WorldPose.Apply(WorldBody);
     }
+    PoseArms(BodyPose,ToBody);
     // Both representations use the complete source mesh and the same body pose.
     // Only the owning camera hides the head; world views and shadows keep it.
-    BodyPose.Apply(WorldBody);
+    if(!Obstructed || bUnarmed) BodyPose.Apply(WorldBody);
     BodyPose.Apply(Body,true);
     WorldBody->RefreshBoneTransforms();
     Body->RefreshBoneTransforms();

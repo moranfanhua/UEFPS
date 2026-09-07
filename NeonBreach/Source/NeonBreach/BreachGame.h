@@ -73,7 +73,7 @@ private:
     void UpdateLocomotion(float DeltaSeconds);
     TArray<FTransform> LocomotionBlendFrom;
     float LocomotionTime=0.f,LocomotionBlendTime=1.f;
-    float AirTime=0.f,LandTime=10.f,CrouchAmount=0.f;
+    float AirTime=0.f,LandTime=10.f;
     bool bWasFalling=false,bJumpTakingOff=false;
     bool bBodyRigReady=false;
     void MoveForward(float Value);

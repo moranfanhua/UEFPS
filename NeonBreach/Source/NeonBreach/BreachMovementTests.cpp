@@ -5,6 +5,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/PoseableMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -24,10 +25,12 @@ void ABreachGameMode::RunMovementTest()
     int32 Index=0; FParse::Value(FCommandLine::Get(),TEXT("BreachOperator="),Index); Index=FMath::Clamp(Index,0,3);
     P->SelectOperator(Index); P->SetUnarmed(false);
     P->SetActorLocation(FVector(-1200,-1250,94));
-    PC->SetControlRotation(FRotator::ZeroRotator);
+    float LookPitch=0; FParse::Value(FCommandLine::Get(),TEXT("BreachLookPitch="),LookPitch);
+    PC->SetControlRotation(FRotator(LookPitch,0,0));
     struct FResults { FString Text; int32 Failed=0; float StandingEye=0; TWeakObjectPtr<AActor> Roof; };
     auto Results=MakeShared<FResults>();
-    const FString Prefix=FString::Printf(TEXT("%s_%s"),FParse::Param(FCommandLine::Get(),TEXT("BreachMovementFirstPerson"))?TEXT("MovementFPS"):TEXT("Movement"),Breach::Keys[Index]);
+    FString Prefix=FString::Printf(TEXT("%s_%s"),FParse::Param(FCommandLine::Get(),TEXT("BreachMovementFirstPerson"))?TEXT("MovementFPS"):TEXT("Movement"),Breach::Keys[Index]);
+    if(!FMath::IsNearlyZero(LookPitch)) Prefix+=FString::Printf(TEXT("_Pitch%d"),FMath::RoundToInt(LookPitch));
     const auto Check=[Results](bool Pass,const FString& Name)
     {
         Results->Text+=FString::Printf(TEXT("%s %s\n"),Pass?TEXT("PASS"):TEXT("FAIL"),*Name);
@@ -45,9 +48,21 @@ void ABreachGameMode::RunMovementTest()
         PC->InputKey(FInputKeyEventArgs(nullptr,FInputDeviceId::CreateFromInternalId(0),Button,Event,Event==IE_Released?0.f:1.f,false,FPlatformTime::Cycles64()));
     };
     const bool Capture=FParse::Param(FCommandLine::Get(),TEXT("BreachMovementCapture"));
-    const auto Screenshot=[Prefix,Capture](const TCHAR* Name)
+    const auto Screenshot=[Prefix,Capture,P,Check](const TCHAR* Name)
     {
-        if(Capture) FScreenshotRequest::RequestScreenshot(FPaths::ProjectDir()/TEXT("Saved")/(Prefix+TEXT("_")+Name+TEXT(".png")),true,false);
+        FBreachPose Rig; Rig.Init(Breach::CharacterMesh(P->OperatorIndex),P->OperatorIndex);
+        const FName NeckName=P->Body->GetBoneName(Rig.Bone(EBreachBone::Neck));
+        const FVector Collar=P->Body->GetBoneLocationByName(NeckName,EBoneSpaces::WorldSpace);
+        Check(FVector::DotProduct(Collar-P->Camera->GetComponentLocation(),P->Camera->GetForwardVector())<0,
+            FString::Printf(TEXT("%s collar stays behind the first person eye"),Name));
+        if(Capture)
+        {
+            const FTransform ToActor=P->GetActorTransform().Inverse();
+            const FVector Neck=ToActor.TransformPosition(P->WorldBody->GetBoneLocationByName(P->WorldBody->GetBoneName(Rig.Bone(EBreachBone::Neck)),EBoneSpaces::WorldSpace));
+            const FVector Head=ToActor.TransformPosition(P->WorldBody->GetBoneLocationByName(P->WorldBody->GetBoneName(Rig.Bone(EBreachBone::Head)),EBoneSpaces::WorldSpace));
+            UE_LOG(LogTemp,Display,TEXT("MOVEMENT_VIEW %s camera=%s neck=%s head=%s"),Name,*P->Camera->GetRelativeLocation().ToString(),*Neck.ToString(),*Head.ToString());
+            FScreenshotRequest::RequestScreenshot(FPaths::ProjectDir()/TEXT("Saved")/(Prefix+TEXT("_")+Name+TEXT(".png")),true,false);
+        }
     };
     if(Capture && !FParse::Param(FCommandLine::Get(),TEXT("BreachMovementFirstPerson")))
     {
@@ -131,6 +146,21 @@ void ABreachGameMode::RunMovementTest()
     At(5.16f,[=]() { Key(EKeys::Three,IE_Released); Key(EKeys::F3,IE_Pressed); });
     At(5.22f,[=]() { Key(EKeys::F3,IE_Released); });
     At(5.4f,[=]() { Check(P->OperatorIndex==2 && P->bUnarmed && P->HasLocomotionAnimations(),TEXT("F3 changes character while preserving unarmed mode")); });
+    At(5.55f,[=]() { P->SelectOperator(Index); P->CrouchOn(); PC->SetControlRotation(FRotator(-35,0,0)); });
+    At(5.95f,[=,this]()
+    {
+        auto* Wall=GetWorld()->SpawnActor<AActor>();
+        auto* Collision=NewObject<UBoxComponent>(Wall); Wall->SetRootComponent(Collision);
+        Collision->SetBoxExtent(FVector(10,90,150)); Collision->SetCollisionProfileName(TEXT("BlockAll")); Collision->RegisterComponent();
+        Wall->SetActorLocation(P->GetActorLocation()+FVector(45,0,0)); Results->Roof=Wall;
+    });
+    At(6.15f,[=]()
+    {
+        Check(P->Camera->GetComponentLocation().X<P->GetActorLocation().X+30.f,TEXT("Leaning eye stops before a nearby wall"));
+        Screenshot(TEXT("WallCrouch"));
+        if(Results->Roof.IsValid()) Results->Roof->Destroy();
+        P->CrouchOff();
+    });
     At(7.1f,[=]() { Check(!P->bReloading && P->Ammo==5 && P->Reserve==100,TEXT("Holstering cancels delayed reload without changing ammo")); });
     At(7.3f,[=]()
     {
