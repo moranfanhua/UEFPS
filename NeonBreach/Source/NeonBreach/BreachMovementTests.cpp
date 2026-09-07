@@ -29,7 +29,7 @@ void ABreachGameMode::RunMovementTest()
     PC->SetControlRotation(FRotator(LookPitch,0,0));
     struct FResults
     {
-        FString Text; int32 Failed=0; float StandingEye=0; TWeakObjectPtr<AActor> Roof;
+        FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0; TWeakObjectPtr<AActor> Roof;
         FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit};
         int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0;
     };
@@ -127,7 +127,19 @@ void ABreachGameMode::RunMovementTest()
         Check(P->GetCharacterMovement()->IsFalling() && P->GetVelocity().Z>0 && P->LocomotionState==EBreachLocomotion::JumpStart,TEXT("Space triggers physical jump and takeoff animation"));
         Screenshot(TEXT("JumpStart"));
     });
-    At(1.83f,[=]() { Check(P->LocomotionState==EBreachLocomotion::JumpLoop,TEXT("Takeoff transitions to airborne loop")); Screenshot(TEXT("JumpLoop")); });
+    const auto LegReach=[P]()
+    {
+        FBreachPose Rig;Rig.Init(Breach::CharacterMesh(P->OperatorIndex),P->OperatorIndex);
+        const auto Height=[&](EBreachBone Bone) { return P->WorldBody->GetBoneLocationByName(P->WorldBody->GetBoneName(Rig.Bone(Bone)),EBoneSpaces::WorldSpace).Z; };
+        return float(Height(EBreachBone::Pelvis)-(Height(EBreachBone::LFoot)+Height(EBreachBone::RFoot))*.5);
+    };
+    At(1.83f,[=]() { Check(P->LocomotionState==EBreachLocomotion::JumpLoop,TEXT("Takeoff transitions to airborne pose")); Results->AirLegReach=LegReach();Screenshot(TEXT("JumpLoop")); });
+    At(2.25f,[=]()
+    {
+        Check(P->GetVelocity().Z<0 && P->LocomotionState==EBreachLocomotion::JumpLoop,TEXT("Female jump remains airborne during descent"));
+        Check(LegReach()>Results->AirLegReach+10.f,TEXT("Female jump extends legs for landing instead of repeating the knee tuck"));
+        Screenshot(TEXT("JumpFall"));
+    });
     At(2.54f,[=]() { Check(!P->GetCharacterMovement()->IsFalling() && P->LocomotionState==EBreachLocomotion::JumpLand,TEXT("Ground contact triggers landing animation")); Screenshot(TEXT("Land")); });
     At(2.75f,[=]() { StableEye(Results->JumpEye,Results->JumpSamples,TEXT("Jump and landing relative to physical player motion")); });
     At(2.9f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
