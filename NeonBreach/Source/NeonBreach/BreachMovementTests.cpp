@@ -27,7 +27,12 @@ void ABreachGameMode::RunMovementTest()
     P->SetActorLocation(FVector(-1200,-1250,94));
     float LookPitch=0; FParse::Value(FCommandLine::Get(),TEXT("BreachLookPitch="),LookPitch);
     PC->SetControlRotation(FRotator(LookPitch,0,0));
-    struct FResults { FString Text; int32 Failed=0; float StandingEye=0; TWeakObjectPtr<AActor> Roof; };
+    struct FResults
+    {
+        FString Text; int32 Failed=0; float StandingEye=0; TWeakObjectPtr<AActor> Roof;
+        FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit};
+        int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0;
+    };
     auto Results=MakeShared<FResults>();
     FString Prefix=FString::Printf(TEXT("%s_%s"),FParse::Param(FCommandLine::Get(),TEXT("BreachMovementFirstPerson"))?TEXT("MovementFPS"):TEXT("Movement"),Breach::Keys[Index]);
     if(!FMath::IsNearlyZero(LookPitch)) Prefix+=FString::Printf(TEXT("_Pitch%d"),FMath::RoundToInt(LookPitch));
@@ -47,6 +52,22 @@ void ABreachGameMode::RunMovementTest()
     {
         PC->InputKey(FInputKeyEventArgs(nullptr,FInputDeviceId::CreateFromInternalId(0),Button,Event,Event==IE_Released?0.f:1.f,false,FPlatformTime::Cycles64()));
     };
+    const auto StableEye=[Check](const FBox& Bounds,int32 Samples,const TCHAR* Motion)
+    {
+        const FVector Drift=Bounds.IsValid?Bounds.GetSize():FVector(BIG_NUMBER);
+        Check(Samples>=4 && Drift.GetMax()<.5f,FString::Printf(TEXT("%s camera stays stable (drift %s cm, %d samples)"),Motion,*Drift.ToString(),Samples));
+    };
+    const double CameraTestStart=GetWorld()->GetTimeSeconds();
+    FTimerHandle CameraMonitor;
+    GetWorldTimerManager().SetTimer(CameraMonitor,[=,this]()
+    {
+        const double Time=GetWorld()->GetTimeSeconds()-CameraTestStart-.6;
+        const FVector Eye=P->GetActorTransform().InverseTransformPosition(P->Camera->GetComponentLocation());
+        if(Time>=.6 && Time<1.04) { Results->RunEye+=Eye; ++Results->RunSamples; }
+        if(Time>=1.43 && Time<2.65) { Results->JumpEye+=Eye; ++Results->JumpSamples; }
+        if(Time>=3.58 && Time<3.84) { Results->CrouchEye+=Eye; ++Results->CrouchSamples; }
+        if(Time>=6.65 && Time<6.94) { Results->JogEye+=Eye; ++Results->JogSamples; }
+    },.016f,true);
     const bool Capture=FParse::Param(FCommandLine::Get(),TEXT("BreachMovementCapture"));
     const auto Screenshot=[Prefix,Capture,P,Check](const TCHAR* Name)
     {
@@ -96,6 +117,7 @@ void ABreachGameMode::RunMovementTest()
     At(1.05f,[=]()
     {
         Check(P->GetVelocity().Size2D()>700 && P->LocomotionState==EBreachLocomotion::Sprint,TEXT("W in unarmed mode reaches sprint speed and animation"));
+        StableEye(Results->RunEye,Results->RunSamples,TEXT("Sprint"));
         Key(EKeys::W,IE_Released);
     });
     At(1.35f,[=]() { Key(EKeys::SpaceBar,IE_Pressed); });
@@ -107,6 +129,7 @@ void ABreachGameMode::RunMovementTest()
     });
     At(1.83f,[=]() { Check(P->LocomotionState==EBreachLocomotion::JumpLoop,TEXT("Takeoff transitions to airborne loop")); Screenshot(TEXT("JumpLoop")); });
     At(2.54f,[=]() { Check(!P->GetCharacterMovement()->IsFalling() && P->LocomotionState==EBreachLocomotion::JumpLand,TEXT("Ground contact triggers landing animation")); Screenshot(TEXT("Land")); });
+    At(2.75f,[=]() { StableEye(Results->JumpEye,Results->JumpSamples,TEXT("Jump and landing relative to physical player motion")); });
     At(2.9f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
     At(3.35f,[=]()
     {
@@ -118,6 +141,7 @@ void ABreachGameMode::RunMovementTest()
     At(3.85f,[=]()
     {
         Check(P->GetVelocity().Size2D()>100 && P->GetVelocity().Size2D()<230 && P->LocomotionState==EBreachLocomotion::CrouchWalk,TEXT("Crouch movement uses reduced speed and crouch walk animation"));
+        StableEye(Results->CrouchEye,Results->CrouchSamples,TEXT("Crouch walk"));
         Screenshot(TEXT("CrouchWalk")); Key(EKeys::W,IE_Released);
     });
     At(4.05f,[=,this]()
@@ -161,9 +185,13 @@ void ABreachGameMode::RunMovementTest()
         if(Results->Roof.IsValid()) Results->Roof->Destroy();
         P->CrouchOff();
     });
+    At(6.4f,[=]() { Key(EKeys::One,IE_Pressed); Key(EKeys::W,IE_Pressed); });
+    At(6.46f,[=]() { Key(EKeys::One,IE_Released); });
+    At(6.96f,[=]() { Key(EKeys::W,IE_Released); StableEye(Results->JogEye,Results->JogSamples,TEXT("Armed jog")); });
     At(7.1f,[=]() { Check(!P->bReloading && P->Ammo==5 && P->Reserve==100,TEXT("Holstering cancels delayed reload without changing ammo")); });
-    At(7.3f,[=]()
+    At(7.3f,[=,this]() mutable
     {
+        GetWorldTimerManager().ClearTimer(CameraMonitor);
         Results->Text+=FString::Printf(TEXT("FAILURES=%d\n"),Results->Failed);
         FFileHelper::SaveStringToFile(Results->Text,*(FPaths::ProjectDir()/TEXT("Saved")/(Prefix+TEXT(".txt"))));
         UE_LOG(LogTemp,Display,TEXT("MOVEMENT_TEST %s\n%s"),*Prefix,*Results->Text);
