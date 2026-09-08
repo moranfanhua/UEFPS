@@ -209,6 +209,8 @@ private:
     bool bStartupPending=true,bInitialSelection=false;
     int32 HoveredOperator=INDEX_NONE;
     void DrawSelection();
+    void EnsureSelectionStage();
+    void DrawPlayerVitals(const ABreachCharacter* Player);
     void MenuText(const FString& Value,float X,float Y,float Size,FLinearColor Color,bool Chinese=false);
     void Text(const FString& Value, float X, float Y, float Size, FLinearColor Color);
     void Box(float X, float Y, float W, float H, FLinearColor Color);

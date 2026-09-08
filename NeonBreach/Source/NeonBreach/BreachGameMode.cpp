@@ -70,6 +70,8 @@ void ABreachGameMode::BeginPlay()
             if(auto* P=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0)))
             {
                 P->SelectOperator(FMath::Clamp(Operator,0,3));
+                float PreviewHealth=100.f;
+                if(FParse::Value(FCommandLine::Get(),TEXT("BreachHealth="),PreviewHealth)) P->Health=FMath::Clamp(PreviewHealth,0.f,100.f);
                 P->GetController()->SetControlRotation(FRotator(Pitch,0,0));
                 if(FParse::Param(FCommandLine::Get(),TEXT("BreachAim"))) P->SetAim(true);
                 if(FParse::Param(FCommandLine::Get(),TEXT("BreachUnarmed"))) P->SetUnarmed(true);

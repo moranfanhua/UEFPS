@@ -56,13 +56,7 @@ void ABreachHUD::DrawHUD()
             for(int32 X : {-1,1}) for(int32 Y : {-1,1}) DrawLine((Cx+X*7)*S,(Cy+Y*7)*S,(Cx+X*14)*S,(Cy+Y*14)*S,Hit,2*S);
         }
     }
-    Box(28,H-150,340,98,Panel); Box(28,H-150,3,98,Cyan);
-    Text(TEXT("VITALS"),46,H-138,12,Muted);
-    Text(FString::Printf(TEXT("%03d"),FMath::CeilToInt(P->Health)),46,H-121,37,P->Health<30?Orange:White);
-    Text(TEXT("HP"),122,H-100,13,Muted);
-    Box(159,H-108,184,8,FLinearColor(.1f,.15f,.2f,1));
-    Box(159,H-108,184*P->Health/100.f,8,P->Health<30?Orange:Cyan);
-    Text(Breach::Names[P->OperatorIndex],46,H-76,13,Cyan);
+    DrawPlayerVitals(P);
     Box(W-318,H-150,290,98,Panel); Box(W-31,H-150,3,98,Cyan);
     Text(P->bUnarmed?TEXT("UNARMED   /   FREE HANDS"):TEXT("VX-30   /   PULSE RIFLE"),W-298,H-138,12,Muted);
     if(P->bUnarmed)
@@ -81,8 +75,8 @@ void ABreachHUD::DrawHUD()
         Box(Cx-85,Cy+54,170,4,Panel); Box(Cx-85,Cy+54,170*P->ReloadProgress,4,Cyan);
         Text(TEXT("RELOADING"),Cx-42,Cy+68,11,White);
     }
-    Text(TEXT("WASD MOVE  /  1 RIFLE  /  3 UNARMED-RUN  /  CTRL CROUCH  /  SPACE JUMP  /  LMB FIRE  /  RMB AIM  /  R RELOAD"),28,H-30,11,Muted);
-    Text(TEXT("H SELECT  /  ESC PAUSE  /  ENTER RESTART"),W-340,H-30,11,Muted);
+    //Text(TEXT("WASD MOVE  /  1 RIFLE  /  3 UNARMED-RUN  /  CTRL CROUCH  /  SPACE JUMP  /  LMB FIRE  /  RMB AIM  /  R RELOAD"),28,H-30,11,Muted);
+    //Text(TEXT("H SELECT  /  ESC PAUSE  /  ENTER RESTART"),W-340,H-30,11,Muted);
     for(TActorIterator<ABreachEnemy> It(GetWorld());It;++It)
     {
         if(It->bDisplayOnly || It->bDefeated) continue;

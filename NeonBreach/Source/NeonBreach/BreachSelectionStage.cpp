@@ -15,6 +15,7 @@ namespace
     {
         auto* Asset=Breach::CharacterMesh(Index);
         Mesh->SetSkinnedAssetAndUpdate(Asset);
+        if(!Asset) return;
         for(int32 Slot:{10,11,12,13,14}) Mesh->SetMaterial(Slot,nullptr);
         if(Index==0)
             for(int32 Slot:{10,11,12,13,14}) Mesh->SetMaterial(Slot,Breach::Material(TEXT("M_Eula_CapeCorrect")));
@@ -41,9 +42,9 @@ ABreachSelectionStage::ABreachSelectionStage()
     PrimaryActorTick.bTickEvenWhenPaused=true;
     auto* Root=CreateDefaultSubobject<USceneComponent>(TEXT("StageRoot"));SetRootComponent(Root);
     Camera=CreateDefaultSubobject<UCameraComponent>(TEXT("SelectionCamera"));Camera->SetupAttachment(Root);
-    const FVector Position(565,120,130),Focus(0,0,63);
+    const FVector Position(480,120,160),Focus(0,0,85);
     Camera->SetRelativeLocation(Position);Camera->SetRelativeRotation((Focus-Position).Rotation());
-    Camera->SetFieldOfView(45);Camera->bConstrainAspectRatio=false;
+    Camera->SetFieldOfView(42);Camera->bConstrainAspectRatio=false;
     Camera->PostProcessSettings.bOverride_AutoExposureMethod=true;
     Camera->PostProcessSettings.AutoExposureMethod=EAutoExposureMethod::AEM_Manual;
     Camera->PostProcessSettings.bOverride_AutoExposureBias=true;Camera->PostProcessSettings.AutoExposureBias=0;
@@ -81,7 +82,7 @@ void ABreachSelectionStage::BeginPlay()
     {
         const FVector Origin(0,1800+I*700,0);
         auto* Avatar=NewObject<UPoseableMeshComponent>(this);Avatar->SetupAttachment(RootComponent);
-        Avatar->SetRelativeLocation(Origin);SetupModel(Avatar,I);Avatar->RegisterComponent();PortraitBodies.Add(Avatar);
+        Avatar->SetRelativeLocation(Origin);SetupModel(Avatar,I);Avatar->SetVisibleInSceneCaptureOnly(true);Avatar->RegisterComponent();PortraitBodies.Add(Avatar);
         FBreachPose Rig;Rig.Init(Breach::CharacterMesh(I),I);Rig.Sample(Clip(I,TEXT("Female_Idle")),1,true);Rig.Apply(Avatar);Avatar->RefreshBoneTransforms();
         Light(Origin+FVector(190,-100,230),FLinearColor(1,.95f,.9f),5000,500);
         Light(Origin+FVector(40,130,170),FLinearColor(.3f,.65f,1),3000,450);
@@ -110,12 +111,17 @@ void ABreachSelectionStage::Select(int32 Index)
 }
 void ABreachSelectionStage::SetOpen(bool Open)
 {
-    bOpen=Open;SetActorHiddenInGame(!Open);SetActorTickEnabled(Open);
-    PreviousTime=FPlatformTime::Seconds();WarmupFrames=0;
+    bOpen=Open;Preview->SetVisibility(Open);
+    // Finish the one-time portrait captures even if the player immediately
+    // leaves selection; the gameplay HUD reuses these cached textures.
+    SetActorTickEnabled(Open || WarmupFrames<24);
+    PreviousTime=FPlatformTime::Seconds();
 }
 void ABreachSelectionStage::Tick(float DeltaSeconds)
 {
-    Super::Tick(DeltaSeconds);if(!bOpen) return;
+    Super::Tick(DeltaSeconds);
+    if(bOpen)
+    {
     const double Now=FPlatformTime::Seconds();AnimationTime+=FMath::Min(float(Now-PreviousTime),.1f);PreviousTime=Now;
     const float Duration=Entrance?Entrance->GetPlayLength()/.75f:0;
     if(AnimationTime<Duration) Pose.Sample(Entrance,AnimationTime*.75f,false);
@@ -132,6 +138,8 @@ void ABreachSelectionStage::Tick(float DeltaSeconds)
         }
     }
     Pose.Apply(Preview);Preview->RefreshBoneTransforms();
+    }
+    if(WarmupFrames>=24) return;
     ++WarmupFrames;
     if(WarmupFrames==7 || WarmupFrames==23)
         for(int32 I=0;I<4;++I)
@@ -141,6 +149,7 @@ void ABreachSelectionStage::Tick(float DeltaSeconds)
         }
     if(WarmupFrames==8 || WarmupFrames==24)
         for(const auto& Capture:PortraitCameras) Capture->CaptureScene();
+    if(WarmupFrames==24 && !bOpen) SetActorTickEnabled(false);
 }
 UTextureRenderTarget2D* ABreachSelectionStage::Portrait(int32 Index) const
 {

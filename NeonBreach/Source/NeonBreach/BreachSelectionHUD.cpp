@@ -48,14 +48,20 @@ void ABreachHUD::Tick(float DeltaSeconds)
     if(!bSelectionOpen) ToggleSelection();
 }
 
+void ABreachHUD::EnsureSelectionStage()
+{
+    if(SelectionStage) return;
+    SelectionStage=GetWorld()->SpawnActor<ABreachSelectionStage>(FVector(0,0,-20000),FRotator::ZeroRotator);
+    if(SelectionStage) SelectionStage->SetOpen(false);
+}
+
 void ABreachHUD::ToggleSelection()
 {
     auto* PC=Cast<ABreachPlayerController>(GetOwningPlayerController());auto* Player=Cast<ABreachCharacter>(GetOwningPawn());
     if(!PC || !Player) return;
     if(!bSelectionOpen)
     {
-        if(!SelectionStage)
-            SelectionStage=GetWorld()->SpawnActor<ABreachSelectionStage>(FVector(0,0,-20000),FRotator::ZeroRotator);
+        EnsureSelectionStage();
         if(!SelectionStage) return;
         bWasPaused=UGameplayStatics::IsGamePaused(this);
         bWasAutoCamera=PC->bAutoManageActiveCameraTarget;bWasPauseTick=PC->SetSelectionPauseTick(true);bWasClickEvents=PC->bEnableClickEvents;
@@ -120,10 +126,10 @@ void ABreachHUD::DrawSelection()
     AddHitBox(FVector2D((W-190)*Scale,46*Scale),FVector2D(138*Scale,40*Scale),TEXT("SelectionClose"),true,10);
     const int32 Selected=SelectionStage->SelectedIndex;
     static const TCHAR* Titles[]={TEXT("EULA"),TEXT("EULA / CITY"),TEXT("LI ZHIYAN"),TEXT("MARIONETTE")};
-    static const TCHAR* ChineseNames[]={TEXT("优菈"),TEXT("联动优菈"),TEXT("李织烟"),TEXT("Marionette")};
+    static const TCHAR* ChineseNames[]={TEXT("优菈"),TEXT("联动优菈"),TEXT("李织烟"),TEXT("木偶")};
     MenuText(FString::Printf(TEXT("0%d  /  OPERATOR"),Selected+1),64,280,12,Cyan);
     MenuText(Titles[Selected],60,305,40,White);
-    MenuText(ChineseNames[Selected],65,373,22,FLinearColor(.66f,.81f,.88f),Selected!=3);
+    MenuText(ChineseNames[Selected],65,373,22,FLinearColor(.66f,.81f,.88f),true);
     Box(65,420,48,2,Cyan);Box(117,420,162,1,FLinearColor(.22f,.4f,.49f,.45f));
     Gradient(Canvas,0,676,W,48,FLinearColor(.004f,.01f,.018f,0),FLinearColor(.004f,.01f,.018f,.95f));
     Box(0,724,W,176,Dark);Box(52,700,W-104,1,FLinearColor(.2f,.45f,.55f,.28f));
@@ -137,12 +143,12 @@ void ABreachHUD::DrawSelection()
             DrawTexture(Texture,(X+1)*Scale,(Y+1)*Scale,162*Scale,101*Scale,0,0,1,1,FLinearColor::White,BLEND_Opaque);
         if(!Active && !Hover) Box(X+1,Y+1,162,101,FLinearColor(.015f,.04f,.06f,.22f));
         Box(X,Y,164,3,Border);
-        MenuText(ChineseNames[I],X+11,Y+111,13,Active?White:Muted,I!=3);
+        MenuText(ChineseNames[I],X+11,Y+111,13,Active?White:Muted,true);
         if(Active) { Box(X+136,Y+118,12,3,Cyan);Box(X+145,Y+113,3,8,Cyan); }
         AddHitBox(FVector2D(X*Scale,Y*Scale),FVector2D(164*Scale,142*Scale),FName(*FString::Printf(TEXT("Operator_%d"),I)),true,5);
     }
-    MenuText(TEXT("点击头像选择角色 · 再次点击重播动作"),54,869,12,Muted,true);
-    MenuText(bInitialSelection?TEXT("ENTER / H / ESC  开始游戏"):TEXT("H / ESC  返回作战"),bInitialSelection?W-284:W-208,869,12,Muted,true);
+    //MenuText(TEXT("点击头像选择角色 · 再次点击重播动作"),54,869,12,Muted,true);
+    //MenuText(bInitialSelection?TEXT("ENTER / H / ESC  开始游戏"):TEXT("H / ESC  返回作战"),bInitialSelection?W-284:W-208,869,12,Muted,true);
 }
 void ABreachHUD::NotifyHitBoxClick(FName BoxName)
 {
