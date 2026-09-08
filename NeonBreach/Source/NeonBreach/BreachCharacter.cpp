@@ -146,14 +146,21 @@ void ABreachCharacter::Turn(float V) { if(Health>0) AddControllerYawInput(V * (b
 void ABreachCharacter::LookUp(float V) { if(Health>0) AddControllerPitchInput(V * (bAiming ? .45f : .75f)); }
 void ABreachCharacter::StartFire() { if(!bUnarmed) { bTrigger=true; Fire(); } }
 void ABreachCharacter::StopFire() { bTrigger=false; }
-void ABreachCharacter::SetAim(bool Value) { bAiming=Value && !bUnarmed; }
+void ABreachCharacter::SetAim(bool Value)
+{
+    bAiming=Value && !bUnarmed;
+    CastChecked<UBreachMovementComponent>(GetCharacterMovement())->SetLocomotionIntent(bUnarmed,bAiming);
+}
+bool ABreachCharacter::CanJumpInternal_Implementation() const
+{
+    return Health>0 && (IsSliding()?JumpIsAllowedInternal():Super::CanJumpInternal_Implementation());
+}
 
 void ABreachCharacter::Tick(float Dt)
 {
     Super::Tick(Dt);
     if (bTrigger) Fire();
     bSprint=bUnarmed && !bIsCrouched;
-    GetCharacterMovement()->MaxWalkSpeed = bAiming ? 300.f : (bSprint ? UBreachMovementComponent::UnarmedSpeed : UBreachMovementComponent::RifleSpeed);
     Camera->SetFieldOfView(FMath::FInterpTo(Camera->FieldOfView, bAiming ? 66.f : 96.f, Dt, 12));
     Camera->SetFirstPersonFieldOfView(Camera->FieldOfView);
     Bob += Dt * (bSprint ? 13.f : 9.f);
@@ -384,13 +391,13 @@ void ABreachCharacter::TogglePause()
     if(auto* PC=Cast<APlayerController>(Controller))
         if(auto* HUD=Cast<ABreachHUD>(PC->GetHUD()); HUD && HUD->IsSelectionOpen()) { HUD->ToggleSelection(); return; }
     const bool Paused=!UGameplayStatics::IsGamePaused(this);
-    StopFire(); bAiming=false; bSprint=false;
+    StopFire(); SetAim(false); bSprint=false;
     UGameplayStatics::SetGamePaused(this,Paused);
 }
 void ABreachCharacter::ToggleSelection()
 {
     if(Health<=0) return;
-    StopFire();bAiming=false;
+    StopFire();SetAim(false);
     if(auto* PC=Cast<APlayerController>(Controller))
         if(auto* HUD=Cast<ABreachHUD>(PC->GetHUD())) HUD->ToggleSelection();
 }

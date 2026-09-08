@@ -30,7 +30,7 @@ void ABreachGameMode::RunMovementTest()
     PC->SetControlRotation(FRotator(LookPitch,0,0));
     struct FResults
     {
-        FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideBoosted=0,SlideEntryLegReach=0,SlideWallX=0; TWeakObjectPtr<AActor> Roof;
+        FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideBoosted=0,SlideEntryLegReach=0,SlideWallX=0,TapSpeed=0,JumpSpeed=0,RampSpeed=0; TWeakObjectPtr<AActor> Roof,Ramp;
         FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit},SlideEye{ForceInit};
         int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0,SlideSamples=0;
     };
@@ -42,8 +42,9 @@ void ABreachGameMode::RunMovementTest()
         Results->Text+=FString::Printf(TEXT("%s %s\n"),Pass?TEXT("PASS"):TEXT("FAIL"),*Name);
         if(!Pass) ++Results->Failed;
     };
-    const auto* Move=CastChecked<UBreachMovementComponent>(P->GetCharacterMovement());
-    const float SlideTailDelay=FMath::Max(0.f,8.6f+Move->SlideMaxDuration+.2f-9.75f);
+    auto* Move=CastChecked<UBreachMovementComponent>(P->GetCharacterMovement());
+    const float FlatSlideDuration=(FMath::Min(Move->UnarmedSpeed+Move->SlideEntryBoost,Move->SlideMaxSpeed)-Move->SlideExitSpeed)/FMath::Max(1.f,Move->SlideDeceleration);
+    const float SlideTailDelay=FMath::Max(0.f,8.6f+FlatSlideDuration+.35f-9.75f);
     const auto At=[this,SlideTailDelay](float Delay,TFunction<void()> Function)
     {
         // Allow the newly selected mesh and its first animation pose to render
@@ -228,7 +229,8 @@ void ABreachGameMode::RunMovementTest()
     At(8.9f,[=]() { Key(EKeys::W,IE_Released);Key(EKeys::D,IE_Pressed); });
     At(9.35f,[=]()
     {
-        Check(P->IsSliding() && P->GetVelocity().X>250 && FMath::Abs(P->GetVelocity().Y)<5,TEXT("Slide preserves momentum direction despite strafe input"));
+        const float Turn=P->GetVelocity().Rotation().Yaw;
+        Check(P->IsSliding() && P->GetVelocity().X>250 && P->GetVelocity().Y>30 && Turn<Move->SlideTurnRate*.55f,TEXT("Slide steering changes direction gradually without snapping to strafe input"));
         Check(P->GetVelocity().Size2D()<Results->SlideBoosted && P->LocomotionState==EBreachLocomotion::Slide,TEXT("Slide slows down and uses the slide animation"));
         Check(LegReach()<Results->SlideEntryLegReach-10.f,TEXT("Running Slide lowers the hips from entry into an extended-leg slide"));
         StableEye(Results->SlideEye,Results->SlideSamples,TEXT("Slide"));
@@ -252,13 +254,14 @@ void ABreachGameMode::RunMovementTest()
     At(10.3f,[=]() { P->GetCharacterMovement()->StopMovementImmediately();P->SetActorLocation(FVector(-1200,-1250,94));Key(EKeys::W,IE_Pressed); });
     At(10.8f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
     At(10.87f,[=]() { Check(P->IsSliding(),TEXT("A fresh crouch press can start the next slide"));Key(EKeys::LeftControl,IE_Released); });
-    At(10.94f,[=]() { Check(!P->IsSliding(),TEXT("Releasing Ctrl cancels the slide"));Key(EKeys::LeftControl,IE_Pressed); });
+    At(10.94f,[=]() { Check(!P->IsSliding(),TEXT("Releasing Ctrl cancels the slide"));Results->TapSpeed=P->GetVelocity().Size2D();Key(EKeys::LeftControl,IE_Pressed); });
     At(11.03f,[=]()
     {
         if(Move->SlideCooldownDuration==0.f)
             Check(P->IsSliding(),TEXT("Zero configured cooldown allows a new qualifying crouch press"));
         else if(Move->SlideCooldownDuration>.25f)
             Check(!P->IsSliding(),TEXT("Configured cooldown prevents stacking slide boosts"));
+        Check(P->GetVelocity().Size2D()<=Results->TapSpeed+2.f,TEXT("Rapid crouch presses do not repeatedly grant entry boosts"));
         Key(EKeys::LeftControl,IE_Released);Key(EKeys::W,IE_Released);
     });
     At(11.2f,[=]() { P->LaunchCharacter(FVector(790,0,540),true,true); });
@@ -278,8 +281,102 @@ void ABreachGameMode::RunMovementTest()
         Check(!P->IsSliding() && P->GetVelocity().Size2D()<10 && P->GetActorLocation().X<Results->SlideWallX-40,TEXT("Slide stops at a wall without tunnelling"));
         Key(EKeys::LeftControl,IE_Released);Key(EKeys::W,IE_Released);if(Results->Roof.IsValid()) Results->Roof->Destroy();
     });
-    At(13.7f,[=,this]() mutable
+    // Check actual velocity as well as the speed limit. This catches an eased
+    // setting that still lets CharacterMovement clamp the player in one frame.
+    const auto Between=[=](float Low,float High,const TCHAR* Name)
     {
+        const float Speed=P->GetVelocity().Size2D();
+        Check(Speed>Low+5 && Speed<High-5 && Move->GetSmoothedMoveSpeed()>Low && Move->GetSmoothedMoveSpeed()<High,
+            FString::Printf(TEXT("%s transitions gradually (actual %.1f, limit %.1f)"),Name,Speed,Move->GetSmoothedMoveSpeed()));
+    };
+    const auto Settled=[=](float Target,const TCHAR* Name)
+    {
+        Check(FMath::IsNearlyEqual(float(P->GetVelocity().Size2D()),Target,8.f),FString::Printf(TEXT("%s reaches %.0f cm/s"),Name,Target));
+    };
+    const auto ResetRun=[=]()
+    {
+        P->CrouchOff();Move->UnCrouch(false);Move->StopMovementImmediately();
+        P->SetActorLocation(FVector(-1200,-1250,94));PC->SetControlRotation(FRotator(LookPitch,0,0));
+        Move->SetMovementMode(MOVE_Walking);
+    };
+    At(14.f,[=]()
+    {
+        ResetRun();P->SetUnarmed(false);P->SetAim(true);P->TogglePause();P->TogglePause();
+        Check(!P->bAiming && Move->GetTargetMoveSpeed()==Move->RifleSpeed,TEXT("Pause clears both aim visuals and the slow movement intent"));
+        Key(EKeys::W,IE_Pressed);
+    });
+    At(14.5f,[=]() { Settled(Move->RifleSpeed,TEXT("Rifle"));P->SetUnarmed(true); });
+    At(14.57f,[=]() { Between(Move->RifleSpeed,Move->UnarmedSpeed,TEXT("Holstering")); });
+    At(14.9f,[=]() { Settled(Move->UnarmedSpeed,TEXT("Unarmed"));P->SetUnarmed(false); });
+    At(14.97f,[=]() { Between(Move->RifleSpeed,Move->UnarmedSpeed,TEXT("Drawing rifle")); });
+    At(15.3f,[=]() { Settled(Move->RifleSpeed,TEXT("Drawing rifle"));P->SetAim(true); });
+    At(15.37f,[=]() { Between(Move->AimSpeed,Move->RifleSpeed,TEXT("Entering aim")); });
+    At(15.65f,[=]() { Settled(Move->AimSpeed,TEXT("Aiming"));P->SetAim(false); });
+    At(15.72f,[=]() { Between(Move->AimSpeed,Move->RifleSpeed,TEXT("Leaving aim")); });
+    At(16.f,[=]() { Settled(Move->RifleSpeed,TEXT("Leaving aim"));Key(EKeys::LeftControl,IE_Pressed); });
+    At(16.07f,[=]() { Between(Move->MaxWalkSpeedCrouched,Move->RifleSpeed,TEXT("Crouching"));Check(!P->IsSliding(),TEXT("Subthreshold crouch remains a normal crouch")); });
+    At(16.4f,[=]() { Settled(Move->MaxWalkSpeedCrouched,TEXT("Crouched"));Key(EKeys::LeftControl,IE_Released); });
+    At(16.47f,[=]() { Between(Move->MaxWalkSpeedCrouched,Move->RifleSpeed,TEXT("Standing")); });
+    At(16.85f,[=]() { Settled(Move->RifleSpeed,TEXT("Standing")); });
+    At(17.f,[=]() { ResetRun();P->SetUnarmed(true); });
+    At(17.6f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
+    At(17.83f,[=]() { Check(P->IsSliding(),TEXT("Slide jump begins from an active slide"));Results->JumpSpeed=P->GetVelocity().Size2D();Key(EKeys::SpaceBar,IE_Pressed); });
+    At(17.91f,[=]()
+    {
+        Check(Move->IsFalling() && !P->IsSliding() && P->GetVelocity().Z>0,TEXT("Space cancels the slide into a physical jump while Ctrl is held"));
+        Check(P->GetVelocity().Size2D()>=Results->JumpSpeed-40.f,TEXT("Slide jump preserves horizontal momentum"));
+        Key(EKeys::SpaceBar,IE_Released);Screenshot(TEXT("SlideJump"));
+    });
+    At(18.4f,[=]() { Check(Move->IsFalling(),TEXT("Slide jump follows the airborne arc"));P->SetUnarmed(false); });
+    At(18.47f,[=]() { Check(P->GetVelocity().Size2D()>=Results->JumpSpeed-50.f,TEXT("Drawing the rifle in the air does not erase slide jump momentum")); });
+    At(18.6f,[=]() { P->SetUnarmed(true); });
+    At(19.08f,[=]() { Check(P->IsSliding() && P->GetVelocity().Size2D()>Move->SlideEntrySpeed,TEXT("Landing at speed with Ctrl held automatically continues sliding"));Screenshot(TEXT("SlideLand"));Key(EKeys::LeftControl,IE_Released); });
+    At(19.17f,[=]() { Check(!P->IsSliding() && P->GetVelocity().Size2D()>Move->UnarmedSpeed,TEXT("Slide exit eases down toward running speed instead of clamping momentum")); });
+    At(20.f,[=]() { ResetRun(); });
+    At(20.5f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
+    At(20.65f,[=,this]()
+    {
+        auto* Roof=GetWorld()->SpawnActor<AActor>();auto* Collision=NewObject<UBoxComponent>(Roof);Roof->SetRootComponent(Collision);
+        Collision->SetBoxExtent(FVector(600,100,15));Collision->SetCollisionProfileName(TEXT("BlockAll"));Collision->RegisterComponent();
+        const float Floor=P->GetActorLocation().Z-P->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+        Roof->SetActorLocation(FVector(P->GetActorLocation().X,P->GetActorLocation().Y,Floor+130));Results->Roof=Roof;
+    });
+    At(20.72f,[=]() { Key(EKeys::SpaceBar,IE_Pressed); });
+    At(20.82f,[=]() { Check(!Move->IsFalling() && P->IsSliding() && P->bIsCrouched,TEXT("A low ceiling safely blocks a slide jump")); });
+    At(20.86f,[=]() { Key(EKeys::SpaceBar,IE_Released);Key(EKeys::LeftControl,IE_Released);Key(EKeys::W,IE_Released);if(Results->Roof.IsValid()) Results->Roof->Destroy(); });
+    const auto Ramp=[=,this](float Pitch)
+    {
+        ResetRun();
+        if(Results->Ramp.IsValid()) Results->Ramp->Destroy();
+        auto* Actor=GetWorld()->SpawnActor<AActor>();auto* Collision=NewObject<UBoxComponent>(Actor);Actor->SetRootComponent(Collision);
+        Collision->SetBoxExtent(FVector(3500,500,30));Collision->SetCollisionProfileName(TEXT("BlockAll"));Collision->RegisterComponent();
+        Actor->SetActorLocationAndRotation(FVector(8000,8000,1500),FRotator(Pitch,0,0));
+        if(Capture)
+        {
+            auto* Surface=NewObject<UStaticMeshComponent>(Actor);Surface->SetupAttachment(Collision);
+            Surface->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube")));
+            Surface->SetRelativeScale3D(FVector(70,10,.6f));Surface->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            Surface->SetMaterial(0,Breach::Material(TEXT("M_Metal")));Surface->RegisterComponent();
+        }
+        Results->Ramp=Actor;
+        P->SetActorLocation(Actor->GetActorTransform().TransformPosition(FVector(-2600,0,30))+FVector(0,0,112));
+        Move->SetMovementMode(MOVE_Falling);
+    };
+    At(21.5f,[=]() { Ramp(-20); });
+    At(22.2f,[=]() { Check(Move->IsMovingOnGround(),TEXT("Downhill test lands on the sloped floor"));Key(EKeys::W,IE_Pressed); });
+    At(22.7f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
+    At(23.f,[=]() { Results->RampSpeed=P->GetVelocity().Size2D(); });
+    At(24.7f,[=]() { Check(P->IsSliding() && P->GetVelocity().Size2D()>Results->RampSpeed+30.f,TEXT("Downhill gravity sustains and accelerates sliding beyond the former time limit")); });
+    At(26.f,[=]() { Check(P->IsSliding() && P->GetVelocity().Size2D()<=Move->SlideMaxSpeed+5.f,TEXT("Long downhill slide remains active with a bounded top speed"));Screenshot(TEXT("SlideDownhill"));Key(EKeys::LeftControl,IE_Released);Key(EKeys::W,IE_Released); });
+    At(26.5f,[=]() { Ramp(20); });
+    At(26.9f,[=]() { Check(Move->IsMovingOnGround(),TEXT("Uphill test lands on the sloped floor"));Key(EKeys::W,IE_Pressed); });
+    At(27.4f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
+    At(27.65f,[=]() { Check(P->IsSliding(),TEXT("Sufficient entry momentum starts an uphill slide"));Results->RampSpeed=P->GetVelocity().Size2D(); });
+    At(27.85f,[=]() { Check(P->GetVelocity().Size2D()<Results->RampSpeed-60.f,TEXT("Uphill sliding loses speed faster than flat-ground sliding"));Screenshot(TEXT("SlideUphill")); });
+    At(29.f,[=]() { Check(!P->IsSliding() && P->bIsCrouched,TEXT("Uphill slide naturally ends at low speed"));Key(EKeys::LeftControl,IE_Released);Key(EKeys::W,IE_Released); });
+    At(29.4f,[=,this]() mutable
+    {
+        if(Results->Ramp.IsValid()) Results->Ramp->Destroy();
         GetWorldTimerManager().ClearTimer(CameraMonitor);
         Results->Text+=FString::Printf(TEXT("FAILURES=%d\n"),Results->Failed);
         FFileHelper::SaveStringToFile(Results->Text,*(FPaths::ProjectDir()/TEXT("Saved")/(Prefix+TEXT(".txt"))));

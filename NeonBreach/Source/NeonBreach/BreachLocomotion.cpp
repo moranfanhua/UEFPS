@@ -15,6 +15,7 @@ void ABreachCharacter::SetUnarmed(bool Enabled)
     bUnarmed=Enabled;
     bSprint=bUnarmed && !bIsCrouched;
     bTrigger=false; bAiming=false; bReloading=false;
+    CastChecked<UBreachMovementComponent>(GetCharacterMovement())->SetLocomotionIntent(bUnarmed,bAiming);
     ReloadProgress=0; Recoil=0;
     GetWorldTimerManager().ClearTimer(ReloadTimer);
     MuzzleLight->SetIntensity(0);
@@ -82,7 +83,7 @@ void ABreachCharacter::UpdateLocomotion(float Dt)
         const auto* Move=CastChecked<UBreachMovementComponent>(GetCharacterMovement());
         constexpr float EntryDuration=.26f;
         Time=LocomotionTime<EntryDuration?LocomotionTime*.4f/EntryDuration:
-            FMath::Lerp(.4f,.7f,FMath::Clamp((LocomotionTime-EntryDuration)/FMath::Max(.01f,Move->SlideMaxDuration-EntryDuration),0.f,1.f));
+            FMath::Lerp(.4f,.7f,FMath::Clamp((LocomotionTime-EntryDuration)/FMath::Max(.01f,Move->SlidePoseDuration-EntryDuration),0.f,1.f));
         if(!Animation)
         {
             Animation=LocomotionAnimations[int32(EBreachLocomotion::CrouchIdle)].Get();
