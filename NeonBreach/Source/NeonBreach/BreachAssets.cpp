@@ -68,7 +68,7 @@ UAnimSequence* ABreachGameMode::BakeCharacterAnimation(USkeletalMesh* Asset,int3
     }
     const auto& Frames=Data->GetArrayField(TEXT("frames"));
     FString MotionKind=TEXT("death"); Data->TryGetStringField(TEXT("motion_kind"),MotionKind);
-    const bool bDeath=MotionKind==TEXT("death"), bAirborne=MotionKind==TEXT("airborne");
+    const bool bDeath=MotionKind==TEXT("death"), bAirborne=MotionKind==TEXT("airborne"), bSlide=MotionKind==TEXT("slide");
     const auto& SourceRef=Data->GetArrayField(TEXT("reference"));
     if(Frames.Num()<2 || SourceRef.Num()!=47) return nullptr;
     const auto Position=[](const TSharedPtr<FJsonValue>& V)
@@ -99,6 +99,31 @@ UAnimSequence* ABreachGameMode::BakeCharacterAnimation(USkeletalMesh* Asset,int3
     const float WorldScale=178.f/FMath::Max(1.f,float(Bounds.BoxExtent.Z*2));
     const FVector Hip=Rig.ReferenceCS[Rig.Bones[0]].GetLocation();
     const float RetargetScale=(Hip.Z-Ground)/Position(SourceRef[0]).Z;
+    // A sliding shoe is tilted sideways; its standing ankle height is no longer
+    // a valid floor contact. Sample skinned lower legs / hands during baking so
+    // each costume rests on its actual surface without runtime mesh queries.
+    struct FContactWeight { int32 Bone; float Weight; FVector Position; };
+    struct FContactVertex { TArray<FContactWeight> Weights; };
+    TArray<FContactVertex> SlideContacts;
+    if(FMeshDescription* Description=bSlide?Asset->GetMeshDescription(0):nullptr)
+    {
+        FSkeletalMeshAttributes Attributes(*Description);
+        const auto Positions=Attributes.GetVertexPositions();
+        const auto Weights=Attributes.GetVertexSkinWeights();
+        for(const FVertexID Vertex:Description->Vertices().GetElementIDs())
+        {
+            float ContactWeight=0;
+            for(const auto W:Weights.Get(Vertex))
+                for(const EBreachBone Joint:{EBreachBone::LKnee,EBreachBone::RKnee,EBreachBone::LHand,EBreachBone::RHand})
+                    if(Rig.IsUnder(W.GetBoneIndex(),Rig.Bone(Joint))) { ContactWeight+=W.GetWeight(); break; }
+            if(ContactWeight<.5f) continue;
+            FContactVertex Contact;
+            for(const auto W:Weights.Get(Vertex))
+                Contact.Weights.Add({int32(W.GetBoneIndex()),W.GetWeight(),Rig.ReferenceCS[W.GetBoneIndex()].InverseTransformPosition(FVector(Positions[Vertex]))});
+            SlideContacts.Add(MoveTemp(Contact));
+        }
+        UE_LOG(LogTemp,Display,TEXT("SLIDE_CONTACTS %s vertices=%d"),*Asset->GetName(),SlideContacts.Num());
+    }
     struct FTrack { TArray<FVector3f> P,S; TArray<FQuat4f> Q; };
     TArray<FTrack> Tracks; Tracks.SetNum(Rig.Reference.Num());
     for(const auto& Frame:Frames)
@@ -124,10 +149,21 @@ UAnimSequence* ABreachGameMode::BakeCharacterAnimation(USkeletalMesh* Asset,int3
         float Lift=0;
         for(EBreachBone Contact:{EBreachBone::Pelvis,EBreachBone::Chest,EBreachBone::Head,EBreachBone::LHand,EBreachBone::RHand,EBreachBone::LFoot,EBreachBone::RFoot})
         {
-            if(bAirborne || (!bDeath && Contact!=EBreachBone::LFoot && Contact!=EBreachBone::RFoot)) continue;
+            if(bAirborne || !SlideContacts.IsEmpty() || (!bDeath && Contact!=EBreachBone::LFoot && Contact!=EBreachBone::RFoot)) continue;
             const float Radius=Contact==EBreachBone::Head?9.f:(Contact==EBreachBone::Pelvis || Contact==EBreachBone::Chest?12.f:3.f);
             const float ContactHeight=bDeath?Ground+Radius/WorldScale:Rig.ReferenceCS[Rig.Bone(Contact)].GetLocation().Z;
             Lift=FMath::Max(Lift,float(ContactHeight-Rig.CS[Rig.Bone(Contact)].GetLocation().Z));
+        }
+        if(!SlideContacts.IsEmpty())
+        {
+            float Lowest=BIG_NUMBER;
+            for(const auto& Vertex:SlideContacts)
+            {
+                FVector Skinned=FVector::ZeroVector;
+                for(const auto& W:Vertex.Weights) Skinned+=Rig.CS[W.Bone].TransformPosition(W.Position)*W.Weight;
+                Lowest=FMath::Min(Lowest,float(Skinned.Z));
+            }
+            Lift=Ground-Lowest;
         }
         for(auto& Transform:Rig.CS) Transform.AddToTranslation(FVector(0,0,Lift));
         for(int32 I=0;I<Tracks.Num();++I)
@@ -162,7 +198,7 @@ UAnimSequence* ABreachGameMode::BakeCharacterAnimation(USkeletalMesh* Asset,int3
     Sequence->SetPreviewMesh(Asset);
     auto& Controller=Sequence->GetController();
     Controller.InitializeModel();
-    Controller.OpenBracket(FText::FromString(TEXT("Retarget Quaternius character animation")),false);
+    Controller.OpenBracket(FText::FromString(TEXT("Retarget character animation")),false);
     Controller.SetFrameRate(FFrameRate(int32(Data->GetNumberField(TEXT("fps"))),1),false);
     Controller.SetNumberOfFrames(FFrameNumber(Frames.Num()-1),false);
     for(int32 I=0;I<Tracks.Num();++I)

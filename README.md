@@ -86,6 +86,14 @@
 | 李织烟 | `Female_Punch` | `Female_Idle` |
 | Marionette | `Female_Jump` | `Female_Idle` |
 
+#### 滑铲动作
+
+使用用户确认并提供的 [Mixamo Running Slide](https://www.mixamo.com/#/?page=1&query=running%20slide)，源文件为根目录的 `Running Slide.fbx`（带蒙皮、30 FPS，动作长 1.533 秒）。授权依照 [Adobe Mixamo FAQ](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html)，可免版税用于游戏，**不是 CC0**；原始动作不作为独立素材包再分发。
+
+四个角色分别使用 `/Game/Animations/Locomotion/<Key>/A_<Key>_Running_Slide`，`<Key>` 为 `Eula`、`EulaCasual`、`Lizhiyan`、`Marionette`。转换保留腿部和上身动作，去除水平根位移，并按各模型蒙皮后的鞋底、下腿和手部轮廓计算贴地高度；滑行速度与碰撞继续由移动组件控制。播放时加快滑入，并把贴地段延长到实际滑铲时长；结束后混合到当前下蹲或站姿，低矮空间内不会播放强制起身。
+
+本地重建工具：`Tools/sample_mixamo_slide.cpp`、`Tools/BuildMixamoAnimationTool.bat`、`NeonBreach/Scripts/retarget_mixamo_slide.py`；中间采样位于 `SourceAssets/Animations/MixamoSlide/Running_Slide.json`。工具和中间文件沿用项目的本地忽略规则。
+
 ### 不使用动画资源的程序化动作
 
 以下行为由 C++、移动组件或程序化骨骼 IK 完成，没有单独的动画文件：
@@ -108,11 +116,12 @@
 | `1` | 恢复持枪 |
 | `3` | 收起武器，空手移动时奔跑 |
 | `Space` | 跳跃 |
-| 按住 `Ctrl` | 下蹲 |
+| 按住 `Ctrl` | 低速下蹲；地面速度达到 650 cm/s 时按下触发滑铲 |
 | `R` | 换弹 |
 | `H` | 打开或关闭选人页面 |
 | `Esc` | 暂停；选人页面中返回游戏 |
 | `Enter` | 重新开始；启动选人页面中开始游戏 |
+
 
 ### 目录中保留但当前未引用的旧资源
 

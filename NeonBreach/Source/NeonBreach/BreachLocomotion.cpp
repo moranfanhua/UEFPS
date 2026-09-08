@@ -33,7 +33,8 @@ bool ABreachCharacter::IsSliding() const { return CastChecked<UBreachMovementCom
 
 void ABreachCharacter::LoadLocomotionAnimations()
 {
-    static const TCHAR* Clips[]={TEXT("Idle_Loop"),TEXT("Jog_Fwd_Loop"),TEXT("Sprint_Loop"),TEXT("Female_Jump_Start"),TEXT("Female_Jump_Air"),TEXT("Female_Jump_Land"),TEXT("Crouch_Idle_Loop"),TEXT("Crouch_Fwd_Loop"),TEXT("Crouch_Idle_Loop")};
+    static const TCHAR* Clips[]={TEXT("Idle_Loop"),TEXT("Jog_Fwd_Loop"),TEXT("Sprint_Loop"),TEXT("Female_Jump_Start"),TEXT("Female_Jump_Air"),TEXT("Female_Jump_Land"),TEXT("Crouch_Idle_Loop"),TEXT("Crouch_Fwd_Loop"),TEXT("Running_Slide")};
+    static_assert(UE_ARRAY_COUNT(Clips)==int32(EBreachLocomotion::Count));
     LocomotionAnimations.Reset();
     for(const TCHAR* Clip:Clips)
         LocomotionAnimations.Add(LoadObject<UAnimSequence>(nullptr,*FString::Printf(TEXT("/Game/Animations/Locomotion/%s/A_%s_%s.A_%s_%s"),Breach::Keys[OperatorIndex],Breach::Keys[OperatorIndex],Clip,Breach::Keys[OperatorIndex],Clip)));
@@ -73,9 +74,22 @@ void ABreachCharacter::UpdateLocomotion(float Dt)
     if(Next==EBreachLocomotion::CrouchWalk) Rate=FMath::Clamp(Speed/200.f,.55f,1.4f);
     LocomotionTime+=Dt*Rate;
     float Time=LocomotionTime;
-    // Reuse the low crouch pose without stepping while momentum carries the body.
-    if(Next==EBreachLocomotion::Slide) Time=.25f;
-    const bool Once=Next==EBreachLocomotion::JumpStart || Next==EBreachLocomotion::JumpLoop || Next==EBreachLocomotion::JumpLand;
+    if(Next==EBreachLocomotion::Slide)
+    {
+        // Mixamo reaches the low slide at .4s and starts rising after .7s.
+        // Enter promptly, then stretch only the grounded section to the physical
+        // slide duration. Never loop the running approach or stand under a ceiling.
+        const auto* Move=CastChecked<UBreachMovementComponent>(GetCharacterMovement());
+        constexpr float EntryDuration=.26f;
+        Time=LocomotionTime<EntryDuration?LocomotionTime*.4f/EntryDuration:
+            FMath::Lerp(.4f,.7f,FMath::Clamp((LocomotionTime-EntryDuration)/FMath::Max(.01f,Move->SlideMaxDuration-EntryDuration),0.f,1.f));
+        if(!Animation)
+        {
+            Animation=LocomotionAnimations[int32(EBreachLocomotion::CrouchIdle)].Get();
+            Time=.25f;
+        }
+    }
+    const bool Once=Next==EBreachLocomotion::JumpStart || Next==EBreachLocomotion::JumpLoop || Next==EBreachLocomotion::JumpLand || Next==EBreachLocomotion::Slide;
     if(Animation && Next==EBreachLocomotion::JumpStart) Time=FMath::Clamp(AirTime/.28f,0.f,1.f)*Animation->GetPlayLength();
     if(Animation && Next==EBreachLocomotion::JumpLoop)
     {
@@ -91,7 +105,7 @@ void ABreachCharacter::UpdateLocomotion(float Dt)
     if(Animation && Next==EBreachLocomotion::JumpLand) Time=FMath::Clamp(LandTime/.32f,0.f,1.f)*Animation->GetPlayLength();
     if(!BodyPose.Sample(Animation,Time,!Once)) BodyPose.Walk(Bob,Speed);
     LocomotionBlendTime+=Dt;
-    const float Blend=FMath::Clamp(LocomotionBlendTime/.12f,0.f,1.f);
+    const float Blend=FMath::Clamp(LocomotionBlendTime/(bIsCrouched?.18f:.12f),0.f,1.f);
     if(Blend<1 && LocomotionBlendFrom.Num()==BodyPose.Local.Num())
     {
         for(int32 I=0;I<BodyPose.Local.Num();++I)

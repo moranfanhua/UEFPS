@@ -30,7 +30,7 @@ void ABreachGameMode::RunMovementTest()
     PC->SetControlRotation(FRotator(LookPitch,0,0));
     struct FResults
     {
-        FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideWallX=0; TWeakObjectPtr<AActor> Roof;
+        FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideBoosted=0,SlideEntryLegReach=0,SlideWallX=0; TWeakObjectPtr<AActor> Roof;
         FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit},SlideEye{ForceInit};
         int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0,SlideSamples=0;
     };
@@ -42,11 +42,14 @@ void ABreachGameMode::RunMovementTest()
         Results->Text+=FString::Printf(TEXT("%s %s\n"),Pass?TEXT("PASS"):TEXT("FAIL"),*Name);
         if(!Pass) ++Results->Failed;
     };
-    const auto At=[this](float Delay,TFunction<void()> Function)
+    const auto* Move=CastChecked<UBreachMovementComponent>(P->GetCharacterMovement());
+    const float SlideTailDelay=FMath::Max(0.f,8.6f+Move->SlideMaxDuration+.2f-9.75f);
+    const auto At=[this,SlideTailDelay](float Delay,TFunction<void()> Function)
     {
         // Allow the newly selected mesh and its first animation pose to render
         // before injecting keys, so loading hitches cannot coalesce the tap
         // and the assertion into the same input-processing frame.
+        if(Delay>=9.75f) Delay+=SlideTailDelay;
         FTimerHandle Handle; GetWorldTimerManager().SetTimer(Handle,FTimerDelegate::CreateLambda(MoveTemp(Function)),Delay+.6f,false);
     };
     const auto Key=[PC](FKey Button,EInputEvent Event)
@@ -217,13 +220,17 @@ void ABreachGameMode::RunMovementTest()
     At(8.66f,[=]()
     {
         Check(P->IsSliding() && P->bIsCrouched,TEXT("Ctrl at unarmed speed starts a slide with crouched collision"));
-        Check(P->GetVelocity().Size2D()>Results->SlideEntry+20 && P->GetVelocity().Size2D()<=Results->SlideEntry+101,TEXT("Slide entry adds a small forward speed boost"));
+        Results->SlideBoosted=P->GetVelocity().Size2D();
+        Results->SlideEntryLegReach=LegReach();
+        Check(Results->SlideBoosted>Results->SlideEntry && Results->SlideBoosted<=Results->SlideEntry+Move->SlideEntryBoost+1,TEXT("Slide entry adds the configured forward speed boost"));
     });
+    At(8.78f,[=]() { Screenshot(TEXT("SlideStart")); });
     At(8.9f,[=]() { Key(EKeys::W,IE_Released);Key(EKeys::D,IE_Pressed); });
     At(9.35f,[=]()
     {
         Check(P->IsSliding() && P->GetVelocity().X>250 && FMath::Abs(P->GetVelocity().Y)<5,TEXT("Slide preserves momentum direction despite strafe input"));
-        Check(P->GetVelocity().Size2D()<Results->SlideEntry && P->LocomotionState==EBreachLocomotion::Slide,TEXT("Slide slows down and uses a planted low pose"));
+        Check(P->GetVelocity().Size2D()<Results->SlideBoosted && P->LocomotionState==EBreachLocomotion::Slide,TEXT("Slide slows down and uses the slide animation"));
+        Check(LegReach()<Results->SlideEntryLegReach-10.f,TEXT("Running Slide lowers the hips from entry into an extended-leg slide"));
         StableEye(Results->SlideEye,Results->SlideSamples,TEXT("Slide"));
         FBreachPose Rig;Rig.Init(Breach::CharacterMesh(Index),Index);
         const FName Head=P->WorldBody->GetBoneName(Rig.Bone(EBreachBone::Head));
@@ -232,7 +239,7 @@ void ABreachGameMode::RunMovementTest()
         Check(P->Body->GetBoneTransformByName(Head,EBoneSpaces::ComponentSpace).GetScale3D().IsNearlyZero(),TEXT("Sliding owner body still hides its head"));
         Screenshot(TEXT("Slide"));
     });
-    At(9.75f,[=]() { Check(!P->IsSliding() && P->bIsCrouched,TEXT("Holding Ctrl after slide ends remains crouched without retriggering"));Key(EKeys::D,IE_Released); });
+    At(9.75f,[=]() { Check(!P->IsSliding() && P->bIsCrouched,TEXT("Holding Ctrl after slide ends remains crouched without retriggering"));Screenshot(TEXT("SlideExit"));Key(EKeys::D,IE_Released); });
     At(9.85f,[=,this]()
     {
         auto* Roof=GetWorld()->SpawnActor<AActor>();auto* Collision=NewObject<UBoxComponent>(Roof);Roof->SetRootComponent(Collision);
@@ -246,7 +253,14 @@ void ABreachGameMode::RunMovementTest()
     At(10.8f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
     At(10.87f,[=]() { Check(P->IsSliding(),TEXT("A fresh crouch press can start the next slide"));Key(EKeys::LeftControl,IE_Released); });
     At(10.94f,[=]() { Check(!P->IsSliding(),TEXT("Releasing Ctrl cancels the slide"));Key(EKeys::LeftControl,IE_Pressed); });
-    At(11.03f,[=]() { Check(!P->IsSliding(),TEXT("Rapid Ctrl tapping cannot stack slide boosts"));Key(EKeys::LeftControl,IE_Released);Key(EKeys::W,IE_Released); });
+    At(11.03f,[=]()
+    {
+        if(Move->SlideCooldownDuration==0.f)
+            Check(P->IsSliding(),TEXT("Zero configured cooldown allows a new qualifying crouch press"));
+        else if(Move->SlideCooldownDuration>.25f)
+            Check(!P->IsSliding(),TEXT("Configured cooldown prevents stacking slide boosts"));
+        Key(EKeys::LeftControl,IE_Released);Key(EKeys::W,IE_Released);
+    });
     At(11.2f,[=]() { P->LaunchCharacter(FVector(790,0,540),true,true); });
     At(11.28f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
     At(11.4f,[=]() { Check(P->GetCharacterMovement()->IsFalling() && !P->IsSliding(),TEXT("High airborne speed cannot trigger a slide"));Key(EKeys::LeftControl,IE_Released); });

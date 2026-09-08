@@ -82,3 +82,6 @@ ehthumbs.db
 *.temp
 *.bak
 *.swp
+
+#模型和动作
+*.fbx
