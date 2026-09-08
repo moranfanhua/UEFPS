@@ -1,4 +1,5 @@
 #include "BreachGame.h"
+#include "BreachMovementComponent.h"
 #include "BreachVisuals.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -29,9 +30,9 @@ void ABreachGameMode::RunMovementTest()
     PC->SetControlRotation(FRotator(LookPitch,0,0));
     struct FResults
     {
-        FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0; TWeakObjectPtr<AActor> Roof;
-        FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit};
-        int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0;
+        FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideWallX=0; TWeakObjectPtr<AActor> Roof;
+        FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit},SlideEye{ForceInit};
+        int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0,SlideSamples=0;
     };
     auto Results=MakeShared<FResults>();
     FString Prefix=FString::Printf(TEXT("%s_%s"),FParse::Param(FCommandLine::Get(),TEXT("BreachMovementFirstPerson"))?TEXT("MovementFPS"):TEXT("Movement"),Breach::Keys[Index]);
@@ -67,6 +68,7 @@ void ABreachGameMode::RunMovementTest()
         if(Time>=1.43 && Time<2.65) { Results->JumpEye+=Eye; ++Results->JumpSamples; }
         if(Time>=3.58 && Time<3.84) { Results->CrouchEye+=Eye; ++Results->CrouchSamples; }
         if(Time>=6.65 && Time<6.94) { Results->JogEye+=Eye; ++Results->JogSamples; }
+        if(Time>=9.05 && Time<9.3) { Results->SlideEye+=Eye; ++Results->SlideSamples; }
     },.016f,true);
     const bool Capture=FParse::Param(FCommandLine::Get(),TEXT("BreachMovementCapture"));
     const auto Screenshot=[Prefix,Capture,P,Check](const TCHAR* Name)
@@ -99,7 +101,7 @@ void ABreachGameMode::RunMovementTest()
             Preview->SetActorLocationAndRotation(Position,(Focus-Position).Rotation());
         },.016f,true);
     }
-    Check(P->HasLocomotionAnimations(),TEXT("All eight locomotion assets loaded"));
+    Check(P->HasLocomotionAnimations(),TEXT("All locomotion states have animation assets"));
     At(.1f,[=]() { Results->StandingEye=P->Camera->GetComponentLocation().Z; Key(EKeys::Three,IE_Pressed); });
     At(.16f,[=]() { Key(EKeys::Three,IE_Released); });
     At(.22f,[=]()
@@ -200,7 +202,69 @@ void ABreachGameMode::RunMovementTest()
     At(6.46f,[=]() { Key(EKeys::One,IE_Released); });
     At(6.96f,[=]() { Key(EKeys::W,IE_Released); StableEye(Results->JogEye,Results->JogSamples,TEXT("Armed jog")); });
     At(7.1f,[=]() { Check(!P->bReloading && P->Ammo==5 && P->Reserve==100,TEXT("Holstering cancels delayed reload without changing ammo")); });
-    At(7.3f,[=,this]() mutable
+    At(7.25f,[=]()
+    {
+        P->GetCharacterMovement()->StopMovementImmediately();
+        P->SetActorLocation(FVector(-1200,-1250,94));PC->SetControlRotation(FRotator(LookPitch,0,0));
+        P->SetUnarmed(false);Key(EKeys::W,IE_Pressed);
+        const auto* Move=CastChecked<UBreachMovementComponent>(P->GetCharacterMovement());
+        Check(Move->SlideEntrySpeed>Move->RifleSpeed && Move->SlideEntrySpeed<Move->UnarmedSpeed,TEXT("Slide threshold lies between rifle and unarmed speeds"));
+    });
+    At(7.7f,[=]() { Check(P->GetVelocity().Size2D()>490,TEXT("Rifle movement reaches normal speed before crouching"));Key(EKeys::LeftControl,IE_Pressed); });
+    At(7.85f,[=]() { Check(P->bIsCrouched && !P->IsSliding(),TEXT("Ctrl at rifle speed crouches without a slide"));Key(EKeys::W,IE_Released);Key(EKeys::LeftControl,IE_Released); });
+    At(8.1f,[=]() { P->SetUnarmed(true);Key(EKeys::W,IE_Pressed); });
+    At(8.6f,[=]() { Results->SlideEntry=P->GetVelocity().Size2D();Key(EKeys::LeftControl,IE_Pressed); });
+    At(8.66f,[=]()
+    {
+        Check(P->IsSliding() && P->bIsCrouched,TEXT("Ctrl at unarmed speed starts a slide with crouched collision"));
+        Check(P->GetVelocity().Size2D()>Results->SlideEntry+20 && P->GetVelocity().Size2D()<=Results->SlideEntry+101,TEXT("Slide entry adds a small forward speed boost"));
+    });
+    At(8.9f,[=]() { Key(EKeys::W,IE_Released);Key(EKeys::D,IE_Pressed); });
+    At(9.35f,[=]()
+    {
+        Check(P->IsSliding() && P->GetVelocity().X>250 && FMath::Abs(P->GetVelocity().Y)<5,TEXT("Slide preserves momentum direction despite strafe input"));
+        Check(P->GetVelocity().Size2D()<Results->SlideEntry && P->LocomotionState==EBreachLocomotion::Slide,TEXT("Slide slows down and uses a planted low pose"));
+        StableEye(Results->SlideEye,Results->SlideSamples,TEXT("Slide"));
+        FBreachPose Rig;Rig.Init(Breach::CharacterMesh(Index),Index);
+        const FName Head=P->WorldBody->GetBoneName(Rig.Bone(EBreachBone::Head));
+        Check(P->WorldBody->GetBoneTransformByName(Head,EBoneSpaces::ComponentSpace).GetScale3D().GetMin()>.9f && P->WorldBody->CastShadow && P->WorldBody->bOwnerNoSee,
+            TEXT("Sliding world body retains full head and owner-hidden shadow"));
+        Check(P->Body->GetBoneTransformByName(Head,EBoneSpaces::ComponentSpace).GetScale3D().IsNearlyZero(),TEXT("Sliding owner body still hides its head"));
+        Screenshot(TEXT("Slide"));
+    });
+    At(9.75f,[=]() { Check(!P->IsSliding() && P->bIsCrouched,TEXT("Holding Ctrl after slide ends remains crouched without retriggering"));Key(EKeys::D,IE_Released); });
+    At(9.85f,[=,this]()
+    {
+        auto* Roof=GetWorld()->SpawnActor<AActor>();auto* Collision=NewObject<UBoxComponent>(Roof);Roof->SetRootComponent(Collision);
+        Collision->SetBoxExtent(FVector(90,90,15));Collision->SetCollisionProfileName(TEXT("BlockAll"));Collision->RegisterComponent();
+        const float Floor=P->GetActorLocation().Z-P->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+        Roof->SetActorLocation(FVector(P->GetActorLocation().X,P->GetActorLocation().Y,Floor+130));Results->Roof=Roof;
+        Key(EKeys::LeftControl,IE_Released);
+    });
+    At(10.05f,[=]() { Check(P->bIsCrouched && !P->IsSliding(),TEXT("Slide exit respects low ceiling instead of forcing standing"));if(Results->Roof.IsValid()) Results->Roof->Destroy(); });
+    At(10.3f,[=]() { P->GetCharacterMovement()->StopMovementImmediately();P->SetActorLocation(FVector(-1200,-1250,94));Key(EKeys::W,IE_Pressed); });
+    At(10.8f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
+    At(10.87f,[=]() { Check(P->IsSliding(),TEXT("A fresh crouch press can start the next slide"));Key(EKeys::LeftControl,IE_Released); });
+    At(10.94f,[=]() { Check(!P->IsSliding(),TEXT("Releasing Ctrl cancels the slide"));Key(EKeys::LeftControl,IE_Pressed); });
+    At(11.03f,[=]() { Check(!P->IsSliding(),TEXT("Rapid Ctrl tapping cannot stack slide boosts"));Key(EKeys::LeftControl,IE_Released);Key(EKeys::W,IE_Released); });
+    At(11.2f,[=]() { P->LaunchCharacter(FVector(790,0,540),true,true); });
+    At(11.28f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
+    At(11.4f,[=]() { Check(P->GetCharacterMovement()->IsFalling() && !P->IsSliding(),TEXT("High airborne speed cannot trigger a slide"));Key(EKeys::LeftControl,IE_Released); });
+    At(12.5f,[=]() { P->GetCharacterMovement()->StopMovementImmediately();P->SetActorLocation(FVector(-1200,-1250,94));Key(EKeys::W,IE_Pressed); });
+    At(13.f,[=,this]()
+    {
+        auto* Wall=GetWorld()->SpawnActor<AActor>();auto* Collision=NewObject<UBoxComponent>(Wall);Wall->SetRootComponent(Collision);
+        Collision->SetBoxExtent(FVector(10,120,150));Collision->SetCollisionProfileName(TEXT("BlockAll"));Collision->RegisterComponent();
+        Results->SlideWallX=P->GetActorLocation().X+180;
+        Wall->SetActorLocation(FVector(Results->SlideWallX,P->GetActorLocation().Y,110));Results->Roof=Wall;
+        Key(EKeys::LeftControl,IE_Pressed);
+    });
+    At(13.4f,[=]()
+    {
+        Check(!P->IsSliding() && P->GetVelocity().Size2D()<10 && P->GetActorLocation().X<Results->SlideWallX-40,TEXT("Slide stops at a wall without tunnelling"));
+        Key(EKeys::LeftControl,IE_Released);Key(EKeys::W,IE_Released);if(Results->Roof.IsValid()) Results->Roof->Destroy();
+    });
+    At(13.7f,[=,this]() mutable
     {
         GetWorldTimerManager().ClearTimer(CameraMonitor);
         Results->Text+=FString::Printf(TEXT("FAILURES=%d\n"),Results->Failed);

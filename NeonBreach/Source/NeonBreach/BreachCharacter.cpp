@@ -1,4 +1,5 @@
 #include "BreachGame.h"
+#include "BreachMovementComponent.h"
 #include "BreachVisuals.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -13,11 +14,12 @@
 #include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
-ABreachCharacter::ABreachCharacter()
+ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer.SetDefaultSubobjectClass<UBreachMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
     PrimaryActorTick.bCanEverTick = true;
     GetCapsuleComponent()->InitCapsuleSize(34.f, 92.f);
-    GetCharacterMovement()->MaxWalkSpeed = 510.f;
+    GetCharacterMovement()->MaxWalkSpeed = UBreachMovementComponent::RifleSpeed;
     GetCharacterMovement()->JumpZVelocity = 540.f;
     GetCharacterMovement()->AirControl = .45f;
     GetCharacterMovement()->BrakingDecelerationWalking = 2200.f;
@@ -151,7 +153,7 @@ void ABreachCharacter::Tick(float Dt)
     Super::Tick(Dt);
     if (bTrigger) Fire();
     bSprint=bUnarmed && !bIsCrouched;
-    GetCharacterMovement()->MaxWalkSpeed = bAiming ? 300.f : (bSprint ? 790.f : 510.f);
+    GetCharacterMovement()->MaxWalkSpeed = bAiming ? 300.f : (bSprint ? UBreachMovementComponent::UnarmedSpeed : UBreachMovementComponent::RifleSpeed);
     Camera->SetFieldOfView(FMath::FInterpTo(Camera->FieldOfView, bAiming ? 66.f : 96.f, Dt, 12));
     Camera->SetFirstPersonFieldOfView(Camera->FieldOfView);
     Bob += Dt * (bSprint ? 13.f : 9.f);

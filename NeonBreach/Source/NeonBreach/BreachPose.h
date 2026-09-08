@@ -5,7 +5,7 @@ class UPoseableMeshComponent;
 class UAnimSequence;
 
 enum class EBreachBone : uint8 { Pelvis,Spine,Chest,Neck,Head,LArm,LElbow,LHand,RArm,RElbow,RHand,LThigh,LKnee,LFoot,RThigh,RKnee,RFoot,Count };
-enum class EBreachLocomotion : uint8 { Idle,Jog,Sprint,JumpStart,JumpLoop,JumpLand,CrouchIdle,CrouchWalk,Count };
+enum class EBreachLocomotion : uint8 { Idle,Jog,Sprint,JumpStart,JumpLoop,JumpLand,CrouchIdle,CrouchWalk,Slide,Count };
 
 // A small rig shared by the four supplied skeletons. Rotations use component
 // space so that the PMX and FBX joint orientation conventions can differ.

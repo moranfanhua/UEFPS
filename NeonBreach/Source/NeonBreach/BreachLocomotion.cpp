@@ -1,4 +1,5 @@
 #include "BreachGame.h"
+#include "BreachMovementComponent.h"
 #include "BreachVisuals.h"
 #include "Animation/AnimSequence.h"
 #include "Components/StaticMeshComponent.h"
@@ -28,10 +29,11 @@ void ABreachCharacter::SetUnarmed(bool Enabled)
 }
 void ABreachCharacter::CrouchOn() { if(Health>0) Crouch(); }
 void ABreachCharacter::CrouchOff() { UnCrouch(); }
+bool ABreachCharacter::IsSliding() const { return CastChecked<UBreachMovementComponent>(GetCharacterMovement())->IsSliding(); }
 
 void ABreachCharacter::LoadLocomotionAnimations()
 {
-    static const TCHAR* Clips[]={TEXT("Idle_Loop"),TEXT("Jog_Fwd_Loop"),TEXT("Sprint_Loop"),TEXT("Female_Jump_Start"),TEXT("Female_Jump_Air"),TEXT("Female_Jump_Land"),TEXT("Crouch_Idle_Loop"),TEXT("Crouch_Fwd_Loop")};
+    static const TCHAR* Clips[]={TEXT("Idle_Loop"),TEXT("Jog_Fwd_Loop"),TEXT("Sprint_Loop"),TEXT("Female_Jump_Start"),TEXT("Female_Jump_Air"),TEXT("Female_Jump_Land"),TEXT("Crouch_Idle_Loop"),TEXT("Crouch_Fwd_Loop"),TEXT("Crouch_Idle_Loop")};
     LocomotionAnimations.Reset();
     for(const TCHAR* Clip:Clips)
         LocomotionAnimations.Add(LoadObject<UAnimSequence>(nullptr,*FString::Printf(TEXT("/Game/Animations/Locomotion/%s/A_%s_%s.A_%s_%s"),Breach::Keys[OperatorIndex],Breach::Keys[OperatorIndex],Clip,Breach::Keys[OperatorIndex],Clip)));
@@ -55,6 +57,7 @@ void ABreachCharacter::UpdateLocomotion(float Dt)
     if(Falling) AirTime+=Dt; else LandTime+=Dt;
     EBreachLocomotion Next=EBreachLocomotion::Idle;
     if(Falling) Next=bJumpTakingOff && AirTime<.28f?EBreachLocomotion::JumpStart:EBreachLocomotion::JumpLoop;
+    else if(IsSliding()) Next=EBreachLocomotion::Slide;
     else if(bIsCrouched) Next=Speed>10?EBreachLocomotion::CrouchWalk:EBreachLocomotion::CrouchIdle;
     else if(LandTime<.32f) Next=EBreachLocomotion::JumpLand;
     else if(Speed>10) Next=bUnarmed?EBreachLocomotion::Sprint:EBreachLocomotion::Jog;
@@ -70,6 +73,8 @@ void ABreachCharacter::UpdateLocomotion(float Dt)
     if(Next==EBreachLocomotion::CrouchWalk) Rate=FMath::Clamp(Speed/200.f,.55f,1.4f);
     LocomotionTime+=Dt*Rate;
     float Time=LocomotionTime;
+    // Reuse the low crouch pose without stepping while momentum carries the body.
+    if(Next==EBreachLocomotion::Slide) Time=.25f;
     const bool Once=Next==EBreachLocomotion::JumpStart || Next==EBreachLocomotion::JumpLoop || Next==EBreachLocomotion::JumpLand;
     if(Animation && Next==EBreachLocomotion::JumpStart) Time=FMath::Clamp(AirTime/.28f,0.f,1.f)*Animation->GetPlayLength();
     if(Animation && Next==EBreachLocomotion::JumpLoop)

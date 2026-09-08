@@ -61,7 +61,7 @@ void ABreachHUD::DrawHUD()
     Text(P->bUnarmed?TEXT("UNARMED   /   FREE HANDS"):TEXT("VX-30   /   PULSE RIFLE"),W-298,H-138,12,Muted);
     if(P->bUnarmed)
     {
-        Text(P->bIsCrouched?TEXT("CROUCH"):TEXT("RUN"),W-298,H-118,30,White);
+        Text(P->IsSliding()?TEXT("SLIDE"):(P->bIsCrouched?TEXT("CROUCH"):TEXT("RUN")),W-298,H-118,30,White);
         Text(TEXT("1  /  DRAW RIFLE"),W-298,H-74,12,Cyan);
     }
     else

@@ -36,7 +36,7 @@ class NEONBREACH_API ABreachCharacter : public ACharacter
 {
     GENERATED_BODY()
 public:
-    ABreachCharacter();
+    ABreachCharacter(const FObjectInitializer& ObjectInitializer=FObjectInitializer::Get());
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* Input) override;
@@ -66,6 +66,7 @@ public:
     void SetUnarmed(bool Enabled);
     void CrouchOn();
     void CrouchOff();
+    bool IsSliding() const;
     bool HasLocomotionAnimations() const;
     float ReloadProgress = 0.f;
     float HitMarker = 0.f;
