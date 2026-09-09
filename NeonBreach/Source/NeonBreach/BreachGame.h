@@ -93,6 +93,8 @@ private:
     float LocomotionTime=0.f,LocomotionBlendTime=1.f;
     float AirTime=0.f,LandTime=10.f;
     float CrouchEyeDrop=0.f;
+    FQuat SlideFloorTilt=FQuat::Identity;
+    float SlideFloorOffset=0.f;
     bool bWasFalling=false,bJumpTakingOff=false;
     bool bBodyRigReady=false;
     void MoveForward(float Value);

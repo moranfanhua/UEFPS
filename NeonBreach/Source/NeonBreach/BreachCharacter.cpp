@@ -298,7 +298,33 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     if(!bBodyRigReady) return;
     UpdateLocomotion(Dt);
     const auto Bounds=Body->GetSkinnedAsset()->GetBounds();
-    const float BaseZ=-GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight()-(Bounds.Origin.Z-Bounds.BoxExtent.Z)*Body->GetRelativeScale3D().Z;
+    const float Ground=Bounds.Origin.Z-Bounds.BoxExtent.Z;
+    const float HalfHeight=GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
+    FQuat TargetTilt=FQuat::Identity;
+    float TargetFloorOffset=0.f;
+    const auto* Move=GetCharacterMovement();
+    if(IsSliding() && Move->CurrentFloor.IsWalkableFloor())
+    {
+        const FVector Normal=Move->CurrentFloor.HitResult.ImpactNormal;
+        TargetTilt=FQuat::FindBetweenNormals(FVector::UpVector,Body->GetComponentQuat().UnrotateVector(Normal));
+        const FVector Base=GetActorLocation()-FVector(0,0,HalfHeight);
+        TargetFloorOffset=FVector::DotProduct(Move->CurrentFloor.HitResult.ImpactPoint-Base,Normal)/FMath::Max(.2,Normal.Z);
+    }
+    const float GroundBlend=1.f-FMath::Exp(-18.f*FMath::Max(0.f,Dt));
+    SlideFloorTilt=FQuat::Slerp(SlideFloorTilt,TargetTilt,GroundBlend).GetNormalized();
+    SlideFloorOffset=FMath::Lerp(SlideFloorOffset,TargetFloorOffset,GroundBlend);
+    // Tilt the complete pose about its contact plane, including independent
+    // cloth roots. The owner's eye compensation below keeps this out of the camera.
+    const FVector Pivot(0,0,Ground);
+    TArray<TPair<int32,FTransform>,TInlineAllocator<4>> UntiltedRoots;
+    for(int32 I=0;I<BodyPose.Parents.Num();++I) if(BodyPose.Parents[I]<0)
+    {
+        UntiltedRoots.Emplace(I,BodyPose.Local[I]);
+        BodyPose.Local[I].SetLocation(Pivot+SlideFloorTilt.RotateVector(BodyPose.Local[I].GetLocation()-Pivot));
+        BodyPose.Local[I].SetRotation(SlideFloorTilt*BodyPose.Local[I].GetRotation());
+    }
+    BodyPose.Rebuild();
+    const float BaseZ=-HalfHeight-Ground*Body->GetRelativeScale3D().Z+SlideFloorOffset;
     Body->SetRelativeLocation(FVector(0,0,BaseZ));
     WorldBody->SetRelativeLocation(Body->GetRelativeLocation());
     // Locomotion owns the unarmed torso; the head always looks where the
@@ -322,7 +348,6 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     const FVector EyeOffset=FRotator(Pitch,0,0).RotateVector(FVector(8,0,67)-ReferenceNeck);
     const FVector AnimatedNeck=Body->GetRelativeTransform().TransformPosition(BodyPose.CS[Neck].GetLocation());
     const FVector AnimatedEye=AnimatedNeck+EyeOffset;
-    const float HalfHeight=GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
     CrouchEyeDrop=FMath::Lerp(CrouchEyeDrop,bIsCrouched?50.f:0.f,1.f-FMath::Exp(-12.f*FMath::Max(Dt,0.f)));
     // Cancel the capsule's instant resize and smooth only the crouch height.
     // Jumping remains driven by the actor's physical world-space movement.
@@ -367,6 +392,10 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     BodyPose.Apply(Body,true);
     WorldBody->RefreshBoneTransforms();
     Body->RefreshBoneTransforms();
+    // Keep floor alignment out of the next animation transition's cached roots;
+    // otherwise leaving a slide would apply the same tilt twice while blending.
+    for(const auto& Root:UntiltedRoots) BodyPose.Local[Root.Key]=Root.Value;
+    BodyPose.Rebuild();
 }
 float ABreachCharacter::GripError() const
 {

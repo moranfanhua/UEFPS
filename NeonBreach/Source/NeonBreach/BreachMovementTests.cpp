@@ -82,6 +82,17 @@ void ABreachGameMode::RunMovementTest()
         const FVector Collar=P->Body->GetBoneLocationByName(NeckName,EBoneSpaces::WorldSpace);
         Check(FVector::DotProduct(Collar-P->Camera->GetComponentLocation(),P->Camera->GetForwardVector())<0,
             FString::Printf(TEXT("%s collar stays behind the first person eye"),Name));
+        if(FCString::Strcmp(Name,TEXT("SlideDownhill"))==0 || FCString::Strcmp(Name,TEXT("SlideUphill"))==0)
+        {
+            const auto& Floor=P->GetCharacterMovement()->CurrentFloor;
+            float Lowest=BIG_NUMBER;
+            for(EBreachBone Foot:{EBreachBone::LFoot,EBreachBone::RFoot})
+            {
+                const FVector Position=P->WorldBody->GetBoneLocationByName(P->WorldBody->GetBoneName(Rig.Bone(Foot)),EBoneSpaces::WorldSpace);
+                Lowest=FMath::Min(Lowest,float(FVector::DotProduct(Position-Floor.HitResult.ImpactPoint,Floor.HitResult.ImpactNormal)));
+            }
+            Check(Floor.IsWalkableFloor() && Lowest>=-1.f,FString::Printf(TEXT("%s world ankles stay above the ramp (%.1f cm clearance)"),Name,Lowest));
+        }
         if(Capture)
         {
             const FTransform ToActor=P->GetActorTransform().Inverse();
@@ -330,8 +341,10 @@ void ABreachGameMode::RunMovementTest()
     At(18.4f,[=]() { Check(Move->IsFalling(),TEXT("Slide jump follows the airborne arc"));P->SetUnarmed(false); });
     At(18.47f,[=]() { Check(P->GetVelocity().Size2D()>=Results->JumpSpeed-50.f,TEXT("Drawing the rifle in the air does not erase slide jump momentum")); });
     At(18.6f,[=]() { P->SetUnarmed(true); });
-    At(19.08f,[=]() { Check(P->IsSliding() && P->GetVelocity().Size2D()>Move->SlideEntrySpeed,TEXT("Landing at speed with Ctrl held automatically continues sliding"));Screenshot(TEXT("SlideLand"));Key(EKeys::LeftControl,IE_Released); });
-    At(19.17f,[=]() { Check(!P->IsSliding() && P->GetVelocity().Size2D()>Move->UnarmedSpeed,TEXT("Slide exit eases down toward running speed instead of clamping momentum")); });
+    At(19.08f,[=]() { Check(P->IsSliding() && P->GetVelocity().Size2D()>Move->SlideEntrySpeed,TEXT("Landing at speed with Ctrl held automatically continues sliding")); });
+    At(19.3f,[=]() { Screenshot(TEXT("SlideLand")); });
+    At(19.37f,[=]() { Key(EKeys::LeftControl,IE_Released); });
+    At(19.46f,[=]() { Check(!P->IsSliding() && P->GetVelocity().Size2D()>Move->UnarmedSpeed,TEXT("Slide exit eases down toward running speed instead of clamping momentum")); });
     At(20.f,[=]() { ResetRun(); });
     At(20.5f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
     At(20.65f,[=,this]()
