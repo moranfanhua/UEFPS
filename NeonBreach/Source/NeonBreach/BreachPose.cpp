@@ -5,15 +5,25 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
 
-bool FBreachPose::Init(USkeletalMesh* Asset,int32 ModelIndex)
+bool FBreachPose::InitSkeleton(USkeletalMesh* Asset)
 {
-    if(!Asset) return false;
+    Reference.Reset();ReferenceCS.Reset();Local.Reset();CS.Reset();Parents.Reset();AnimationBones.Reset();
+    for(auto& B:Bones) B=INDEX_NONE;
+    for(auto& Hand:Fingers) for(auto& Finger:Hand) Finger=INDEX_NONE;
+    if(!Asset || Asset->GetRefSkeleton().GetNum()==0) return false;
     const FReferenceSkeleton& Ref=Asset->GetRefSkeleton();
     Reference=Ref.GetRefBonePose(); Parents.SetNum(Reference.Num());
     for(int32 i=0;i<Parents.Num();++i) Parents[i]=Ref.GetParentIndex(i);
     AnimationBones.Reset();
     for(int32 I=0;I<Reference.Num();++I)
         AnimationBones.Add(Asset->GetSkeleton()?Asset->GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(Ref.GetBoneName(I)):INDEX_NONE);
+    Reset();ReferenceCS=CS;
+    return true;
+}
+bool FBreachPose::Init(USkeletalMesh* Asset,int32 ModelIndex)
+{
+    if(!InitSkeleton(Asset) || ModelIndex<0 || ModelIndex>=4) return false;
+    const FReferenceSkeleton& Ref=Asset->GetRefSkeleton();
     const auto Find=[&](const TCHAR* Name)
     {
         int32 I=Ref.FindBoneIndex(FName(Name));
@@ -27,7 +37,6 @@ bool FBreachPose::Init(USkeletalMesh* Asset,int32 ModelIndex)
     bool Valid=true;
     for(int32 i=0;i<17;++i) { Bones[i]=Find(BreachRigNames[ModelIndex][i]); Valid&=Bones[i]!=INDEX_NONE; }
     for(int32 s=0;s<2;++s) for(int32 i=0;i<15;++i) Fingers[s][i]=Find(BreachFingerNames[ModelIndex][s][i]);
-    Reset(); ReferenceCS=CS;
     return Valid;
 }
 bool FBreachPose::IsUnder(int32 I,int32 Ancestor) const

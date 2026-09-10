@@ -15,11 +15,13 @@
 | 角色 | UE Skeletal Mesh | 原始模型文件 | 用途 |
 | --- | --- | --- | --- |
 | 优菈 | `/Game/Characters/Eula/SK_Eula` | `SourceAssets/Eula/优菈.pmx` | 玩家、敌人展示、选人页面 |
-| 联动优菈 | `/Game/Characters/EulaCasual/SK_EulaCasual` | `SourceAssets/EulaCasual/优菈.pmx` | 玩家、敌人展示、选人页面 |
+| 黄泉 | `/Game/Characters/Acheron/SK_Acheron` | `model/` 中用户提供的黄泉模型（轴修复版 PMX） | 玩家、敌人展示、选人页面 |
 | 李织烟 | `/Game/Characters/Lizhiyan/SK_Lizhiyan` | `SourceAssets/Lizhiyan/李织烟.pmx` | 玩家、敌人展示、选人页面 |
-| Marionette | `/Game/Characters/Marionette/SK_Marionette` | Marionette FBX 模型 | 玩家、敌人展示、选人页面 |
+| 阿斯卡纶 | `/Game/Characters/Ascalon/SK_Ascalon` | `model/` 中用户提供的阿斯卡纶 `askl.pmx` | 玩家、敌人展示、选人页面 |
 
-每个角色还带有对应的 Skeleton、材质、纹理、Physics Asset，以及 `SK_*_FPArms` 资源。当前第一人称实现使用上表中的完整 `SK_*` 模型，`FPArms` 仅作为导入后保留的辅助资源。
+角色使用各自的 Skeleton、材质和纹理。当前第一人称实现使用上表中的完整 `SK_*` 模型；旧角色保留的 `FPArms` 辅助资源不参与运行。黄泉、阿斯卡纶替换了原索引 1、3 的联动优菈和木偶，旧模型和动画移出 Content，原始压缩包保留。
+
+四张手工头像位于 `/Game/Characters/Portraits/T_<Key>_Portrait`，选人页保留用户修改的竖版卡片，战斗 HUD 使用同一套贴图。更换角色资源不会重新生成或覆盖这些头像。
 
 ### 动画来源
 
@@ -55,15 +57,15 @@
 | 动画资源 | 角色 |
 | --- | --- |
 | `A_Eula_Death01` | 优菈敌人 |
-| `A_EulaCasual_Death01` | 联动优菈敌人 |
+| `A_Acheron_Death01` | 黄泉敌人 |
 | `A_Lizhiyan_Death01` | 李织烟敌人 |
-| `A_Marionette_Death01` | Marionette 敌人 |
+| `A_Ascalon_Death01` | 阿斯卡纶敌人 |
 
 敌人被击杀后播放对应的 `Death01` 倒地动作，之后保留倒地模型一段时间再清理；四个角色分别使用与自身骨骼匹配的资源。
 
-#### 选人页面入场和待机
+#### 选人页面入场和定格
 
-资源目录：`/Game/Animations/Entrance/<角色>/`。每个角色都有以下五条适配后的动画，共 20 个 UE 动画资源。
+资源目录：`/Game/Animations/Entrance/<角色>/`。优菈和李织烟保留原有女性动作；新角色使用专属入场，并保留 `Female_Idle` 作为安全回退和预览采样。
 
 | 源动作 | 选人页面中的作用 |
 | --- | --- |
@@ -71,22 +73,41 @@
 | `Female_Clapping` | 拍手亮相 |
 | `Female_Punch` | 出拳亮相 |
 | `Female_Jump` | 轻跳亮相 |
-| `Female_Idle` | 入场动作结束后的循环待机 |
+| `Female_Idle` | 动态头像捕获与姿态检查；当前 UI 使用用户提供的静态头像 |
 
 当前角色与入场动作的对应关系：
 
 | 角色 | 选中后播放的入场动作 | 结束后 |
 | --- | --- | --- |
-| 优菈 | `Female_Standing` | `Female_Idle` |
-| 联动优菈 | `Female_Clapping` | `Female_Idle` |
-| 李织烟 | `Female_Punch` | `Female_Idle` |
-| Marionette | `Female_Jump` | `Female_Idle` |
+| 优菈 | 用户提供 `eula-v3.vmd` 的前 78 帧，最后 0.9 秒混合到待机 `pose.vmd` | 保持用户提供的侧身姿势 |
+| 黄泉 | Quaternius `Sword_Attack` 的蓄势、挥刀、收势片段，配原模型的刀与刀鞘 | 保持持刀姿势，左手持鞘 |
+| 李织烟 | 以 `Female_Idle` 为基础，播放专属抱猫、低头轻靠动作 | 人物与猫一起保持抱持姿势 |
+| 阿斯卡纶 | 用户提供的 Mixamo `Catwalk Sequence 03`，截取 3.5–7 秒的走近、转身和展示 | 保持扶腰姿势，不播放离场段 |
+
+四个入场展示统一为 **3.5 秒**，平滑结束后定格，不再切回站立待机；再次点击角色卡片或重新打开选人页会重播。镜头以腰部以上为主，随动作调整构图，为头饰、抬手动作和下方角色卡片留出空间，右侧继续空置。选人动作不改动战斗中的模型、跳跃动作或头像采样。
+
+新入场资源与来源：
+
+- 优菈：`pose/优菈待机pose_by_truthabout_*.zip` 和 `pose/eula-v3_by_fantong_*.zip`。保留原作者使用条件；没有将用户提供的动作标记为 CC0。VMD 按原 PMX 骨骼名称匹配、30 FPS 采样，转换包含身体和手指骨骼，不包含 MMD 物理模拟及表情 morph。UE 路径为 `/Game/Animations/Entrance/Eula/A_Eula_Eula_VMD_Entry`、`A_Eula_Eula_VMD_Finish`。
+- 黄泉挥刀：[Quaternius Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html)，CC0；使用本地 Standard 包的 `Sword_Attack`，资源为 `/Game/Animations/Entrance/Acheron/A_Acheron_Sword_Attack`。左手持鞘和收势时的手腕朝向另作适配，配刀网格为 `/Game/Characters/AcheronSword/SK_AcheronSword`。刀与鞘只在黄泉选人展示中出现。
+- 阿斯卡纶：用户提供 `pose/Catwalk Sequence 03.fbx`，[Mixamo](https://www.mixamo.com/) 动作，遵循 Adobe Mixamo 条款，不是 CC0；资源为 `/Game/Animations/Entrance/Ascalon/A_Ascalon_Catwalk_Sequence_03`。
+- 黄泉人物和配刀来自用户提供的模型压缩包，原文件注明 miHoYo 版权、流云景编辑，并限制商业使用及二次配布；阿斯卡纶沿用用户提供素材的原作者条件。此项不改变 Quaternius 动作包的独立 CC0 授权。
+
+本地处理入口为 `Tools/inspect_roster_refresh.py`、`prepare_roster_refresh.py`、`prepare_eula_entrance.py` 和 `NeonBreach/Scripts/import_roster_refresh.py`。只导入新角色及新入场，保留现有优菈、李织烟材质和手工头像。
+
+李织烟抱猫展示参考用户提供视频的前四秒：<https://www.bilibili.com/video/BV1VtNH6wEXL/>。视频只作为动作参考，没有从中提取模型或骨骼动画。`BreachSelectionCat.cpp` 编排抬抱、低头轻靠和收稳三个阶段，猫朝向角色，前爪靠近肩膀；双手 IK 始终跟随猫的两个支撑点。猫的头、四肢、耳朵和尾巴使用自己的骨架，3.5 秒结束后与人物一起定格。猫仅在李织烟的选人预览中显示，切换角色或关闭页面时隐藏，不是战斗宠物或联机复制实体。
+
+猫模型来自 Daily Lowpoly 的 [Lowpoly Cat + Run Animation](https://dailylowpoly.itch.io/lowpoly-cat-running)，作者明确允许用于商业项目；这是作者页面的许可，不是 CC0。源文件 `cat_rigged.fbx` 保留在本地 `SourceAssets/Converted/Cat/`，不作为独立素材包再分发。导入副本调整平滑法线，并配上白色材质、眼鼻和青色项圈；模型与参考视频中的猫不完全相同。
+
+- 猫网格：`/Game/Characters/SelectionCat/SK_SelectionCat`，骨架：`/Game/Characters/SelectionCat/SK_SelectionCat_Skeleton`。
+- 材质：`/Game/Characters/SelectionCat/M_CatFur`、`M_CatEye`、`M_CatPink`、`M_CatCollar`。
+- 本地重建：`Tools/prepare_selection_cat.cpp`、`Tools/BuildSelectionCatTool.bat`、`NeonBreach/Scripts/import_selection_cat.py`。猫的抱持动作由选人舞台编排，不加载源文件里的奔跑动画。
 
 #### 滑铲动作
 
-使用用户确认并提供的 [Mixamo Running Slide](https://www.mixamo.com/#/?page=1&query=running%20slide)，源文件为根目录的 `Running Slide.fbx`（带蒙皮、30 FPS，动作长 1.533 秒）。授权依照 [Adobe Mixamo FAQ](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html)，可免版税用于游戏，**不是 CC0**；原始动作不作为独立素材包再分发。
+使用用户确认并提供的 [Mixamo Running Slide](https://www.mixamo.com/#/?page=1&query=running%20slide)，源文件为 `pose/Running Slide.fbx`（带蒙皮、30 FPS，动作长 1.533 秒）。授权依照 [Adobe Mixamo FAQ](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html)，可免版税用于游戏，**不是 CC0**；原始动作不作为独立素材包再分发。
 
-四个角色分别使用 `/Game/Animations/Locomotion/<Key>/A_<Key>_Running_Slide`，`<Key>` 为 `Eula`、`EulaCasual`、`Lizhiyan`、`Marionette`。转换保留腿部和上身动作，去除水平根位移，并按各模型蒙皮后的鞋底、下腿和手部轮廓计算贴地高度；滑行速度与碰撞继续由移动组件控制。播放时加快滑入，并把贴地段延长到实际滑铲时长；结束后混合到当前下蹲或站姿，低矮空间内不会播放强制起身。
+四个角色分别使用 `/Game/Animations/Locomotion/<Key>/A_<Key>_Running_Slide`，`<Key>` 为 `Eula`、`Acheron`、`Lizhiyan`、`Ascalon`。转换保留腿部和上身动作，去除水平根位移，并按各模型蒙皮后的鞋底、下腿和手部轮廓计算贴地高度；滑行速度与碰撞继续由移动组件控制。播放时加快滑入，并把贴地段延长到实际滑铲时长；结束后混合到当前下蹲或站姿，低矮空间内不会播放强制起身。
 
 本地重建工具：`Tools/sample_mixamo_slide.cpp`、`Tools/BuildMixamoAnimationTool.bat`、`NeonBreach/Scripts/retarget_mixamo_slide.py`；中间采样位于 `SourceAssets/Animations/MixamoSlide/Running_Slide.json`。工具和中间文件沿用项目的本地忽略规则。
 

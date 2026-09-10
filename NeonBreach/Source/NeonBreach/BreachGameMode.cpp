@@ -1,5 +1,6 @@
 #include "BreachGame.h"
 #include "BreachVisuals.h"
+#include "CharacterRigData.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraActor.h"
 #include "GameFramework/HUD.h"
@@ -45,7 +46,8 @@ void ABreachGameMode::BeginPlay()
         bGallery=true;
         auto* Display=Displays[InspectIndex].Get();
         FVector Face=Display->Visual->Bounds.Origin+FVector(0,0,Display->Visual->Bounds.BoxExtent.Z*.8f);
-        if(InspectIndex==3) Face=Display->Visual->GetBoneLocationByName(FName(TEXT("Bip001-Head")),EBoneSpaces::WorldSpace)+FVector(0,0,7);
+        if(Display->Visual->GetBoneIndex(BreachRigNames[InspectIndex][int32(EBreachBone::Head)])!=INDEX_NONE)
+            Face=Display->Visual->GetBoneLocationByName(BreachRigNames[InspectIndex][int32(EBreachBone::Head)],EBoneSpaces::WorldSpace)+FVector(0,0,7);
         float InspectYaw=0;
         FParse::Value(FCommandLine::Get(),TEXT("BreachInspectYaw="),InspectYaw);
         const FVector Position=Face+FRotator(0,InspectYaw,0).RotateVector(FVector(115,0,2));

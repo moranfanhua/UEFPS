@@ -48,8 +48,8 @@ void ABreachGameMode::BakeArena(UObject* WorldContext)
 
 namespace Breach
 {
-    const TCHAR* Keys[4]={TEXT("Eula"),TEXT("EulaCasual"),TEXT("Lizhiyan"),TEXT("Marionette")};
-    const TCHAR* Names[4]={TEXT("EULA / GLACIER"),TEXT("EULA / CITY"),TEXT("LIZHIYAN"),TEXT("MARIONETTE")};
+    const TCHAR* Keys[4]={TEXT("Eula"),TEXT("Acheron"),TEXT("Lizhiyan"),TEXT("Ascalon")};
+    const TCHAR* Names[4]={TEXT("EULA / GLACIER"),TEXT("ACHERON"),TEXT("LIZHIYAN"),TEXT("ASCALON")};
     USkeletalMesh* CharacterMesh(int32 Index)
     {
         Index=FMath::Clamp(Index,0,3);
@@ -71,6 +71,17 @@ void ABreachGameMode::BuildArena()
     for(TActorIterator<AActor> It(GetWorld());It;++It) if(It->ActorHasTag(TEXT("BreachArena"))) HasArena=true;
     if(HasArena)
     {
+        // Existing baked maps keep their geometry and lighting edits, while
+        // operator placards follow the current roster just like the HUD.
+        for(TActorIterator<AActor> It(GetWorld());It;++It)
+            if(It->ActorHasTag(TEXT("BreachArena")))
+                if(auto* Sign=It->FindComponentByClass<UTextRenderComponent>())
+                    for(int32 I=0;I<4;++I)
+                    {
+                        const FString Prefix=FString::Printf(TEXT("0%d / "),I+1);
+                        if(Sign->Text.ToString().StartsWith(Prefix))
+                            Sign->SetText(FText::FromString(Prefix+Breach::Names[I]));
+                    }
         for(TActorIterator<ADirectionalLight> It(GetWorld());It;++It)
             if(It->ActorHasTag(TEXT("BreachArena")))
             {

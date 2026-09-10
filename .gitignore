@@ -54,8 +54,8 @@ crashinfo-*
 /NeonBreach/OpenEditor.bat
 
 # 原始下载模型压缩包（导入后的 UE 资源位于 Content）
-/*.zip
-/*.7z
+*.zip
+*.7z
 
 # 模型转换生成的中间文件
 /SourceAssets/Converted/
@@ -85,3 +85,7 @@ ehthumbs.db
 
 #模型和动作
 *.fbx
+*.vmd
+
+#图片
+*.png

@@ -288,7 +288,8 @@ void ABreachCharacter::SelectOperator(int32 Index)
 
 static FVector OperatorGrip(const ABreachCharacter* Player,int32 Side)
 {
-    FVector Grip=Side?FVector(-18,7,-10):FVector(0,-9,-7);
+    // Ascalon's shorter forearm supports the rear of the handguard.
+    FVector Grip=Side?FVector(-18,7,-10):FVector(Player->OperatorIndex==3?-6.f:0.f,-9,-7);
     if(!Side && Player->bReloading)
         Grip=FMath::Lerp(Grip,FVector(-1,-10,-24),FMath::Sin(Player->ReloadProgress*PI));
     return Player->WeaponRoot->GetComponentTransform().TransformPosition(Grip);

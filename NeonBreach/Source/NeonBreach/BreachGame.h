@@ -188,6 +188,7 @@ public:
     UFUNCTION(BlueprintCallable) static int32 PrepareFirstPersonArms(USkeletalMesh* CharacterAsset,int32 ModelIndex);
     UFUNCTION(BlueprintCallable) static UAnimSequence* BakeDeathAnimation(USkeletalMesh* CharacterAsset,int32 ModelIndex,const FString& MotionFile,const FString& PackageName);
     UFUNCTION(BlueprintCallable) static UAnimSequence* BakeCharacterAnimation(USkeletalMesh* CharacterAsset,int32 ModelIndex,const FString& MotionFile,const FString& PackageName);
+    UFUNCTION(BlueprintCallable) static UAnimSequence* BakeLocalAnimation(USkeletalMesh* CharacterAsset,const FString& MotionFile,const FString& PackageName);
     UPROPERTY() TArray<TObjectPtr<ABreachEnemy>> Displays;
 };
 

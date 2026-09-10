@@ -3,6 +3,7 @@
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
+#include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "GameFramework/PlayerState.h"
 #include "TextureResource.h"
@@ -37,9 +38,20 @@ void ABreachHUD::DrawPlayerVitals(const ABreachCharacter* Player)
     Polygon({{12,0},{105,0},{83,75},{25,75},{0,17}},Gold);
     Polygon({{17,3},{100,3},{80,72},{29,72},{5,18}},FLinearColor(.22f,.16f,.09f));
     EnsureSelectionStage();
-    auto* Portrait=SelectionStage?SelectionStage->Portrait(Player->OperatorIndex):nullptr;
-    if(Portrait && Portrait->GetResource())
-        Polygon({{17,4},{98,4},{78,71},{29,71},{6,18}},FLinearColor::White,Portrait->GetResource());
+    // auto* Portrait=SelectionStage?SelectionStage->Portrait(Player->OperatorIndex):nullptr;
+    // if(Portrait && Portrait->GetResource())
+    //     Polygon({{17,4},{98,4},{78,71},{29,71},{6,18}},FLinearColor::White,Portrait->GetResource());
+    static const TCHAR* PortraitPaths[] =
+    {
+        TEXT("/Game/Characters/Portraits/T_Eula_Portrait.T_Eula_Portrait"),
+        TEXT("/Game/Characters/Portraits/T_Acheron_Portrait.T_Acheron_Portrait"),
+        TEXT("/Game/Characters/Portraits/T_Lizhiyan_Portrait.T_Lizhiyan_Portrait"),
+        TEXT("/Game/Characters/Portraits/T_Ascalon_Portrait.T_Ascalon_Portrait")
+    };
+    const int32 Index = FMath::Clamp(Player->OperatorIndex, 0, 3);
+    UTexture2D* Portrait = LoadObject<UTexture2D>(nullptr, PortraitPaths[Index]);
+    if(Portrait && Portrait->GetResource()) Polygon({{17,4},{98,4},{78,71},{29,71},{6,18}},FLinearColor::White,Portrait->GetResource());
+
     Polygon({{12,0},{20,0},{8,18},{0,17}},FLinearColor(.96f,.58f,.12f));
     Polygon({{0,17},{8,18},{31,75},{25,75}},FLinearColor(.96f,.58f,.12f));
     DrawLine((X+29)*S,(Y+74)*S,(X+84)*S,(Y+74)*S,Gold,S);

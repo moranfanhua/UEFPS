@@ -16,6 +16,7 @@ struct FBreachPose
     TArray<int32> AnimationBones;
     int32 Bones[17];
     int32 Fingers[2][15];
+    bool InitSkeleton(USkeletalMesh* Asset);
     bool Init(USkeletalMesh* Asset,int32 ModelIndex);
     int32 Bone(EBreachBone B) const { return Bones[int32(B)]; }
     bool IsUnder(int32 Index,int32 Ancestor) const;

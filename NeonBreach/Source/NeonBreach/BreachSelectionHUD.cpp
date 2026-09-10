@@ -4,6 +4,7 @@
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
+#include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "CanvasItem.h"
 #include "Fonts/SlateFontInfo.h"
@@ -97,7 +98,7 @@ FVector2D ABreachHUD::OperatorCardCenter(int32 Index) const
 {
     int32 Width=1600,Height=900;if(auto* PC=GetOwningPlayerController()) PC->GetViewportSize(Width,Height);
     const float Scale=FMath::Max(Height,1)/900.f,VirtualWidth=Width/Scale;
-    return FVector2D((VirtualWidth*.5f-349+Index*178+82)*Scale,785*Scale);
+    return FVector2D((VirtualWidth*.5f-349+Index*138+62)*Scale,760*Scale);
 }
 void ABreachHUD::MenuText(const FString& Value,float X,float Y,float Size,FLinearColor Color,bool Chinese)
 {
@@ -125,8 +126,15 @@ void ABreachHUD::DrawSelection()
     MenuText(bInitialSelection?TEXT("开始游戏"):TEXT("H   /   返回"),W-173,55,14,White,true);
     AddHitBox(FVector2D((W-190)*Scale,46*Scale),FVector2D(138*Scale,40*Scale),TEXT("SelectionClose"),true,10);
     const int32 Selected=SelectionStage->SelectedIndex;
-    static const TCHAR* Titles[]={TEXT("EULA"),TEXT("EULA / CITY"),TEXT("LI ZHIYAN"),TEXT("MARIONETTE")};
-    static const TCHAR* ChineseNames[]={TEXT("优菈"),TEXT("联动优菈"),TEXT("李织烟"),TEXT("木偶")};
+    static const TCHAR* Titles[]={TEXT("EULA"),TEXT("ACHERON"),TEXT("LI ZHIYAN"),TEXT("ASCALON")};
+    static const TCHAR* ChineseNames[]={TEXT("优菈"),TEXT("黄泉"),TEXT("李织烟"),TEXT("阿斯卡纶")};
+    static const TCHAR* PortraitPaths[] =
+    {
+        TEXT("/Game/Characters/Portraits/T_Eula_Portrait.T_Eula_Portrait"),
+        TEXT("/Game/Characters/Portraits/T_Acheron_Portrait.T_Acheron_Portrait"),
+        TEXT("/Game/Characters/Portraits/T_Lizhiyan_Portrait.T_Lizhiyan_Portrait"),
+        TEXT("/Game/Characters/Portraits/T_Ascalon_Portrait.T_Ascalon_Portrait")
+    };
     MenuText(FString::Printf(TEXT("0%d  /  OPERATOR"),Selected+1),64,280,12,Cyan);
     MenuText(Titles[Selected],60,305,40,White);
     MenuText(ChineseNames[Selected],65,373,22,FLinearColor(.66f,.81f,.88f),true);
@@ -134,18 +142,23 @@ void ABreachHUD::DrawSelection()
     Gradient(Canvas,0,676,W,48,FLinearColor(.004f,.01f,.018f,0),FLinearColor(.004f,.01f,.018f,.95f));
     Box(0,724,W,176,Dark);Box(52,700,W-104,1,FLinearColor(.2f,.45f,.55f,.28f));
     const float Start=W*.5f-349;
+
     for(int32 I=0;I<4;++I)
     {
-        const float X=Start+I*178,Y=716;const bool Active=I==Selected,Hover=I==HoveredOperator;
-        const FLinearColor Border=Active?Cyan:(Hover?FLinearColor(.7f,.88f,1):FLinearColor(.17f,.27f,.33f));
-        Box(X-2,Y-2,168,146,Border);Box(X,Y,164,142,Dark);
-        if(auto* Texture=SelectionStage->Portrait(I))
-            DrawTexture(Texture,(X+1)*Scale,(Y+1)*Scale,162*Scale,101*Scale,0,0,1,1,FLinearColor::White,BLEND_Opaque);
-        if(!Active && !Hover) Box(X+1,Y+1,162,101,FLinearColor(.015f,.04f,.06f,.22f));
-        Box(X,Y,164,3,Border);
-        MenuText(ChineseNames[I],X+11,Y+111,13,Active?White:Muted,true);
-        if(Active) { Box(X+136,Y+118,12,3,Cyan);Box(X+145,Y+113,3,8,Cyan); }
-        AddHitBox(FVector2D(X*Scale,Y*Scale),FVector2D(164*Scale,142*Scale),FName(*FString::Printf(TEXT("Operator_%d"),I)),true,5);
+        const float X=Start+I*138;
+        const float Y=650;
+        const bool Active=I==Selected;
+        const bool Hover=I==HoveredOperator;
+        const FLinearColor Border=Active? Cyan: (Hover? FLinearColor(.7f,.88f,1): FLinearColor(.17f,.27f,.33f));
+        Box(X-2,Y-2,128,224,Border);
+        Box(X,Y,124,220,Dark);
+        UTexture2D* Texture= LoadObject<UTexture2D>(nullptr,PortraitPaths[I]);
+        if(Texture)  DrawTexture(Texture,(X+1)*Scale,(Y+1)*Scale,122*Scale,183*Scale,0,0,1,1,FLinearColor::White,BLEND_Translucent);
+        if(!Active && !Hover) Box(X+1,Y+1,122,183,FLinearColor(.015f,.04f,.06f,.22f));
+        Box(X,Y,124,3,Border);
+        MenuText(ChineseNames[I],X+8,Y+193,13,Active?White:Muted,true);
+        if(Active){Box(X+96,Y+200,12,3,Cyan);Box(X+105,Y+195,3,8,Cyan);}
+        AddHitBox(FVector2D(X*Scale,Y*Scale),FVector2D(124*Scale,220*Scale),FName(*FString::Printf(TEXT("Operator_%d"),I)),true,5);
     }
     //MenuText(TEXT("点击头像选择角色 · 再次点击重播动作"),54,869,12,Muted,true);
     //MenuText(bInitialSelection?TEXT("ENTER / H / ESC  开始游戏"):TEXT("H / ESC  返回作战"),bInitialSelection?W-284:W-208,869,12,Muted,true);
