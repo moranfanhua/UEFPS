@@ -172,6 +172,7 @@ public:
     void SpawnEnemy();
     void RunSmokeTest();
     void RunMovementTest();
+    void RunModelReview();
     void TickSelectionTest();
     TFunction<void()> SelectionTestStep;
     UFUNCTION(Exec) void BreachSmokeTest();
@@ -186,6 +187,7 @@ public:
     UFUNCTION(BlueprintCallable) static void BindSkeleton(USkeletalMesh* CharacterAsset, USkeleton* SkeletonAsset);
     UFUNCTION(BlueprintCallable) static USkeleton* EnsureSkeleton(USkeletalMesh* CharacterAsset);
     UFUNCTION(BlueprintCallable) static int32 PrepareFirstPersonArms(USkeletalMesh* CharacterAsset,int32 ModelIndex);
+    UFUNCTION(BlueprintCallable) static bool CopyCharacterGeometry(USkeletalMesh* Target,USkeletalMesh* Source);
     UFUNCTION(BlueprintCallable) static UAnimSequence* BakeDeathAnimation(USkeletalMesh* CharacterAsset,int32 ModelIndex,const FString& MotionFile,const FString& PackageName);
     UFUNCTION(BlueprintCallable) static UAnimSequence* BakeCharacterAnimation(USkeletalMesh* CharacterAsset,int32 ModelIndex,const FString& MotionFile,const FString& PackageName);
     UFUNCTION(BlueprintCallable) static UAnimSequence* BakeLocalAnimation(USkeletalMesh* CharacterAsset,const FString& MotionFile,const FString& PackageName);

@@ -12,6 +12,35 @@
 #include "UObject/Package.h"
 #endif
 
+bool ABreachGameMode::CopyCharacterGeometry(USkeletalMesh* Target,USkeletalMesh* Source)
+{
+#if WITH_EDITOR
+    if(!Target || !Source || Target==Source || !Target->GetSkeleton()) return false;
+    // Geometry revisions must use the exact existing bind pose. Never replace the
+    // skeleton: locomotion, entrance clips and both player meshes reference it.
+    const FReferenceSkeleton& A=Target->GetRefSkeleton();
+    const FReferenceSkeleton& B=Source->GetRefSkeleton();
+    if(A.GetRawBoneNum()!=B.GetRawBoneNum()) return false;
+    for(int32 I=0;I<A.GetRawBoneNum();++I)
+        if(A.GetBoneName(I)!=B.GetBoneName(I) || A.GetParentIndex(I)!=B.GetParentIndex(I) ||
+           !A.GetRawRefBonePose()[I].Equals(B.GetRawRefBonePose()[I],.001f)) return false;
+    const FMeshDescription* Description=Source->GetMeshDescription(0);
+    if(!Description || Description->Triangles().Num()==0 || Source->GetMaterials().IsEmpty()) return false;
+    for(const FSkeletalMaterial& Slot:Source->GetMaterials()) if(!Slot.MaterialInterface) return false;
+    FMeshDescription Copy(*Description);
+    Target->Modify();
+    Target->CreateMeshDescription(0,MoveTemp(Copy));
+    Target->SetMaterials(Source->GetMaterials());
+    Target->CommitMeshDescription(0);
+    // Retain the original bounds used to normalize character height and camera offsets.
+    Target->PostEditChange();
+    Target->MarkPackageDirty();
+    return true;
+#else
+    return false;
+#endif
+}
+
 int32 ABreachGameMode::PrepareFirstPersonArms(USkeletalMesh* Asset,int32 ModelIndex)
 {
 #if WITH_EDITOR

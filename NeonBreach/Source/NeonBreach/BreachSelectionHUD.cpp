@@ -41,7 +41,7 @@ void ABreachHUD::Tick(float DeltaSeconds)
     if(!bStartupPending || !GetOwningPawn() || !GetOwningPawn()->HasActorBegunPlay()) return;
     bStartupPending=false;
     // Existing arena diagnostics run directly in gameplay. Selection tests use the normal opening flow.
-    for(const TCHAR* Flag:{TEXT("BreachTest"),TEXT("BreachMovementTest"),TEXT("BreachViewTest"),TEXT("BreachGallery"),TEXT("BreachAutoPlay"),TEXT("BreachDeathPreview"),TEXT("BreachCapture")})
+    for(const TCHAR* Flag:{TEXT("BreachTest"),TEXT("BreachMovementTest"),TEXT("BreachViewTest"),TEXT("BreachGallery"),TEXT("BreachAutoPlay"),TEXT("BreachDeathPreview"),TEXT("BreachCapture"),TEXT("BreachModelReview")})
         if(FParse::Param(FCommandLine::Get(),Flag)) return;
     int32 InspectIndex=INDEX_NONE;
     if(FParse::Value(FCommandLine::Get(),TEXT("BreachInspect="),InspectIndex)) return;

@@ -86,6 +86,9 @@ ehthumbs.db
 #模型和动作
 *.fbx
 *.vmd
+*.blend
+Modeling/Ascalon/*.py
 
 #图片
 *.png
+

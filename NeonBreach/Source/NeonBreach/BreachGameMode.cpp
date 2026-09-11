@@ -30,7 +30,9 @@ ABreachGameMode::ABreachGameMode()
 }
 void ABreachGameMode::BeginPlay()
 {
-    Super::BeginPlay(); BuildArena();
+    Super::BeginPlay();
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachModelReview"))) { RunModelReview(); return; }
+    BuildArena();
     for(int32 i=0;i<4;++i)
     {
         const FTransform T(FRotator(0,0,0),FVector(-1900,-660+i*440,119));
