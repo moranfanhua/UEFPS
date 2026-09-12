@@ -413,10 +413,10 @@ void ABreachCharacter::ApplyPunchAttackPose()
         const float StrikeSign=Strike?1.f:-1.f;
         AttackPose.SolveArm(Strike,ToBody.TransformPosition(View.TransformPosition(FVector(FMath::Lerp(30.f,76.f,Thrust),StrikeSign*14.f,-24.f))),
             ToBody.TransformPosition(View.TransformPosition(FVector(24.f,StrikeSign*43.f,-34.f))));
-        AttackPose.PoseHand(Strike,ToBody.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToBody.TransformVectorNoScale(Strike?-View.GetUnitAxis(EAxis::Y):View.GetUnitAxis(EAxis::Y)),1.f);
+        AttackPose.PoseFist(Strike,ToBody.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToBody.TransformVectorNoScale(Strike?-View.GetUnitAxis(EAxis::Y):View.GetUnitAxis(EAxis::Y)));
         AttackPose.SolveArm(Guard,ToBody.TransformPosition(View.TransformPosition(FVector(29.f,-StrikeSign*23.f,-25.f))),
             ToBody.TransformPosition(View.TransformPosition(FVector(12.f,-StrikeSign*41.f,-37.f))));
-        AttackPose.PoseHand(Guard,ToBody.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToBody.TransformVectorNoScale(Guard?-View.GetUnitAxis(EAxis::Y):View.GetUnitAxis(EAxis::Y)),1.f);
+        AttackPose.PoseFist(Guard,ToBody.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToBody.TransformVectorNoScale(Guard?-View.GetUnitAxis(EAxis::Y):View.GetUnitAxis(EAxis::Y)));
     }
     const int32 Spine=BodyPose.Bone(EBreachBone::Spine);
     for(int32 I=0;I<BodyPose.Local.Num();++I)
@@ -678,10 +678,12 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
             const FVector Impact=bOwnerView?FVector(64.f,StrikeSign*3.f,-7.f):FVector(76.f,StrikeSign*14.f,-24.f);
             Pose.SolveArm(Strike,ToMesh.TransformPosition(View.TransformPosition(FMath::Lerp(Ready,Impact,Extend))),
                 ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(19.f,StrikeSign*40.f,-34.f):FVector(24.f,StrikeSign*43.f,-34.f))));
-            Pose.PoseHand(Strike,ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToMesh.TransformVectorNoScale(Strike?-View.GetUnitAxis(EAxis::Y):View.GetUnitAxis(EAxis::Y)),1.f);
+            const FVector StrikePalm=ToMesh.TransformVectorNoScale(Strike?-View.GetUnitAxis(EAxis::Y):View.GetUnitAxis(EAxis::Y));
+            Pose.PoseFist(Strike,ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),StrikePalm);
             Pose.SolveArm(Guard,ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(31.f,-StrikeSign*25.f,-27.f):FVector(29.f,-StrikeSign*23.f,-25.f))),
                 ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(13.f,-StrikeSign*43.f,-38.f):FVector(12.f,-StrikeSign*41.f,-37.f))));
-            Pose.PoseHand(Guard,ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToMesh.TransformVectorNoScale(Guard?-View.GetUnitAxis(EAxis::Y):View.GetUnitAxis(EAxis::Y)),1.f);
+            const FVector GuardPalm=ToMesh.TransformVectorNoScale(Guard?-View.GetUnitAxis(EAxis::Y):View.GetUnitAxis(EAxis::Y));
+            Pose.PoseFist(Guard,ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),GuardPalm);
             return;
         }
         // Keep unarmed hands at fixed camera-space rests through takeoff,

@@ -222,6 +222,26 @@ void ABreachGameMode::RunMovementTest()
         const auto Height=[&](EBreachBone Bone) { return P->WorldBody->GetBoneLocationByName(P->WorldBody->GetBoneName(Rig.Bone(Bone)),EBoneSpaces::WorldSpace).Z; };
         return float(Height(EBreachBone::Pelvis)-(Height(EBreachBone::LFoot)+Height(EBreachBone::RFoot))*.5);
     };
+    const auto FistExtension=[P](int32 Side)
+    {
+        FBreachPose Rig;Rig.Init(Breach::CharacterMesh(P->OperatorIndex),P->OperatorIndex);
+        const int32 Hand=Rig.Bone(Side?EBreachBone::RHand:EBreachBone::LHand);
+        const auto Position=[&](int32 Bone)
+        {
+            return P->Body->GetBoneLocationByName(P->Body->GetBoneName(Bone),EBoneSpaces::WorldSpace);
+        };
+        const FVector HandPosition=Position(Hand);
+        float Worst=0.f;
+        for(int32 Finger=1;Finger<5;++Finger)
+        {
+            const int32 Root=Rig.Fingers[Side][Finger*3];
+            const int32 Joint=Rig.Fingers[Side][Finger*3+1];
+            const int32 Tip=Rig.Fingers[Side][Finger*3+2];
+            const float Chain=FVector::Distance(HandPosition,Position(Root))+FVector::Distance(Position(Root),Position(Joint))+FVector::Distance(Position(Joint),Position(Tip));
+            if(Chain>UE_SMALL_NUMBER) Worst=FMath::Max(Worst,float(FVector::Distance(HandPosition,Position(Tip))/Chain));
+        }
+        return Worst;
+    };
     At(1.83f,[=]() { Check(P->LocomotionState==EBreachLocomotion::JumpLoop,TEXT("Takeoff transitions to airborne pose")); Results->AirLegReach=LegReach();Screenshot(TEXT("JumpLoop")); });
     At(2.25f,[=]()
     {
@@ -488,6 +508,8 @@ void ABreachGameMode::RunMovementTest()
     {
         if(Sword) return;
         Check(P->IsPunchAttacking() && P->GetPunchAttackSide()==1,TEXT("Held melee input starts with a right-hand punch"));
+        const float Extension=FistExtension(1);
+        Check(Extension<.78f,FString::Printf(TEXT("Right punch closes all four fingers into a fist (extension %.2f)"),Extension));
         Screenshot(TEXT("PunchRight"));
     });
     At(29.9f,[=]()
@@ -495,6 +517,8 @@ void ABreachGameMode::RunMovementTest()
         if(Sword) return;
         Check(P->IsPunchAttacking() && P->GetPunchAttackSide()==0 && P->ShotsFired>=Results->PunchSequenceShots+2,
             TEXT("Held melee input follows with a left-hand punch"));
+        const float Extension=FistExtension(0);
+        Check(Extension<.78f,FString::Printf(TEXT("Left punch closes all four fingers into a fist (extension %.2f)"),Extension));
         Screenshot(TEXT("PunchLeft"));
     });
     At(30.f,[=]() { if(!Sword) Key(EKeys::LeftMouseButton,IE_Released); });

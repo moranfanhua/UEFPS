@@ -103,6 +103,59 @@ void FBreachPose::PoseHand(int32 Side,const FVector& Direction,const FVector& No
         Rotate(Fingers[Side][Finger*3+Joint],FQuat(Axis,FMath::DegreesToRadians((Joint==1?80.f:(Joint==0?65.f:50.f))*Amount)));
     }
 }
+void FBreachPose::PoseFist(int32 Side,const FVector& Direction,const FVector& Normal)
+{
+    // Align the knuckles without applying the relaxed weapon-grip curl, then
+    // pull each fingertip toward a palm-relative target. This adapts to the
+    // different finger lengths and joint orientations of all supplied rigs.
+    PoseHand(Side,Direction,Normal,0.f);
+    const int32 Hand=Bone(Side?EBreachBone::RHand:EBreachBone::LHand);
+    const int32 Middle=Fingers[Side][6];
+    if(!CS.IsValidIndex(Hand) || !CS.IsValidIndex(Middle)) return;
+    const FVector HandPosition=CS[Hand].GetLocation();
+    const FVector Along=(CS[Middle].GetLocation()-CS[Hand].GetLocation()).GetSafeNormal();
+    const FVector Palm=(Normal-Along*FVector::DotProduct(Normal,Along)).GetSafeNormal();
+    const FVector Across=FVector::CrossProduct(Along,Palm).GetSafeNormal();
+    const float PalmLength=FVector::Distance(HandPosition,CS[Middle].GetLocation());
+    const auto Fold=[&](int32 Finger,const FVector& Target,const FVector& Hint,const FVector& TipDirection)
+    {
+        const int32 Root=Fingers[Side][Finger*3],Joint=Fingers[Side][Finger*3+1],Tip=Fingers[Side][Finger*3+2];
+        if(!CS.IsValidIndex(Root) || !CS.IsValidIndex(Joint) || !CS.IsValidIndex(Tip)) return;
+        const FVector Base=CS[Root].GetLocation();
+        const float A=FVector::Distance(Base,CS[Joint].GetLocation());
+        const float B=FVector::Distance(CS[Joint].GetLocation(),CS[Tip].GetLocation());
+        const float D=FMath::Clamp(float(FVector::Distance(Base,Target)),FMath::Abs(A-B)+.001f,(A+B)*.995f);
+        const FVector AimDirection=(Target-Base).GetSafeNormal();
+        FVector Bend=Hint-Base;
+        Bend=(Bend-AimDirection*FVector::DotProduct(Bend,AimDirection)).GetSafeNormal(UE_SMALL_NUMBER,Along);
+        const float Projected=(D*D+A*A-B*B)/(2.f*D);
+        const FVector Elbow=Base+AimDirection*Projected+Bend*FMath::Sqrt(FMath::Max(0.f,A*A-Projected*Projected));
+        Aim(Root,Joint,Elbow-Base);
+        Aim(Joint,Tip,Base+AimDirection*D-CS[Joint].GetLocation());
+        // Turn the final phalanx back into the palm so long nails and distal
+        // skin cannot remain pointing forward after the joint is folded.
+        const FVector Current=(CS[Tip].GetLocation()-CS[Joint].GetLocation()).GetSafeNormal();
+        const FVector Desired=TipDirection.GetSafeNormal();
+        Rotate(Tip,FQuat::FindBetweenNormals(Current,Desired));
+    };
+    for(int32 Finger=1;Finger<5;++Finger)
+    {
+        const int32 Root=Fingers[Side][Finger*3];
+        if(!CS.IsValidIndex(Root)) continue;
+        const float Spread=FVector::DotProduct(CS[Root].GetLocation()-HandPosition,Across);
+        const FVector Target=HandPosition+Along*(PalmLength*.42f)+Palm*(PalmLength*.38f)+Across*(Spread*.72f);
+        Fold(Finger,Target,CS[Root].GetLocation()+Along*PalmLength+Palm*(PalmLength*.15f),-Along*.92f+Palm*.38f);
+    }
+    // Close the thumb last, across the already folded index and middle fingers.
+    const int32 IndexRoot=Fingers[Side][3];
+    if(CS.IsValidIndex(IndexRoot))
+    {
+        const FVector Target=(CS[IndexRoot].GetLocation()+CS[Middle].GetLocation())*.5f+Palm*(PalmLength*.16f);
+        const int32 RingRoot=Fingers[Side][9];
+        const FVector ThumbDirection=CS.IsValidIndex(RingRoot)?CS[RingRoot].GetLocation()-CS[IndexRoot].GetLocation():Across;
+        Fold(0,Target,HandPosition+Along*PalmLength-Palm*(PalmLength*.1f),ThumbDirection);
+    }
+}
 void FBreachPose::Walk(float Phase,float Speed)
 {
     Reset();

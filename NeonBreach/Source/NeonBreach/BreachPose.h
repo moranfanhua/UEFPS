@@ -29,6 +29,7 @@ struct FBreachPose
     void Aim(int32 Index,int32 Child,const FVector& Direction);
     void SolveArm(int32 Side,const FVector& HandTarget,const FVector& ElbowHint);
     void PoseHand(int32 Side,const FVector& FingerDirection,const FVector& PalmNormal,float Curl);
+    void PoseFist(int32 Side,const FVector& KnuckleDirection,const FVector& PalmNormal);
     void Walk(float Phase,float Speed);
     bool Sample(UAnimSequence* Animation,float Time,bool Loop);
     void Apply(UPoseableMeshComponent* Mesh,bool HideHead=false,bool HideArms=false) const;
