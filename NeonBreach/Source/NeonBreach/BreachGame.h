@@ -58,6 +58,10 @@ public:
     UPROPERTY(EditAnywhere, Category="Weapon") float FireInterval = 0.105f;
     UPROPERTY(EditAnywhere, Category="Weapon") float ShotDamage = 34.f;
     UPROPERTY(EditAnywhere, Category="Weapon") int32 MagazineSize = 30;
+    UPROPERTY(EditAnywhere, Category="Melee") float PunchDamage = 70.f;
+    UPROPERTY(EditAnywhere, Category="Melee") float PunchAttackInterval = .58f;
+    UPROPERTY(EditAnywhere, Category="Melee") float PunchRange = 145.f;
+    UPROPERTY(EditAnywhere, Category="Melee") float PunchRadius = 42.f;
     UPROPERTY(EditAnywhere, Category="Sword") float SwordDamage = 180.f;
     UPROPERTY(EditAnywhere, Category="Sword") float SwordAttackInterval = .72f;
     UPROPERTY(EditAnywhere, Category="Sword") float SwordRange = 260.f;
@@ -95,6 +99,7 @@ public:
     bool UsesSword() const { return OperatorIndex==1; }
     bool HasSwordRig() const { return bSwordRigReady; }
     bool IsSwordAttacking() const { return SwordAttackTime>=0.f; }
+    bool IsPunchAttacking() const { return PunchAttackTime>=0.f; }
     void SetAim(bool bEnabled);
     void RestartRun();
     void TogglePause();
@@ -108,7 +113,9 @@ private:
     FBreachCloth BodyCloth;
     UPROPERTY() TArray<TObjectPtr<UAnimSequence>> LocomotionAnimations;
     UPROPERTY() TObjectPtr<UAnimSequence> SwordAttackAnimation;
+    UPROPERTY() TObjectPtr<UAnimSequence> PunchAttackAnimation;
     void LoadLocomotionAnimations();
+    void LoadPunchAttackAnimation();
     void UpdateLocomotion(float DeltaSeconds);
     TArray<FTransform> LocomotionBlendFrom;
     float LocomotionTime=0.f,LocomotionBlendTime=1.f;
@@ -119,10 +126,14 @@ private:
     bool bWasFalling=false,bJumpTakingOff=false;
     bool bBodyRigReady=false;
     bool bSwordRigReady=false,bSwordDamageApplied=false;
+    bool bPunchDamageApplied=false;
     bool bLoadoutBeforeSword=false;
     float SwordAttackTime=-1.f;
     FVector SwordAttackOrigin=FVector::ZeroVector;
     FVector SwordAttackDirection=FVector::ForwardVector;
+    float PunchAttackTime=-1.f;
+    FVector PunchAttackOrigin=FVector::ZeroVector;
+    FVector PunchAttackDirection=FVector::ForwardVector;
     FTransform FirstPersonSwordAnchor=FTransform::Identity;
     FTransform FirstPersonSwordGrip=FTransform::Identity;
     bool bFirstPersonSwordGripReady=false;
@@ -130,6 +141,9 @@ private:
     void UpdateSwordAttack(float DeltaSeconds);
     void PerformSwordHit();
     void ApplySwordAttackPose();
+    void UpdatePunchAttack(float DeltaSeconds);
+    void PerformPunchHit();
+    void ApplyPunchAttackPose();
     void UpdateSwordVisual(const FBreachPose& Pose,UPoseableMeshComponent* CharacterMesh,UPoseableMeshComponent* SwordMesh,float DeltaSeconds);
     void UpdateScabbardVisual(const FBreachPose& Pose,UPoseableMeshComponent* CharacterMesh,UPoseableMeshComponent* ScabbardMesh);
     void MoveForward(float Value);

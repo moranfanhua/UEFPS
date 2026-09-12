@@ -42,10 +42,10 @@ void ABreachHUD::DrawHUD()
     // Crosshair expands during movement and contracts while aiming.
     const float Cx=W*.5f,Cy=H*.5f;
     const float Gap=P->bAiming?5:9+FMath::Clamp(P->GetVelocity().Size2D()/100.f,0.f,6.f);
-    if(!G->bGameOver && (!P->bUnarmed || P->UsesSword()))
+    if(!G->bGameOver)
     {
         Box(Cx-1,Cy-1,2,2,White);
-        if(!P->bAiming && !P->UsesSword())
+        if(!P->bAiming && !P->UsesSword() && !P->bUnarmed)
         {
             Box(Cx-Gap-7,Cy-1,7,2,White); Box(Cx+Gap,Cy-1,7,2,White);
             Box(Cx-1,Cy-Gap-7,2,7,White); Box(Cx-1,Cy+Gap,2,7,White);
@@ -58,7 +58,7 @@ void ABreachHUD::DrawHUD()
     }
     DrawPlayerVitals(P);
     Box(W-318,H-150,290,98,Panel); Box(W-31,H-150,3,98,Cyan);
-    Text(P->UsesSword()?TEXT("NODACHI   /   MELEE"):P->bUnarmed?TEXT("UNARMED   /   FREE HANDS"):TEXT("VX-30   /   PULSE RIFLE"),W-298,H-138,12,Muted);
+    Text(P->UsesSword()?TEXT("NODACHI   /   MELEE"):P->bUnarmed?TEXT("FISTS   /   MELEE"):TEXT("VX-30   /   PULSE RIFLE"),W-298,H-138,12,Muted);
     if(P->UsesSword())
     {
         Text(P->IsSwordAttacking()?TEXT("SLASH"):P->IsSliding()?TEXT("SLIDE"):(P->bIsCrouched?TEXT("CROUCH"):TEXT("BLADE READY")),W-298,H-118,27,White);
@@ -66,8 +66,8 @@ void ABreachHUD::DrawHUD()
     }
     else if(P->bUnarmed)
     {
-        Text(P->IsSliding()?TEXT("SLIDE"):(P->bIsCrouched?TEXT("CROUCH"):TEXT("RUN")),W-298,H-118,30,White);
-        Text(TEXT("1  /  DRAW RIFLE"),W-298,H-74,12,Cyan);
+        Text(P->IsPunchAttacking()?TEXT("PUNCH"):P->IsSliding()?TEXT("SLIDE"):(P->bIsCrouched?TEXT("CROUCH"):TEXT("FISTS READY")),W-298,H-118,27,White);
+        Text(FString::Printf(TEXT("LMB  /  PUNCH    %.0f DAMAGE"),P->PunchDamage),W-298,H-74,12,Cyan);
     }
     else
     {

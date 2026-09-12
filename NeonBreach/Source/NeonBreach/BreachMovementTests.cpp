@@ -31,7 +31,7 @@ void ABreachGameMode::RunMovementTest()
     PC->SetControlRotation(FRotator(LookPitch,0,0));
     struct FResults
     {
-        FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideBoosted=0,SlideEntryLegReach=0,SlideWallX=0,TapSpeed=0,JumpSpeed=0,RampSpeed=0; TWeakObjectPtr<AActor> Roof,Ramp; TWeakObjectPtr<ABreachEnemy> SwordTarget;
+        FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideBoosted=0,SlideEntryLegReach=0,SlideWallX=0,TapSpeed=0,JumpSpeed=0,RampSpeed=0,PunchTargetStartHealth=0; TWeakObjectPtr<AActor> Roof,Ramp; TWeakObjectPtr<ABreachEnemy> SwordTarget,PunchTarget;
         FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit},SlideEye{ForceInit},SwordHandView{ForceInit},WorldSwordHand{ForceInit};
         int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0,SlideSamples=0,SwordHandSamples=0;
     };
@@ -142,6 +142,12 @@ void ABreachGameMode::RunMovementTest()
         {
             Check(P->HasSwordRig() && P->Sword->IsVisible() && P->WorldSword->IsVisible() && P->Scabbard->IsVisible() && P->WorldScabbard->IsVisible(),TEXT("Acheron carries the supplied blade and scabbard in both views"));
             Check(FVector::Distance(P->Sword->GetBoneLocationByName(TEXT("bone_002"),EBoneSpaces::WorldSpace),P->Scabbard->GetBoneLocationByName(TEXT("bone_003"),EBoneSpaces::WorldSpace))<1.f && P->Sword->GetComponentScale().X<1.f,TEXT("Acheron swings the reduced-size sword with its scabbard fitted"));
+            FBreachPose SwordRig;SwordRig.Init(Breach::CharacterMesh(P->OperatorIndex),P->OperatorIndex);
+            const FVector WorldHand=P->WorldBody->GetBoneLocationByName(P->WorldBody->GetBoneName(SwordRig.Bone(EBreachBone::RHand)),EBoneSpaces::WorldSpace);
+            Check(FVector::Distance(WorldHand,P->WorldSword->GetBoneLocationByName(TEXT("bone_002"),EBoneSpaces::WorldSpace))<5.f &&
+                FVector::Distance(WorldHand,P->WorldScabbard->GetBoneLocationByName(TEXT("bone_003"),EBoneSpaces::WorldSpace))<5.f,
+                TEXT("Acheron world sword and scabbard handles remain mapped to her right hand"));
+            Check(P->WorldSword->bCastHiddenShadow && !P->WorldScabbard->bCastHiddenShadow,TEXT("Only Acheron's correctly mapped blade contributes to her first-person prop shadow"));
             Check(P->FirstPersonSwordMotionScale<.5f,TEXT("Acheron's owner-view sword motion is substantially reduced"));
             Check(Move->GetTargetMoveSpeed()==Move->SwordSpeed && Move->SwordSpeed>Move->UnarmedSpeed,TEXT("Acheron sword speed is faster than unarmed running"));
             PC->SetControlRotation(FRotator::ZeroRotator);
@@ -154,15 +160,33 @@ void ABreachGameMode::RunMovementTest()
         }
         else
         {
+            PC->SetControlRotation(FRotator::ZeroRotator);
+            FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+            auto* Target=GetWorld()->SpawnActor<ABreachEnemy>(P->GetActorLocation()+P->Camera->GetForwardVector()*115.f,P->GetActorRotation(),Params);
+            Target->Configure(0,1);Target->AttackCooldown=999.f;Target->GetCharacterMovement()->DisableMovement();
+            if(Capture) Target->SetActorHiddenInGame(true);
+            Results->PunchTarget=Target;Results->PunchTargetStartHealth=Target->Health;
             P->Fire(); P->Reload(); P->SetAim(true);
-            Check(P->Ammo==Ammo && !P->bAiming && !P->bReloading,TEXT("Unarmed mode blocks shooting aiming and reload"));
+            PC->SetControlRotation(FRotator(LookPitch,0,0));
+            Check(P->Ammo==Ammo && P->IsPunchAttacking() && !P->bAiming && !P->bReloading,TEXT("Unarmed mode punches without rifle ammo, aiming or reload"));
         }
         Key(EKeys::W,IE_Pressed);
     });
-    At(.35f,[=]() { if(Sword) { Check(P->IsSwordAttacking(),TEXT("Acheron remains in the slash animation through the damage window"));Screenshot(TEXT("SwordAttack")); } });
+    At(.4f,[=]()
+    {
+        if(Sword) { Check(P->IsSwordAttacking(),TEXT("Acheron remains in the slash animation through the damage window"));Screenshot(TEXT("SwordAttack")); }
+        else { Check(P->IsPunchAttacking(),TEXT("Unarmed punch remains animated through the damage window"));Screenshot(TEXT("PunchAttack")); }
+    });
     At(.55f,[=]()
     {
         if(Sword) Check(Results->SwordTarget.IsValid() && Results->SwordTarget->bDefeated && P->SwordDamage>P->ShotDamage*5.f && P->ShotsHit>0,TEXT("Acheron slash lands at melee range with far higher damage than a bullet"));
+        else
+        {
+            Check(Results->PunchTarget.IsValid() && FMath::IsNearlyEqual(Results->PunchTarget->Health,Results->PunchTargetStartHealth-P->PunchDamage,.1f) &&
+                !Results->PunchTarget->bDefeated && FMath::IsNearlyEqual(P->PunchDamage,70.f) && P->ShotsHit>0,
+                TEXT("Unarmed punch lands at melee range for exactly 70 damage"));
+            if(Results->PunchTarget.IsValid()) Results->PunchTarget->Destroy();
+        }
     });
     At(.95f,[=]() { Screenshot(TEXT("Run")); });
     At(1.18f,[=]()

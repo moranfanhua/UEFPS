@@ -14,6 +14,7 @@ void ABreachCharacter::SetUnarmed(bool Enabled)
 {
     if(Health<=0) return;
     bUnarmed=UsesSword() || Enabled;
+    if(!bUnarmed) { PunchAttackTime=-1.f; bPunchDamageApplied=false; }
     bSprint=bUnarmed && !bIsCrouched;
     bTrigger=false; bAiming=false; bReloading=false;
     CastChecked<UBreachMovementComponent>(GetCharacterMovement())->SetLocomotionIntent(bUnarmed,bAiming);
@@ -32,6 +33,15 @@ void ABreachCharacter::SetUnarmed(bool Enabled)
         if(auto* WeaponPart=Cast<UStaticMeshComponent>(Part)) WeaponPart->SetCastShadow(!bUnarmed);
     // Blend out of the current held pose when holstering or drawing the rifle.
     LocomotionBlendFrom=BodyPose.Local; LocomotionBlendTime=0;
+}
+
+void ABreachCharacter::LoadPunchAttackAnimation()
+{
+    PunchAttackAnimation=nullptr;
+    if(OperatorIndex==0)
+        PunchAttackAnimation=LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Animations/Entrance/Eula/A_Eula_Female_Punch.A_Eula_Female_Punch"));
+    else if(OperatorIndex==2)
+        PunchAttackAnimation=LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Animations/Entrance/Lizhiyan/A_Lizhiyan_Female_Punch.A_Lizhiyan_Female_Punch"));
 }
 void ABreachCharacter::CrouchOn() { if(Health>0) Crouch(); }
 void ABreachCharacter::CrouchOff() { UnCrouch(); }

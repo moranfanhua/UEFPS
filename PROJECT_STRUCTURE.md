@@ -1,6 +1,6 @@
 # Neon Breach 项目结构说明
 
-这份文档说明项目中每个目录的作用、游戏启动后的调用关系，以及修改功能时应该从哪里入手。项目是 Unreal Engine 5.7 的 C++ 第一人称竞技场原型，核心玩法是枪械或黄泉近战、快速移动、击杀敌人、波次刷新和角色选择。
+这份文档说明项目中每个目录的作用、游戏启动后的调用关系，以及修改功能时应该从哪里入手。项目是 Unreal Engine 5.7 的 C++ 第一人称竞技场原型，核心玩法是枪械、挥拳或黄泉挥刀近战、快速移动、击杀敌人、波次刷新和角色选择。
 
 ## 1. 先建立整体认识
 
@@ -85,7 +85,7 @@ GPT_UE_TEST/
 | `BreachEnemy.cpp` | 敌人移动、朝向玩家、视线检测、攻击、受伤和死亡。普通移动由 `Pose.Walk()` 程序化生成，死亡优先播放对应的 `Death01` 动画。 |
 | `BreachAssets.cpp` | 编辑器资源处理：裁剪辅助第一人称手臂网格，以及从 JSON/动作文件烘焙死亡和角色动画。函数使用 `WITH_EDITOR`，打包后的游戏不会执行编辑器写入操作。 |
 | `BreachModelReview.cpp` | 阿斯卡纶正、侧、背离屏检查入口；只有显式使用 `-BreachModelReview` 才进入模型检查场景，附加 `-BreachReviewHead` 聚焦头部。`Scripts/VerifyModelReview.ps1 -Head` 封装该入口。保留原骨架的 `CopyCharacterGeometry` 位于 `BreachAssets.cpp`，网格更新仅允许编辑器构建执行。 |
-| `BreachCharacter.cpp` | 玩家角色的构造、输入绑定、相机、完整人物模型、枪械组件、黄泉刀、射击/挥刀、瞄准、换弹、受伤和重开。黄泉固定持刀，以 180 点近战伤害攻击。 |
+| `BreachCharacter.cpp` | 玩家角色的构造、输入绑定、相机、完整人物模型、枪械组件、黄泉刀、射击/挥拳/挥刀、瞄准、换弹、受伤和重开。普通角色收枪后以 70 点伤害挥拳，黄泉固定持刀并以 180 点伤害攻击。 |
 | `BreachLocomotion.cpp` | 玩家移动状态和动画切换：待机、持枪移动、空手或黄泉持刀奔跑、起跳、空中、落地、下蹲和滑铲。滑铲使用四个角色各自的 Mixamo `Running_Slide` 资源，按实际滑行时长播放贴地段；状态切换使用短时间骨骼混合，减少动作跳变。 |
 | `BreachMovementComponent.h/.cpp` | 自定义角色移动组件：统一处理持枪/空手/黄泉持刀/瞄准/下蹲速度过渡，黄泉持刀速度为 870 cm/s；处理 Ctrl 惯性滑铲、有限转向、坡道加减速、滑铲跳和落地续滑，并保存客户端移动重演状态。 |
 
@@ -213,7 +213,7 @@ ABreachCharacter
 └─ WorldBody  本地玩家不可见；保留完整头部和身体，投射世界影子
 ```
 
-两份模型使用同一个 `SK_<Key>`，由 `FBreachPose` 同步姿势。枪械也有 `WeaponRoot` 和 `WorldWeaponRoot` 两套组件。按 `3` 收起武器时，两套枪械都隐藏并关闭世界枪械的阴影；按 `1` 恢复持枪。
+两份模型使用同一个 `SK_<Key>`，由 `FBreachPose` 同步姿势。枪械也有 `WeaponRoot` 和 `WorldWeaponRoot` 两套组件。普通角色按 `3` 收起武器时，两套枪械都隐藏并关闭世界枪械的阴影，同时左键切换为 70 点伤害的挥拳；按 `1` 恢复持枪。
 
 ## 5. Config 目录
 
@@ -261,7 +261,7 @@ SourceAssets/
 | 角色外观、材质、披风 | `Content/Characters/<Key>`、`Content/Materials`、`BreachCharacter.cpp` 和 `BreachEnemy.cpp` 中的材质槽处理。 |
 | 角色选择界面 | `BreachSelectionHUD.cpp`、`BreachSelectionStage.cpp`。 |
 | 移动、跳跃、奔跑、下蹲 | `BreachCharacter.cpp` 的输入和速度，`BreachLocomotion.cpp` 的状态，`Content/Animations/Locomotion/<Key>` 的资源。 |
-| 枪械、射击、瞄准、换弹 | `BreachCharacter.cpp` 的 `Fire()`、`Reload()`、`SetAim()`。 |
+| 枪械、射击、挥拳、挥刀、瞄准、换弹 | `BreachCharacter.cpp` 的 `Fire()`、`PerformPunchHit()`、`PerformSwordHit()`、`Reload()`、`SetAim()`。 |
 | 敌人行为和死亡 | `BreachEnemy.cpp`，以及 `Content/Animations/Death`。 |
 | 波次、分数和生成点 | `BreachGameMode.cpp` 的 `StartWave()`、`SpawnEnemy()`、`EnemyDefeated()`。 |
 | 骨骼方向、握枪、IK | `CharacterRigData.h`、`CharacterBones.h`、`BreachPose.cpp`。 |

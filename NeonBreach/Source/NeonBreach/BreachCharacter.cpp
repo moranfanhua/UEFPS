@@ -99,6 +99,10 @@ ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
     WorldSword->SetupAttachment(GetCapsuleComponent());
     WorldSword->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     WorldSword->SetOwnerNoSee(true);
+    // Keep the blade in the owner's full-body shadow. The separate scabbard
+    // component below uses the same compound source mesh, so only this blade
+    // instance may cast while hidden or the concealed blade geometry is
+    // projected a second time from the scabbard transform.
     WorldSword->SetCastHiddenShadow(true);
     WorldSword->SetCastShadow(true);
     WorldSword->bCastCinematicShadow=true;
@@ -116,7 +120,7 @@ ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
     WorldScabbard->SetupAttachment(GetCapsuleComponent());
     WorldScabbard->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     WorldScabbard->SetOwnerNoSee(true);
-    WorldScabbard->SetCastHiddenShadow(true);
+    WorldScabbard->SetCastHiddenShadow(false);
     WorldScabbard->SetCastShadow(true);
     WorldScabbard->bCastCinematicShadow=true;
     WorldScabbard->SetBoundsScale(2.f);
@@ -178,7 +182,7 @@ void ABreachCharacter::MoveForward(float V) { if(Health>0) AddMovementInput(FRot
 void ABreachCharacter::MoveRight(float V) { if(Health>0) AddMovementInput(FRotationMatrix(FRotator(0,GetControlRotation().Yaw,0)).GetUnitAxis(EAxis::Y), V); }
 void ABreachCharacter::Turn(float V) { if(Health>0) AddControllerYawInput(V * (bAiming ? .45f : .75f)); }
 void ABreachCharacter::LookUp(float V) { if(Health>0) AddControllerPitchInput(V * (bAiming ? .45f : .75f)); }
-void ABreachCharacter::StartFire() { if(UsesSword() || !bUnarmed) { bTrigger=true; Fire(); } }
+void ABreachCharacter::StartFire() { if(Health>0) { bTrigger=true; Fire(); } }
 void ABreachCharacter::StopFire() { bTrigger=false; }
 void ABreachCharacter::SetAim(bool Value)
 {
@@ -195,6 +199,7 @@ void ABreachCharacter::Tick(float Dt)
     Super::Tick(Dt);
     if (bTrigger) Fire();
     UpdateSwordAttack(Dt);
+    UpdatePunchAttack(Dt);
     bSprint=bUnarmed && !bIsCrouched;
     Camera->SetFieldOfView(FMath::FInterpTo(Camera->FieldOfView, bAiming ? AimFieldOfView : BaseFieldOfView, Dt, 12));
     Camera->SetFirstPersonFieldOfView(Camera->FieldOfView);
@@ -234,7 +239,15 @@ void ABreachCharacter::Fire()
         ++ShotsFired;
         return;
     }
-    if(bUnarmed) return;
+    if(bUnarmed)
+    {
+        NextShot=Now+PunchAttackInterval;
+        PunchAttackTime=0.f; bPunchDamageApplied=false;
+        PunchAttackOrigin=Camera->GetComponentLocation();
+        PunchAttackDirection=Camera->GetForwardVector();
+        ++ShotsFired;
+        return;
+    }
     if(Ammo<=0) { Reload(); return; }
     NextShot=Now+FireInterval;
     --Ammo; ++ShotsFired; Recoil=1;
@@ -346,6 +359,71 @@ void ABreachCharacter::ApplySwordAttackPose()
     BodyPose.Rebuild();
 }
 
+void ABreachCharacter::UpdatePunchAttack(float Dt)
+{
+    if(UsesSword() || !bUnarmed || PunchAttackTime<0.f) return;
+    PunchAttackTime+=FMath::Max(0.f,Dt);
+    if(!bPunchDamageApplied && PunchAttackTime>=PunchAttackInterval*.3f)
+    {
+        bPunchDamageApplied=true;
+        PerformPunchHit();
+    }
+    if(PunchAttackTime>=PunchAttackInterval) PunchAttackTime=-1.f;
+}
+
+void ABreachCharacter::PerformPunchHit()
+{
+    const FVector Start=PunchAttackOrigin+PunchAttackDirection*20.f;
+    const FVector End=Start+PunchAttackDirection*PunchRange;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(BreachPunch),true,this);
+    FHitResult Hit;
+    const bool bHit=GetWorld()->SweepSingleByChannel(Hit,Start,End,FQuat::Identity,ECC_Visibility,FCollisionShape::MakeSphere(PunchRadius),Params);
+    if(auto* Enemy=bHit?Cast<ABreachEnemy>(Hit.GetActor()):nullptr; Enemy && !Enemy->bDisplayOnly && !Enemy->bDefeated)
+    {
+        ++ShotsHit; bLastHeadshot=false; HitMarker=.2f;
+        UGameplayStatics::ApplyDamage(Enemy,PunchDamage,Controller,this,UDamageType::StaticClass());
+    }
+}
+
+void ABreachCharacter::ApplyPunchAttackPose()
+{
+    if(UsesSword() || !bUnarmed || PunchAttackTime<0.f) return;
+    const float Progress=FMath::Clamp(PunchAttackTime/FMath::Max(.01f,PunchAttackInterval),0.f,1.f);
+    const float BlendIn=FMath::SmoothStep(0.f,.1f,Progress);
+    const float BlendOut=1.f-FMath::SmoothStep(.78f,1.f,Progress);
+    const float Blend=FMath::Min(BlendIn,BlendOut);
+    FBreachPose AttackPose=BodyPose;
+    if(PunchAttackAnimation)
+    {
+        const float SourceTime=Progress*PunchAttackAnimation->GetPlayLength();
+        if(!AttackPose.Sample(PunchAttackAnimation,SourceTime,false)) return;
+    }
+    else
+    {
+        // Ascalon has no matching punch asset. Build a compact right straight
+        // in camera space so it works with her own skeleton and remains legible
+        // in both the complete first-person body and the world representation.
+        const FTransform ToBody=Body->GetComponentTransform().Inverse();
+        const FTransform View=Camera->GetComponentTransform();
+        const float Thrust=FMath::Sin(FMath::Clamp(Progress/.62f,0.f,1.f)*PI);
+        AttackPose.SolveArm(1,ToBody.TransformPosition(View.TransformPosition(FVector(FMath::Lerp(30.f,76.f,Thrust),14.f,-24.f))),
+            ToBody.TransformPosition(View.TransformPosition(FVector(24.f,43.f,-34.f))));
+        AttackPose.PoseHand(1,ToBody.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToBody.TransformVectorNoScale(-View.GetUnitAxis(EAxis::Y)),1.f);
+        AttackPose.SolveArm(0,ToBody.TransformPosition(View.TransformPosition(FVector(29.f,-23.f,-25.f))),
+            ToBody.TransformPosition(View.TransformPosition(FVector(12.f,-41.f,-37.f))));
+        AttackPose.PoseHand(0,ToBody.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToBody.TransformVectorNoScale(View.GetUnitAxis(EAxis::Y)),1.f);
+    }
+    const int32 Spine=BodyPose.Bone(EBreachBone::Spine);
+    for(int32 I=0;I<BodyPose.Local.Num();++I)
+        if(BodyPose.IsUnder(I,Spine) && AttackPose.Local.IsValidIndex(I))
+        {
+            FTransform Mixed;
+            Mixed.Blend(BodyPose.Local[I],AttackPose.Local[I],Blend);
+            BodyPose.Local[I]=Mixed;
+        }
+    BodyPose.Rebuild();
+}
+
 void ABreachCharacter::UpdateSwordVisual(const FBreachPose& Pose,UPoseableMeshComponent* CharacterMesh,UPoseableMeshComponent* SwordMesh,float Dt)
 {
     if(!CharacterMesh || !SwordMesh || !bSwordRigReady) return;
@@ -446,6 +524,7 @@ void ABreachCharacter::SelectOperator(int32 Index)
     if(!WasSword && NextOperator==1) bLoadoutBeforeSword=bUnarmed;
     if(WasSword && NextOperator!=1) bUnarmed=bLoadoutBeforeSword;
     OperatorIndex=NextOperator;
+    PunchAttackTime=-1.f; bPunchDamageApplied=false;
     if(auto* CharacterAsset=Breach::CharacterMesh(OperatorIndex))
     {
         Body->SetSkinnedAssetAndUpdate(CharacterAsset);
@@ -480,6 +559,7 @@ void ABreachCharacter::SelectOperator(int32 Index)
         bBodyRigReady=BodyPose.Init(CharacterAsset,OperatorIndex);
         BodyCloth.Init(CharacterAsset,OperatorIndex);
         LoadLocomotionAnimations();
+        LoadPunchAttackAnimation();
     }
     ConfigureSwordLoadout();
     SetUnarmed(bUnarmed);
@@ -503,6 +583,7 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     if(!bBodyRigReady) return;
     UpdateLocomotion(Dt);
     ApplySwordAttackPose();
+    ApplyPunchAttackPose();
     const auto Bounds=Body->GetSkinnedAsset()->GetBounds();
     const float Ground=Bounds.Origin.Z-Bounds.BoxExtent.Z;
     const float HalfHeight=GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
@@ -573,8 +654,25 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     Body->SetRelativeLocation(Body->GetRelativeLocation()+OwnerAdjustment);
     const FTransform ToBody=Body->GetComponentTransform().Inverse();
     const FTransform View=Camera->GetComponentTransform();
-    const auto PoseArms=[&](FBreachPose& Pose,const FTransform& ToMesh)
+    const auto PoseArms=[&](FBreachPose& Pose,const FTransform& ToMesh,bool bOwnerView)
     {
+        if(IsPunchAttacking())
+        {
+            const float Progress=FMath::Clamp(PunchAttackTime/FMath::Max(.01f,PunchAttackInterval),0.f,1.f);
+            const float Extend=FMath::SmoothStep(.04f,.3f,Progress)*(1.f-FMath::SmoothStep(.48f,.92f,Progress));
+            // Owner view gets a pronounced wind-up-to-impact arc: the right
+            // fist travels from the lower corner to just below the crosshair.
+            // The world body keeps a less camera-biased forward strike.
+            const FVector Ready=bOwnerView?FVector(22.f,21.f,-42.f):FVector(30.f,14.f,-24.f);
+            const FVector Impact=bOwnerView?FVector(64.f,3.f,-7.f):FVector(76.f,14.f,-24.f);
+            Pose.SolveArm(1,ToMesh.TransformPosition(View.TransformPosition(FMath::Lerp(Ready,Impact,Extend))),
+                ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(19.f,40.f,-34.f):FVector(24.f,43.f,-34.f))));
+            Pose.PoseHand(1,ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToMesh.TransformVectorNoScale(-View.GetUnitAxis(EAxis::Y)),1.f);
+            Pose.SolveArm(0,ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(31.f,-25.f,-27.f):FVector(29.f,-23.f,-25.f))),
+                ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(13.f,-43.f,-38.f):FVector(12.f,-41.f,-37.f))));
+            Pose.PoseHand(0,ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::Y)),1.f);
+            return;
+        }
         for(int32 Side=0;Side<2 && !bUnarmed;++Side)
         {
             const FVector Hint=View.TransformPosition(FVector(2,Side?39.f:-39.f,-40));
@@ -608,11 +706,11 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
             if(Pose.IsUnder(I,Hand)) Pose.CS[I].AddToTranslation(Delta);
     };
     FBreachPose WorldPose=BodyPose;
-    PoseArms(WorldPose,WorldBody->GetComponentTransform().Inverse());
+    PoseArms(WorldPose,WorldBody->GetComponentTransform().Inverse(),false);
     BodyCloth.Update(WorldPose,WorldBody->GetComponentTransform(),Dt,GetWorld(),this);
     LockRunningSwordHand(WorldPose,WorldBody->GetComponentTransform().Inverse());
     WorldPose.Apply(WorldBody);
-    PoseArms(BodyPose,ToBody);
+    PoseArms(BodyPose,ToBody,true);
     // Both representations use the complete source mesh and locomotion pose.
     // Only the owning camera hides the head; world views and shadows keep it.
     FBreachPose OwnerPose=BodyPose;BodyCloth.CopyTo(OwnerPose);
