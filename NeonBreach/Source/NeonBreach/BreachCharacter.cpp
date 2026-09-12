@@ -30,10 +30,10 @@ ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
     Camera->SetupAttachment(GetCapsuleComponent());
     Camera->SetRelativeLocation(FVector(8, 0, 67));
     Camera->bUsePawnControlRotation = true;
-    Camera->FieldOfView = 96;
+    Camera->FieldOfView = BaseFieldOfView;
     Camera->SetEnableFirstPersonFieldOfView(true);
     Camera->SetEnableFirstPersonScale(true);
-    Camera->SetFirstPersonFieldOfView(96.f);
+    Camera->SetFirstPersonFieldOfView(BaseFieldOfView);
     Camera->SetFirstPersonScale(.3f);
     WeaponRoot = CreateDefaultSubobject<USceneComponent>(TEXT("WeaponRoot"));
     WeaponRoot->SetupAttachment(Camera);
@@ -196,7 +196,7 @@ void ABreachCharacter::Tick(float Dt)
     if (bTrigger) Fire();
     UpdateSwordAttack(Dt);
     bSprint=bUnarmed && !bIsCrouched;
-    Camera->SetFieldOfView(FMath::FInterpTo(Camera->FieldOfView, bAiming ? 66.f : 96.f, Dt, 12));
+    Camera->SetFieldOfView(FMath::FInterpTo(Camera->FieldOfView, bAiming ? AimFieldOfView : BaseFieldOfView, Dt, 12));
     Camera->SetFirstPersonFieldOfView(Camera->FieldOfView);
     Bob += Dt * (bSprint ? 13.f : 9.f);
     const float Movement = FMath::Clamp(GetVelocity().Size2D()/510.f,0.f,1.f);
@@ -265,6 +265,7 @@ void ABreachCharacter::Fire()
 
 void ABreachCharacter::ConfigureSwordLoadout()
 {
+    bFirstPersonSwordGripReady=false;
     if(!UsesSword())
     {
         SwordAttackTime=-1.f; bSwordDamageApplied=false;
@@ -345,7 +346,7 @@ void ABreachCharacter::ApplySwordAttackPose()
     BodyPose.Rebuild();
 }
 
-void ABreachCharacter::UpdateSwordVisual(const FBreachPose& Pose,UPoseableMeshComponent* CharacterMesh,UPoseableMeshComponent* SwordMesh)
+void ABreachCharacter::UpdateSwordVisual(const FBreachPose& Pose,UPoseableMeshComponent* CharacterMesh,UPoseableMeshComponent* SwordMesh,float Dt)
 {
     if(!CharacterMesh || !SwordMesh || !bSwordRigReady) return;
     const int32 Hand=Pose.Bone(EBreachBone::RHand);
@@ -359,8 +360,29 @@ void ABreachCharacter::UpdateSwordVisual(const FBreachPose& Pose,UPoseableMeshCo
     const FVector Normal=FVector::CrossProduct(Along,Across).GetSafeNormal();
     const FTransform ToWorld=CharacterMesh->GetComponentTransform();
     const FVector Axis=ToWorld.TransformVectorNoScale(Across).GetSafeNormal();
-    const FQuat Rotation=FRotationMatrix::MakeFromYZ(Axis,ToWorld.TransformVectorNoScale(Along)).ToQuat();
-    const FVector Grip=ToWorld.TransformPosition(HandPosition+Along*3.f+Normal*1.5f);
+    FQuat Rotation=FRotationMatrix::MakeFromYZ(Axis,ToWorld.TransformVectorNoScale(Along)).ToQuat();
+    FVector Grip=ToWorld.TransformPosition(HandPosition+Along*3.f+Normal*1.5f);
+    if(SwordMesh==Sword && Camera)
+    {
+        const FTransform View=Camera->GetComponentTransform();
+        const FTransform RelativeGrip=FTransform(Rotation,Grip).GetRelativeTransform(View);
+        if(!bFirstPersonSwordGripReady)
+        {
+            FirstPersonSwordAnchor=RelativeGrip;
+            bFirstPersonSwordGripReady=true;
+        }
+        else
+        {
+            const float AnchorAlpha=1.f-FMath::Exp(-FMath::Max(.1f,FirstPersonSwordAnchorSpeed)*FMath::Max(0.f,Dt));
+            FirstPersonSwordAnchor.SetLocation(FMath::Lerp(FirstPersonSwordAnchor.GetLocation(),RelativeGrip.GetLocation(),AnchorAlpha));
+            FirstPersonSwordAnchor.SetRotation(FQuat::Slerp(FirstPersonSwordAnchor.GetRotation(),RelativeGrip.GetRotation(),AnchorAlpha).GetNormalized());
+        }
+        FTransform ReducedGrip;
+        ReducedGrip.Blend(FirstPersonSwordAnchor,RelativeGrip,FMath::Clamp(FirstPersonSwordMotionScale,0.f,1.f));
+        FirstPersonSwordGrip=ReducedGrip*View;
+        Rotation=FirstPersonSwordGrip.GetRotation();
+        Grip=FirstPersonSwordGrip.GetLocation();
+    }
     const FVector Anchor=SwordPose.ReferenceCS[Handle].GetLocation();
     const float VisualScale=FMath::Max(.1f,SwordVisualScale);
     SwordMesh->SetWorldTransform(FTransform(Rotation,Grip-Rotation.RotateVector(Anchor*VisualScale),FVector(VisualScale)));
@@ -380,8 +402,13 @@ void ABreachCharacter::UpdateScabbardVisual(const FBreachPose& Pose,UPoseableMes
     const FVector Normal=FVector::CrossProduct(Along,Across).GetSafeNormal();
     const FTransform ToWorld=CharacterMesh->GetComponentTransform();
     const FVector Axis=ToWorld.TransformVectorNoScale(Across).GetSafeNormal();
-    const FQuat Rotation=FRotationMatrix::MakeFromYZ(Axis,ToWorld.TransformVectorNoScale(Along)).ToQuat();
-    const FVector Grip=ToWorld.TransformPosition(HandPosition+Along*3.f+Normal*1.5f);
+    FQuat Rotation=FRotationMatrix::MakeFromYZ(Axis,ToWorld.TransformVectorNoScale(Along)).ToQuat();
+    FVector Grip=ToWorld.TransformPosition(HandPosition+Along*3.f+Normal*1.5f);
+    if(ScabbardMesh==Scabbard && bFirstPersonSwordGripReady)
+    {
+        Rotation=FirstPersonSwordGrip.GetRotation();
+        Grip=FirstPersonSwordGrip.GetLocation();
+    }
     const FVector Anchor=SwordPose.ReferenceCS[Handle].GetLocation();
     const float VisualScale=FMath::Max(.1f,SwordVisualScale);
     ScabbardMesh->SetWorldTransform(FTransform(Rotation,Grip-Rotation.RotateVector(Anchor*VisualScale),FVector(VisualScale)));
@@ -580,8 +607,8 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     Body->RefreshBoneTransforms();
     if(UsesSword() && bSwordRigReady)
     {
-        UpdateSwordVisual(WorldPose,WorldBody,WorldSword);
-        UpdateSwordVisual(OwnerPose,Body,Sword);
+        UpdateSwordVisual(WorldPose,WorldBody,WorldSword,Dt);
+        UpdateSwordVisual(OwnerPose,Body,Sword,Dt);
         UpdateScabbardVisual(WorldPose,WorldBody,WorldScabbard);
         UpdateScabbardVisual(OwnerPose,Body,Scabbard);
     }

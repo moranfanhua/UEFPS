@@ -119,6 +119,7 @@ void ABreachGameMode::RunMovementTest()
         },.016f,true);
     }
     Check(P->HasLocomotionAnimations(),TEXT("All locomotion states have animation assets"));
+    Check(P->Camera->FieldOfView>=109.f && P->BaseFieldOfView>=109.f && P->AimFieldOfView>66.f,TEXT("All operators use the expanded first-person field of view"));
     At(.1f,[=]() { Results->StandingEye=P->Camera->GetComponentLocation().Z; Key(EKeys::Three,IE_Pressed); });
     At(.16f,[=]() { Key(EKeys::Three,IE_Released); });
     At(.22f,[=,this]()
@@ -133,6 +134,7 @@ void ABreachGameMode::RunMovementTest()
         {
             Check(P->HasSwordRig() && P->Sword->IsVisible() && P->WorldSword->IsVisible() && P->Scabbard->IsVisible() && P->WorldScabbard->IsVisible(),TEXT("Acheron carries the supplied blade and scabbard in both views"));
             Check(FVector::Distance(P->Sword->GetBoneLocationByName(TEXT("bone_002"),EBoneSpaces::WorldSpace),P->Scabbard->GetBoneLocationByName(TEXT("bone_003"),EBoneSpaces::WorldSpace))<1.f && P->Sword->GetComponentScale().X<1.f,TEXT("Acheron swings the reduced-size sword with its scabbard fitted"));
+            Check(P->FirstPersonSwordMotionScale<.5f,TEXT("Acheron's owner-view sword motion is substantially reduced"));
             Check(Move->GetTargetMoveSpeed()==Move->SwordSpeed && Move->SwordSpeed>Move->UnarmedSpeed,TEXT("Acheron sword speed is faster than unarmed running"));
             PC->SetControlRotation(FRotator::ZeroRotator);
             FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;

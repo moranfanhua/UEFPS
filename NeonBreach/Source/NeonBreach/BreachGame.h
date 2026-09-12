@@ -53,6 +53,8 @@ public:
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPointLightComponent> MuzzleLight;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Body;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> WorldBody;
+    UPROPERTY(EditAnywhere, Category="Camera") float BaseFieldOfView = 110.f;
+    UPROPERTY(EditAnywhere, Category="Camera") float AimFieldOfView = 76.f;
     UPROPERTY(EditAnywhere, Category="Weapon") float FireInterval = 0.105f;
     UPROPERTY(EditAnywhere, Category="Weapon") float ShotDamage = 34.f;
     UPROPERTY(EditAnywhere, Category="Weapon") int32 MagazineSize = 30;
@@ -61,6 +63,8 @@ public:
     UPROPERTY(EditAnywhere, Category="Sword") float SwordRange = 260.f;
     UPROPERTY(EditAnywhere, Category="Sword") float SwordRadius = 70.f;
     UPROPERTY(EditAnywhere, Category="Sword") float SwordVisualScale = .72f;
+    UPROPERTY(EditAnywhere, Category="Sword", meta=(ClampMin="0.0", ClampMax="1.0")) float FirstPersonSwordMotionScale = .35f;
+    UPROPERTY(EditAnywhere, Category="Sword", meta=(ClampMin="0.1")) float FirstPersonSwordAnchorSpeed = 4.f;
     float Health = 100.f;
     int32 Ammo = 30;
     int32 Reserve = 180;
@@ -118,11 +122,14 @@ private:
     float SwordAttackTime=-1.f;
     FVector SwordAttackOrigin=FVector::ZeroVector;
     FVector SwordAttackDirection=FVector::ForwardVector;
+    FTransform FirstPersonSwordAnchor=FTransform::Identity;
+    FTransform FirstPersonSwordGrip=FTransform::Identity;
+    bool bFirstPersonSwordGripReady=false;
     void ConfigureSwordLoadout();
     void UpdateSwordAttack(float DeltaSeconds);
     void PerformSwordHit();
     void ApplySwordAttackPose();
-    void UpdateSwordVisual(const FBreachPose& Pose,UPoseableMeshComponent* CharacterMesh,UPoseableMeshComponent* SwordMesh);
+    void UpdateSwordVisual(const FBreachPose& Pose,UPoseableMeshComponent* CharacterMesh,UPoseableMeshComponent* SwordMesh,float DeltaSeconds);
     void UpdateScabbardVisual(const FBreachPose& Pose,UPoseableMeshComponent* CharacterMesh,UPoseableMeshComponent* ScabbardMesh);
     void MoveForward(float Value);
     void MoveRight(float Value);
