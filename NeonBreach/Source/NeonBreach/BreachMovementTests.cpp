@@ -32,8 +32,8 @@ void ABreachGameMode::RunMovementTest()
     struct FResults
     {
         FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideBoosted=0,SlideEntryLegReach=0,SlideWallX=0,TapSpeed=0,JumpSpeed=0,RampSpeed=0; TWeakObjectPtr<AActor> Roof,Ramp; TWeakObjectPtr<ABreachEnemy> SwordTarget;
-        FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit},SlideEye{ForceInit};
-        int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0,SlideSamples=0;
+        FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit},SlideEye{ForceInit},SwordHandView{ForceInit},WorldSwordHand{ForceInit};
+        int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0,SlideSamples=0,SwordHandSamples=0;
     };
     auto Results=MakeShared<FResults>();
     FString Prefix=FString::Printf(TEXT("%s_%s"),FParse::Param(FCommandLine::Get(),TEXT("BreachMovementFirstPerson"))?TEXT("MovementFPS"):TEXT("Movement"),Breach::Keys[Index]);
@@ -65,12 +65,20 @@ void ABreachGameMode::RunMovementTest()
         Check(Samples>=4 && Drift.GetMax()<.5f,FString::Printf(TEXT("%s camera stays stable (drift %s cm, %d samples)"),Motion,*Drift.ToString(),Samples));
     };
     const double CameraTestStart=GetWorld()->GetTimeSeconds();
+    FBreachPose TestRig;TestRig.Init(Breach::CharacterMesh(Index),Index);
+    const FName SwordHandName=P->Body->GetBoneName(TestRig.Bone(EBreachBone::RHand));
     FTimerHandle CameraMonitor;
     GetWorldTimerManager().SetTimer(CameraMonitor,[=,this]()
     {
         const double Time=GetWorld()->GetTimeSeconds()-CameraTestStart-.6;
         const FVector Eye=P->GetActorTransform().InverseTransformPosition(P->Camera->GetComponentLocation());
         if(Time>=.6 && Time<1.04) { Results->RunEye+=Eye; ++Results->RunSamples; }
+        if(Sword && Time>=.98 && Time<1.16)
+        {
+            Results->SwordHandView+=P->Camera->GetComponentTransform().InverseTransformPosition(P->Body->GetBoneLocationByName(SwordHandName,EBoneSpaces::WorldSpace));
+            Results->WorldSwordHand+=P->GetActorTransform().InverseTransformPosition(P->WorldBody->GetBoneLocationByName(SwordHandName,EBoneSpaces::WorldSpace));
+            ++Results->SwordHandSamples;
+        }
         if(Time>=1.43 && Time<2.65) { Results->JumpEye+=Eye; ++Results->JumpSamples; }
         if(Time>=3.58 && Time<3.84) { Results->CrouchEye+=Eye; ++Results->CrouchSamples; }
         if(Time>=6.65 && Time<6.94) { Results->JogEye+=Eye; ++Results->JogSamples; }
@@ -160,6 +168,12 @@ void ABreachGameMode::RunMovementTest()
     At(1.18f,[=]()
     {
         Check(P->GetVelocity().Size2D()>(Sword?Move->UnarmedSpeed+10.f:700.f) && P->LocomotionState==EBreachLocomotion::Sprint,Sword?TEXT("W with Acheron's sword exceeds unarmed speed and uses the sprint animation"):TEXT("W in unarmed mode reaches sprint speed and animation"));
+        if(Sword)
+        {
+            const FVector HandDrift=Results->SwordHandView.IsValid?Results->SwordHandView.GetSize():FVector(BIG_NUMBER);
+            const FVector WorldHandDrift=Results->WorldSwordHand.IsValid?Results->WorldSwordHand.GetSize():FVector(BIG_NUMBER);
+            Check(Results->SwordHandSamples>=4 && HandDrift.GetMax()<.5f && WorldHandDrift.GetMax()<.5f && P->SwordRunGripOffset.Z<-30.f,FString::Printf(TEXT("Acheron's sword hand stays below the frame and fixed while running (owner %s, world %s cm)"),*HandDrift.ToString(),*WorldHandDrift.ToString()));
+        }
         StableEye(Results->RunEye,Results->RunSamples,TEXT("Sprint"));
         Key(EKeys::W,IE_Released);
     });

@@ -203,7 +203,7 @@ void ABreachCharacter::Tick(float Dt)
     const FVector Hip(34,10,-5);
     const FVector Aim(30,0,-6.4f);
     FVector Target = bAiming ? Aim : Hip;
-    Target.Z += FMath::Sin(Bob)*Movement*(bAiming?.05f:.2f);
+    Target.Z += FMath::Sin(Bob)*Movement*(UsesSword()?0.f:(bAiming?.05f:.2f));
     Target.X -= Recoil*2.7f;
     if (bReloading)
     {
@@ -366,7 +366,8 @@ void ABreachCharacter::UpdateSwordVisual(const FBreachPose& Pose,UPoseableMeshCo
     {
         const FTransform View=Camera->GetComponentTransform();
         const FTransform RelativeGrip=FTransform(Rotation,Grip).GetRelativeTransform(View);
-        if(!bFirstPersonSwordGripReady)
+        const bool bLockRunningGrip=SwordAttackTime<0.f && GetVelocity().Size2D()>20.f && GetCharacterMovement()->IsMovingOnGround();
+        if(!bFirstPersonSwordGripReady || bLockRunningGrip)
         {
             FirstPersonSwordAnchor=RelativeGrip;
             bFirstPersonSwordGripReady=true;
@@ -577,7 +578,10 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
         for(int32 Side=0;Side<2 && !bUnarmed;++Side)
         {
             const FVector Hint=View.TransformPosition(FVector(2,Side?39.f:-39.f,-40));
-            Pose.SolveArm(Side,ToMesh.TransformPosition(OperatorGrip(this,Side)),ToMesh.TransformPosition(Hint));
+            const FVector GripWorld=UsesSword() && Side==1 && LocomotionState==EBreachLocomotion::Sprint?
+                View.TransformPosition(SwordRunGripOffset):OperatorGrip(this,Side);
+            const FVector GripTarget=ToMesh.TransformPosition(GripWorld);
+            Pose.SolveArm(Side,GripTarget,ToMesh.TransformPosition(Hint));
             const FVector Direction=View.TransformVectorNoScale(Side?FVector(1,-.2f,0):FVector(.1f,1,0));
             const FVector Palm=View.TransformVectorNoScale(Side?FVector(0,-1,0):FVector(0,0,1));
             Pose.PoseHand(Side,ToMesh.TransformVectorNoScale(Direction),ToMesh.TransformVectorNoScale(Palm),.85f);
@@ -594,14 +598,25 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
             }
         }
     };
+    const auto LockRunningSwordHand=[&](FBreachPose& Pose,const FTransform& ToMesh)
+    {
+        if(!UsesSword() || LocomotionState!=EBreachLocomotion::Sprint) return;
+        const int32 Hand=Pose.Bone(EBreachBone::RHand);
+        if(!Pose.CS.IsValidIndex(Hand)) return;
+        const FVector Delta=ToMesh.TransformPosition(View.TransformPosition(SwordRunGripOffset))-Pose.CS[Hand].GetLocation();
+        for(int32 I=0;I<Pose.CS.Num();++I)
+            if(Pose.IsUnder(I,Hand)) Pose.CS[I].AddToTranslation(Delta);
+    };
     FBreachPose WorldPose=BodyPose;
     PoseArms(WorldPose,WorldBody->GetComponentTransform().Inverse());
     BodyCloth.Update(WorldPose,WorldBody->GetComponentTransform(),Dt,GetWorld(),this);
+    LockRunningSwordHand(WorldPose,WorldBody->GetComponentTransform().Inverse());
     WorldPose.Apply(WorldBody);
     PoseArms(BodyPose,ToBody);
     // Both representations use the complete source mesh and locomotion pose.
     // Only the owning camera hides the head; world views and shadows keep it.
     FBreachPose OwnerPose=BodyPose;BodyCloth.CopyTo(OwnerPose);
+    LockRunningSwordHand(OwnerPose,Body->GetComponentTransform().Inverse());
     OwnerPose.Apply(Body,true);
     WorldBody->RefreshBoneTransforms();
     Body->RefreshBoneTransforms();

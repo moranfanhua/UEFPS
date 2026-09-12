@@ -65,6 +65,7 @@ public:
     UPROPERTY(EditAnywhere, Category="Sword") float SwordVisualScale = .72f;
     UPROPERTY(EditAnywhere, Category="Sword", meta=(ClampMin="0.0", ClampMax="1.0")) float FirstPersonSwordMotionScale = .35f;
     UPROPERTY(EditAnywhere, Category="Sword", meta=(ClampMin="0.1")) float FirstPersonSwordAnchorSpeed = 4.f;
+    UPROPERTY(EditAnywhere, Category="Sword") FVector SwordRunGripOffset = FVector(22.f,24.f,-38.f);
     float Health = 100.f;
     int32 Ammo = 30;
     int32 Reserve = 180;
