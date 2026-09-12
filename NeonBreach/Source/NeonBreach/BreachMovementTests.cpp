@@ -32,8 +32,8 @@ void ABreachGameMode::RunMovementTest()
     struct FResults
     {
         FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideBoosted=0,SlideEntryLegReach=0,SlideWallX=0,TapSpeed=0,JumpSpeed=0,RampSpeed=0,PunchTargetStartHealth=0; TWeakObjectPtr<AActor> Roof,Ramp; TWeakObjectPtr<ABreachEnemy> SwordTarget,PunchTarget;
-        FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit},SlideEye{ForceInit},SwordHandView{ForceInit},WorldSwordHand{ForceInit};
-        int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0,SlideSamples=0,SwordHandSamples=0;
+        FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit},SlideEye{ForceInit},SwordHandView{ForceInit},WorldSwordHand{ForceInit},JumpLeftHandView{ForceInit},JumpRightHandView{ForceInit};
+        int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0,SlideSamples=0,SwordHandSamples=0,JumpHandSamples=0;
     };
     auto Results=MakeShared<FResults>();
     FString Prefix=FString::Printf(TEXT("%s_%s"),FParse::Param(FCommandLine::Get(),TEXT("BreachMovementFirstPerson"))?TEXT("MovementFPS"):TEXT("Movement"),Breach::Keys[Index]);
@@ -66,7 +66,8 @@ void ABreachGameMode::RunMovementTest()
     };
     const double CameraTestStart=GetWorld()->GetTimeSeconds();
     FBreachPose TestRig;TestRig.Init(Breach::CharacterMesh(Index),Index);
-    const FName SwordHandName=P->Body->GetBoneName(TestRig.Bone(EBreachBone::RHand));
+    const FName LeftHandName=P->Body->GetBoneName(TestRig.Bone(EBreachBone::LHand));
+    const FName RightHandName=P->Body->GetBoneName(TestRig.Bone(EBreachBone::RHand));
     FTimerHandle CameraMonitor;
     GetWorldTimerManager().SetTimer(CameraMonitor,[=,this]()
     {
@@ -75,11 +76,18 @@ void ABreachGameMode::RunMovementTest()
         if(Time>=.6 && Time<1.04) { Results->RunEye+=Eye; ++Results->RunSamples; }
         if(Sword && Time>=.98 && Time<1.16)
         {
-            Results->SwordHandView+=P->Camera->GetComponentTransform().InverseTransformPosition(P->Body->GetBoneLocationByName(SwordHandName,EBoneSpaces::WorldSpace));
-            Results->WorldSwordHand+=P->GetActorTransform().InverseTransformPosition(P->WorldBody->GetBoneLocationByName(SwordHandName,EBoneSpaces::WorldSpace));
+            Results->SwordHandView+=P->Camera->GetComponentTransform().InverseTransformPosition(P->Body->GetBoneLocationByName(RightHandName,EBoneSpaces::WorldSpace));
+            Results->WorldSwordHand+=P->GetActorTransform().InverseTransformPosition(P->WorldBody->GetBoneLocationByName(RightHandName,EBoneSpaces::WorldSpace));
             ++Results->SwordHandSamples;
         }
         if(Time>=1.43 && Time<2.65) { Results->JumpEye+=Eye; ++Results->JumpSamples; }
+        if(Time>=1.47 && Time<2.62)
+        {
+            const FTransform ToView=P->Camera->GetComponentTransform().Inverse();
+            Results->JumpLeftHandView+=ToView.TransformPosition(P->Body->GetBoneLocationByName(LeftHandName,EBoneSpaces::WorldSpace));
+            Results->JumpRightHandView+=ToView.TransformPosition(P->Body->GetBoneLocationByName(RightHandName,EBoneSpaces::WorldSpace));
+            ++Results->JumpHandSamples;
+        }
         if(Time>=3.58 && Time<3.84) { Results->CrouchEye+=Eye; ++Results->CrouchSamples; }
         if(Time>=6.65 && Time<6.94) { Results->JogEye+=Eye; ++Results->JogSamples; }
         if(Time>=9.05 && Time<9.3) { Results->SlideEye+=Eye; ++Results->SlideSamples; }
@@ -222,7 +230,14 @@ void ABreachGameMode::RunMovementTest()
         Screenshot(TEXT("JumpFall"));
     });
     At(2.54f,[=]() { Check(!P->GetCharacterMovement()->IsFalling() && P->LocomotionState==EBreachLocomotion::JumpLand,TEXT("Ground contact triggers landing animation")); Screenshot(TEXT("Land")); });
-    At(2.75f,[=]() { StableEye(Results->JumpEye,Results->JumpSamples,TEXT("Jump and landing relative to physical player motion")); });
+    At(2.75f,[=]()
+    {
+        StableEye(Results->JumpEye,Results->JumpSamples,TEXT("Jump and landing relative to physical player motion"));
+        const FVector LeftDrift=Results->JumpLeftHandView.IsValid?Results->JumpLeftHandView.GetSize():FVector(BIG_NUMBER);
+        const FVector RightDrift=Results->JumpRightHandView.IsValid?Results->JumpRightHandView.GetSize():FVector(BIG_NUMBER);
+        Check(Results->JumpHandSamples>=20 && LeftDrift.GetMax()<4.f && RightDrift.GetMax()<4.f,
+            FString::Printf(TEXT("First-person hands stay fixed through takeoff, airtime and landing (left %s, right %s cm, %d samples)"),*LeftDrift.ToString(),*RightDrift.ToString(),Results->JumpHandSamples));
+    });
     At(2.9f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
     At(3.35f,[=]()
     {

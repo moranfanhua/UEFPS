@@ -654,6 +654,8 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     Body->SetRelativeLocation(Body->GetRelativeLocation()+OwnerAdjustment);
     const FTransform ToBody=Body->GetComponentTransform().Inverse();
     const FTransform View=Camera->GetComponentTransform();
+    const bool bOwnerJumpPose=Move->IsFalling() || LocomotionState==EBreachLocomotion::JumpStart ||
+        LocomotionState==EBreachLocomotion::JumpLoop || LocomotionState==EBreachLocomotion::JumpLand;
     const auto PoseArms=[&](FBreachPose& Pose,const FTransform& ToMesh,bool bOwnerView)
     {
         if(IsPunchAttacking())
@@ -671,6 +673,21 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
             Pose.SolveArm(0,ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(31.f,-25.f,-27.f):FVector(29.f,-23.f,-25.f))),
                 ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(13.f,-43.f,-38.f):FVector(12.f,-41.f,-37.f))));
             Pose.PoseHand(0,ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::Y)),1.f);
+            return;
+        }
+        // Keep unarmed hands at fixed camera-space rests through takeoff,
+        // airtime and landing. The world body retains the authored arm swing,
+        // while an active punch or slash above is still allowed to take over.
+        if(bOwnerView && bOwnerJumpPose && bUnarmed && !IsSwordAttacking())
+        {
+            for(int32 Side=0;Side<2;++Side)
+            {
+                const FVector Rest=UsesSword() && Side==1?SwordRunGripOffset:FVector(27.f,Side?24.f:-24.f,-38.f);
+                const FVector Hint(8.f,Side?42.f:-42.f,-44.f);
+                Pose.SolveArm(Side,ToMesh.TransformPosition(View.TransformPosition(Rest)),ToMesh.TransformPosition(View.TransformPosition(Hint)));
+                const FVector Palm=Side?-View.GetUnitAxis(EAxis::Y):View.GetUnitAxis(EAxis::Y);
+                Pose.PoseHand(Side,ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToMesh.TransformVectorNoScale(Palm),UsesSword() && Side==1?.95f:1.f);
+            }
             return;
         }
         for(int32 Side=0;Side<2 && !bUnarmed;++Side)
@@ -713,7 +730,11 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     PoseArms(BodyPose,ToBody,true);
     // Both representations use the complete source mesh and locomotion pose.
     // Only the owning camera hides the head; world views and shadows keep it.
-    FBreachPose OwnerPose=BodyPose;BodyCloth.CopyTo(OwnerPose);
+    FBreachPose OwnerPose=BodyPose;
+    // World cloth remains fully simulated, but first-person jump frames use
+    // the authored cloth pose so sleeves and loose costume parts do not float
+    // in response to arm swing that the owning player cannot see.
+    if(!bOwnerJumpPose) BodyCloth.CopyTo(OwnerPose);
     LockRunningSwordHand(OwnerPose,Body->GetComponentTransform().Inverse());
     OwnerPose.Apply(Body,true);
     WorldBody->RefreshBoneTransforms();
