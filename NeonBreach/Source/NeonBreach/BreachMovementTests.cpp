@@ -31,7 +31,7 @@ void ABreachGameMode::RunMovementTest()
     PC->SetControlRotation(FRotator(LookPitch,0,0));
     struct FResults
     {
-        FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideBoosted=0,SlideEntryLegReach=0,SlideWallX=0,TapSpeed=0,JumpSpeed=0,RampSpeed=0,PunchTargetStartHealth=0; TWeakObjectPtr<AActor> Roof,Ramp; TWeakObjectPtr<ABreachEnemy> SwordTarget,PunchTarget;
+        FString Text; int32 Failed=0,PunchSequenceShots=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideBoosted=0,SlideEntryLegReach=0,SlideWallX=0,TapSpeed=0,JumpSpeed=0,RampSpeed=0,PunchTargetStartHealth=0; TWeakObjectPtr<AActor> Roof,Ramp; TWeakObjectPtr<ABreachEnemy> SwordTarget,PunchTarget;
         FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit},SlideEye{ForceInit},SwordHandView{ForceInit},WorldSwordHand{ForceInit},JumpLeftHandView{ForceInit},JumpRightHandView{ForceInit};
         int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0,SlideSamples=0,SwordHandSamples=0,JumpHandSamples=0;
     };
@@ -477,7 +477,28 @@ void ABreachGameMode::RunMovementTest()
     At(27.65f,[=]() { Check(P->IsSliding(),TEXT("Sufficient entry momentum starts an uphill slide"));Results->RampSpeed=P->GetVelocity().Size2D(); });
     At(27.85f,[=]() { Check(P->GetVelocity().Size2D()<Results->RampSpeed-60.f,TEXT("Uphill sliding loses speed faster than flat-ground sliding"));Screenshot(TEXT("SlideUphill")); });
     At(29.f,[=]() { Check(!P->IsSliding() && P->bIsCrouched,TEXT("Uphill slide naturally ends at low speed"));Key(EKeys::LeftControl,IE_Released);Key(EKeys::W,IE_Released); });
-    At(29.4f,[=,this]() mutable
+    At(29.08f,[=]()
+    {
+        if(Sword) return;
+        ResetRun();P->SelectOperator(Index);P->SetUnarmed(true);
+        Results->PunchSequenceShots=P->ShotsFired;
+        Key(EKeys::LeftMouseButton,IE_Pressed);
+    });
+    At(29.3f,[=]()
+    {
+        if(Sword) return;
+        Check(P->IsPunchAttacking() && P->GetPunchAttackSide()==1,TEXT("Held melee input starts with a right-hand punch"));
+        Screenshot(TEXT("PunchRight"));
+    });
+    At(29.9f,[=]()
+    {
+        if(Sword) return;
+        Check(P->IsPunchAttacking() && P->GetPunchAttackSide()==0 && P->ShotsFired>=Results->PunchSequenceShots+2,
+            TEXT("Held melee input follows with a left-hand punch"));
+        Screenshot(TEXT("PunchLeft"));
+    });
+    At(30.f,[=]() { if(!Sword) Key(EKeys::LeftMouseButton,IE_Released); });
+    At(30.4f,[=,this]() mutable
     {
         if(Results->Ramp.IsValid()) Results->Ramp->Destroy();
         GetWorldTimerManager().ClearTimer(CameraMonitor);

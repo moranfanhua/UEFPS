@@ -243,6 +243,8 @@ void ABreachCharacter::Fire()
     {
         NextShot=Now+PunchAttackInterval;
         PunchAttackTime=0.f; bPunchDamageApplied=false;
+        PunchAttackSide=NextPunchAttackSide;
+        NextPunchAttackSide=1-NextPunchAttackSide;
         PunchAttackOrigin=Camera->GetComponentLocation();
         PunchAttackDirection=Camera->GetForwardVector();
         ++ShotsFired;
@@ -400,18 +402,21 @@ void ABreachCharacter::ApplyPunchAttackPose()
     }
     else
     {
-        // Ascalon has no matching punch asset. Build a compact right straight
-        // in camera space so it works with her own skeleton and remains legible
+        // Ascalon has no matching punch asset. Build the current alternating
+        // straight in camera space so it works with her own skeleton and remains legible
         // in both the complete first-person body and the world representation.
         const FTransform ToBody=Body->GetComponentTransform().Inverse();
         const FTransform View=Camera->GetComponentTransform();
         const float Thrust=FMath::Sin(FMath::Clamp(Progress/.62f,0.f,1.f)*PI);
-        AttackPose.SolveArm(1,ToBody.TransformPosition(View.TransformPosition(FVector(FMath::Lerp(30.f,76.f,Thrust),14.f,-24.f))),
-            ToBody.TransformPosition(View.TransformPosition(FVector(24.f,43.f,-34.f))));
-        AttackPose.PoseHand(1,ToBody.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToBody.TransformVectorNoScale(-View.GetUnitAxis(EAxis::Y)),1.f);
-        AttackPose.SolveArm(0,ToBody.TransformPosition(View.TransformPosition(FVector(29.f,-23.f,-25.f))),
-            ToBody.TransformPosition(View.TransformPosition(FVector(12.f,-41.f,-37.f))));
-        AttackPose.PoseHand(0,ToBody.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToBody.TransformVectorNoScale(View.GetUnitAxis(EAxis::Y)),1.f);
+        const int32 Strike=PunchAttackSide;
+        const int32 Guard=1-Strike;
+        const float StrikeSign=Strike?1.f:-1.f;
+        AttackPose.SolveArm(Strike,ToBody.TransformPosition(View.TransformPosition(FVector(FMath::Lerp(30.f,76.f,Thrust),StrikeSign*14.f,-24.f))),
+            ToBody.TransformPosition(View.TransformPosition(FVector(24.f,StrikeSign*43.f,-34.f))));
+        AttackPose.PoseHand(Strike,ToBody.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToBody.TransformVectorNoScale(Strike?-View.GetUnitAxis(EAxis::Y):View.GetUnitAxis(EAxis::Y)),1.f);
+        AttackPose.SolveArm(Guard,ToBody.TransformPosition(View.TransformPosition(FVector(29.f,-StrikeSign*23.f,-25.f))),
+            ToBody.TransformPosition(View.TransformPosition(FVector(12.f,-StrikeSign*41.f,-37.f))));
+        AttackPose.PoseHand(Guard,ToBody.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToBody.TransformVectorNoScale(Guard?-View.GetUnitAxis(EAxis::Y):View.GetUnitAxis(EAxis::Y)),1.f);
     }
     const int32 Spine=BodyPose.Bone(EBreachBone::Spine);
     for(int32 I=0;I<BodyPose.Local.Num();++I)
@@ -525,6 +530,7 @@ void ABreachCharacter::SelectOperator(int32 Index)
     if(WasSword && NextOperator!=1) bUnarmed=bLoadoutBeforeSword;
     OperatorIndex=NextOperator;
     PunchAttackTime=-1.f; bPunchDamageApplied=false;
+    PunchAttackSide=1; NextPunchAttackSide=1;
     if(auto* CharacterAsset=Breach::CharacterMesh(OperatorIndex))
     {
         Body->SetSkinnedAssetAndUpdate(CharacterAsset);
@@ -662,17 +668,20 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
         {
             const float Progress=FMath::Clamp(PunchAttackTime/FMath::Max(.01f,PunchAttackInterval),0.f,1.f);
             const float Extend=FMath::SmoothStep(.04f,.3f,Progress)*(1.f-FMath::SmoothStep(.48f,.92f,Progress));
-            // Owner view gets a pronounced wind-up-to-impact arc: the right
-            // fist travels from the lower corner to just below the crosshair.
-            // The world body keeps a less camera-biased forward strike.
-            const FVector Ready=bOwnerView?FVector(22.f,21.f,-42.f):FVector(30.f,14.f,-24.f);
-            const FVector Impact=bOwnerView?FVector(64.f,3.f,-7.f):FVector(76.f,14.f,-24.f);
-            Pose.SolveArm(1,ToMesh.TransformPosition(View.TransformPosition(FMath::Lerp(Ready,Impact,Extend))),
-                ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(19.f,40.f,-34.f):FVector(24.f,43.f,-34.f))));
-            Pose.PoseHand(1,ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToMesh.TransformVectorNoScale(-View.GetUnitAxis(EAxis::Y)),1.f);
-            Pose.SolveArm(0,ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(31.f,-25.f,-27.f):FVector(29.f,-23.f,-25.f))),
-                ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(13.f,-43.f,-38.f):FVector(12.f,-41.f,-37.f))));
-            Pose.PoseHand(0,ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::Y)),1.f);
+            const int32 Strike=PunchAttackSide;
+            const int32 Guard=1-Strike;
+            const float StrikeSign=Strike?1.f:-1.f;
+            // Each trigger cycle mirrors the same readable straight-punch arc.
+            // The active fist reaches just below its side of the crosshair while
+            // the other hand stays low as a guard.
+            const FVector Ready=bOwnerView?FVector(22.f,StrikeSign*21.f,-42.f):FVector(30.f,StrikeSign*14.f,-24.f);
+            const FVector Impact=bOwnerView?FVector(64.f,StrikeSign*3.f,-7.f):FVector(76.f,StrikeSign*14.f,-24.f);
+            Pose.SolveArm(Strike,ToMesh.TransformPosition(View.TransformPosition(FMath::Lerp(Ready,Impact,Extend))),
+                ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(19.f,StrikeSign*40.f,-34.f):FVector(24.f,StrikeSign*43.f,-34.f))));
+            Pose.PoseHand(Strike,ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToMesh.TransformVectorNoScale(Strike?-View.GetUnitAxis(EAxis::Y):View.GetUnitAxis(EAxis::Y)),1.f);
+            Pose.SolveArm(Guard,ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(31.f,-StrikeSign*25.f,-27.f):FVector(29.f,-StrikeSign*23.f,-25.f))),
+                ToMesh.TransformPosition(View.TransformPosition(bOwnerView?FVector(13.f,-StrikeSign*43.f,-38.f):FVector(12.f,-StrikeSign*41.f,-37.f))));
+            Pose.PoseHand(Guard,ToMesh.TransformVectorNoScale(View.GetUnitAxis(EAxis::X)),ToMesh.TransformVectorNoScale(Guard?-View.GetUnitAxis(EAxis::Y):View.GetUnitAxis(EAxis::Y)),1.f);
             return;
         }
         // Keep unarmed hands at fixed camera-space rests through takeoff,

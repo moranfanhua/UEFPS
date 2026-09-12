@@ -100,6 +100,7 @@ public:
     bool HasSwordRig() const { return bSwordRigReady; }
     bool IsSwordAttacking() const { return SwordAttackTime>=0.f; }
     bool IsPunchAttacking() const { return PunchAttackTime>=0.f; }
+    int32 GetPunchAttackSide() const { return PunchAttackSide; }
     void SetAim(bool bEnabled);
     void RestartRun();
     void TogglePause();
@@ -127,6 +128,8 @@ private:
     bool bBodyRigReady=false;
     bool bSwordRigReady=false,bSwordDamageApplied=false;
     bool bPunchDamageApplied=false;
+    int32 PunchAttackSide=1;
+    int32 NextPunchAttackSide=1;
     bool bLoadoutBeforeSword=false;
     float SwordAttackTime=-1.f;
     FVector SwordAttackOrigin=FVector::ZeroVector;
