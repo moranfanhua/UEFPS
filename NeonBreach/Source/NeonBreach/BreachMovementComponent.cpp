@@ -15,6 +15,7 @@ void UBreachMovementComponent::SetLocomotionIntent(bool Unarmed,bool Aiming)
 float UBreachMovementComponent::GetTargetMoveSpeed() const
 {
     if(IsCrouching()) return MaxWalkSpeedCrouched;
+    if(const auto* Player=Cast<ABreachCharacter>(CharacterOwner); Player && Player->UsesSword()) return SwordSpeed;
     return bWantsAim?AimSpeed:(bWantsUnarmed?UnarmedSpeed:RifleSpeed);
 }
 

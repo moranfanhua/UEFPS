@@ -40,8 +40,8 @@
 | 动画资源 | 游戏中的作用 | 触发方式 |
 | --- | --- | --- |
 | `A_<角色>_Idle_Loop` | 站立待机循环 | 不移动时 |
-| `A_<角色>_Jog_Fwd_Loop` | 持枪前进 | 持枪移动 |
-| `A_<角色>_Sprint_Loop` | 空手奔跑 | 按 `3` 收起武器后移动 |
+| `A_<角色>_Jog_Fwd_Loop` | 持枪前进 | 优菈、李织烟、阿斯卡纶持枪移动 |
+| `A_<角色>_Sprint_Loop` | 快速奔跑 | 普通角色按 `3` 收枪，或黄泉持刀移动 |
 | `A_<角色>_Crouch_Idle_Loop` | 下蹲待机 | 按住 `Ctrl` 且不移动 |
 | `A_<角色>_Crouch_Fwd_Loop` | 下蹲移动 | 按住 `Ctrl` 移动 |
 | `A_<角色>_Female_Jump_Start` | 女性化起跳、离地、收腿 | 按 `Space` 起跳 |
@@ -89,7 +89,7 @@
 新入场资源与来源：
 
 - 优菈：`pose/优菈待机pose_by_truthabout_*.zip` 和 `pose/eula-v3_by_fantong_*.zip`。保留原作者使用条件；没有将用户提供的动作标记为 CC0。VMD 按原 PMX 骨骼名称匹配、30 FPS 采样，转换包含身体和手指骨骼，不包含 MMD 物理模拟及表情 morph。UE 路径为 `/Game/Animations/Entrance/Eula/A_Eula_Eula_VMD_Entry`、`A_Eula_Eula_VMD_Finish`。
-- 黄泉挥刀：[Quaternius Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html)，CC0；使用本地 Standard 包的 `Sword_Attack`，资源为 `/Game/Animations/Entrance/Acheron/A_Acheron_Sword_Attack`。左手持鞘和收势时的手腕朝向另作适配，配刀网格为 `/Game/Characters/AcheronSword/SK_AcheronSword`。刀与鞘只在黄泉选人展示中出现。
+- 黄泉挥刀：[Quaternius Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html)，CC0；使用本地 Standard 包的 `Sword_Attack`，资源为 `/Game/Animations/Entrance/Acheron/A_Acheron_Sword_Attack`。左手持鞘和收势时的手腕朝向另作适配，配刀网格为 `/Game/Characters/AcheronSword/SK_AcheronSword`。选人页保留刀与刀鞘的分开展示；实战将刀鞘套在刀上，黄泉右手挥动整把带鞘武器，显示尺寸为资源原尺寸的 72%。
 - 阿斯卡纶：用户提供 `pose/Catwalk Sequence 03.fbx`，[Mixamo](https://www.mixamo.com/) 动作，遵循 Adobe Mixamo 条款，不是 CC0；资源为 `/Game/Animations/Entrance/Ascalon/A_Ascalon_Catwalk_Sequence_03`。
 - 黄泉人物和配刀来自用户提供的模型压缩包，原文件注明 miHoYo 版权、流云景编辑，并限制商业使用及二次配布；阿斯卡纶沿用用户提供素材的原作者条件。此项不改变 Quaternius 动作包的独立 CC0 授权。
 
@@ -119,7 +119,7 @@
 
 滑铲时完整身体姿势会平滑贴合坡面，减少上坡时脚部穿地；第一人称相机仍使用独立的稳定位置，不跟随身体的坡度倾斜。
 
-持枪、空手、瞄准和下蹲的目标速度分别为 510、790、300、200 cm/s，速度上限以每秒增加 1000、减少 1200 cm/s 的速率过渡，实际移动仍受加速度、制动和碰撞约束。滑铲退出从当前余速开始过渡；空中保留已有水平动量，落地后恢复地面过渡。
+持枪、空手、黄泉持刀、瞄准和下蹲的目标速度分别为 510、790、870、300、200 cm/s，速度上限以每秒增加 1000、减少 1200 cm/s 的速率过渡，实际移动仍受加速度、制动和碰撞约束。滑铲退出从当前余速开始过渡；空中保留已有水平动量，落地后恢复地面过渡。
 
 参数集中在 `BreachMovementComponent.h`。`SlidePoseDuration` 只影响滑铲动作从滑入到保持姿势的时间，不限制物理滑行时长。移动输入中的持枪/空手、瞄准意图纳入 UE 压缩移动标志，客户端重演保存速度过渡、滑铲和加速恢复状态；角色选择、武器及战斗状态的完整联机同步仍未完成。
 
@@ -134,19 +134,21 @@
 - 下蹲碰撞体缩放、镜头高度平滑和墙体防穿透。
 - 移动时的轻微武器摆动；角色镜头不会跟随动画产生大幅晃动。
 
+黄泉是专属近战角色，不生成步枪状态。选择黄泉后会强制右手持带鞘的刀；左键播放约 0.72 秒的挥刀动作，并以约 260 cm 的近战扫掠造成 180 点伤害，该伤害超过普通子弹 34 点伤害的五倍。挥刀不额外绘制轨迹特效，按住左键可按攻击间隔连续攻击。黄泉不能瞄准、换弹、收刀或切回步枪，离开黄泉时恢复进入黄泉前的其他角色武器状态。
+
 ### 输入动作
 
 | 按键 | 输入动作 |
 | --- | --- |
 | `WASD` | 移动 |
 | 鼠标移动 | 视角 |
-| 鼠标左键 | 射击 |
-| 鼠标右键 | 瞄准 |
-| `1` | 恢复持枪 |
-| `3` | 收起武器，空手移动时奔跑 |
+| 鼠标左键 | 普通角色射击；黄泉挥刀 |
+| 鼠标右键 | 普通角色瞄准；黄泉无操作 |
+| `1` | 普通角色恢复持枪；黄泉无操作 |
+| `3` | 普通角色收起武器，空手移动时奔跑；黄泉无操作 |
 | `Space` | 跳跃；滑铲中保留水平动量起跳 |
 | 按住 `Ctrl` | 低速下蹲；地面速度达到 650 cm/s 时按下触发滑铲；空中按住可在高速落地后续滑 |
-| `R` | 换弹 |
+| `R` | 普通角色换弹；黄泉无操作 |
 | `H` | 打开或关闭选人页面 |
 | `Esc` | 暂停；选人页面中返回游戏 |
 | `Enter` | 重新开始；启动选人页面中开始游戏 |

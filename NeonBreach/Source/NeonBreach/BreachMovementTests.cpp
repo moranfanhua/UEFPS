@@ -25,12 +25,13 @@ void ABreachGameMode::RunMovementTest()
     if(!P || !PC) return;
     int32 Index=0; FParse::Value(FCommandLine::Get(),TEXT("BreachOperator="),Index); Index=FMath::Clamp(Index,0,3);
     P->SelectOperator(Index); P->SetUnarmed(false);
+    const bool Sword=P->UsesSword();
     P->SetActorLocation(FVector(-1200,-1250,94));
     float LookPitch=0; FParse::Value(FCommandLine::Get(),TEXT("BreachLookPitch="),LookPitch);
     PC->SetControlRotation(FRotator(LookPitch,0,0));
     struct FResults
     {
-        FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideBoosted=0,SlideEntryLegReach=0,SlideWallX=0,TapSpeed=0,JumpSpeed=0,RampSpeed=0; TWeakObjectPtr<AActor> Roof,Ramp;
+        FString Text; int32 Failed=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideBoosted=0,SlideEntryLegReach=0,SlideWallX=0,TapSpeed=0,JumpSpeed=0,RampSpeed=0; TWeakObjectPtr<AActor> Roof,Ramp; TWeakObjectPtr<ABreachEnemy> SwordTarget;
         FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit},SlideEye{ForceInit};
         int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0,SlideSamples=0;
     };
@@ -43,7 +44,8 @@ void ABreachGameMode::RunMovementTest()
         if(!Pass) ++Results->Failed;
     };
     auto* Move=CastChecked<UBreachMovementComponent>(P->GetCharacterMovement());
-    const float FlatSlideDuration=(FMath::Min(Move->UnarmedSpeed+Move->SlideEntryBoost,Move->SlideMaxSpeed)-Move->SlideExitSpeed)/FMath::Max(1.f,Move->SlideDeceleration);
+    const float FastSpeed=Sword?Move->SwordSpeed:Move->UnarmedSpeed;
+    const float FlatSlideDuration=(FMath::Min(FastSpeed+Move->SlideEntryBoost,Move->SlideMaxSpeed)-Move->SlideExitSpeed)/FMath::Max(1.f,Move->SlideDeceleration);
     const float SlideTailDelay=FMath::Max(0.f,8.6f+FlatSlideDuration+.35f-9.75f);
     const auto At=[this,SlideTailDelay](float Delay,TFunction<void()> Function)
     {
@@ -119,21 +121,43 @@ void ABreachGameMode::RunMovementTest()
     Check(P->HasLocomotionAnimations(),TEXT("All locomotion states have animation assets"));
     At(.1f,[=]() { Results->StandingEye=P->Camera->GetComponentLocation().Z; Key(EKeys::Three,IE_Pressed); });
     At(.16f,[=]() { Key(EKeys::Three,IE_Released); });
-    At(.22f,[=]()
+    At(.22f,[=,this]()
     {
         Check(P->bUnarmed && P->OperatorIndex==Index,TEXT("3 enters unarmed mode without changing character"));
         Check(!P->WeaponRoot->IsVisible() && !P->WorldWeaponRoot->IsVisible(),TEXT("Both weapon representations are hidden"));
         bool ShadowsOff=true; TArray<USceneComponent*> Parts; P->WorldWeaponRoot->GetChildrenComponents(true,Parts);
         for(auto* Part:Parts) if(auto* WeaponPart=Cast<UStaticMeshComponent>(Part)) ShadowsOff&=!WeaponPart->CastShadow;
         Check(ShadowsOff,TEXT("Holstered rifle does not cast a ghost shadow"));
-        const int32 Ammo=P->Ammo; P->Fire(); P->Reload(); P->SetAim(true);
-        Check(P->Ammo==Ammo && !P->bAiming && !P->bReloading,TEXT("Unarmed mode blocks shooting aiming and reload"));
+        const int32 Ammo=P->Ammo;
+        if(Sword)
+        {
+            Check(P->HasSwordRig() && P->Sword->IsVisible() && P->WorldSword->IsVisible() && P->Scabbard->IsVisible() && P->WorldScabbard->IsVisible(),TEXT("Acheron carries the supplied blade and scabbard in both views"));
+            Check(FVector::Distance(P->Sword->GetBoneLocationByName(TEXT("bone_002"),EBoneSpaces::WorldSpace),P->Scabbard->GetBoneLocationByName(TEXT("bone_003"),EBoneSpaces::WorldSpace))<1.f && P->Sword->GetComponentScale().X<1.f,TEXT("Acheron swings the reduced-size sword with its scabbard fitted"));
+            Check(Move->GetTargetMoveSpeed()==Move->SwordSpeed && Move->SwordSpeed>Move->UnarmedSpeed,TEXT("Acheron sword speed is faster than unarmed running"));
+            PC->SetControlRotation(FRotator::ZeroRotator);
+            FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+            auto* Target=GetWorld()->SpawnActor<ABreachEnemy>(P->GetActorLocation()+P->Camera->GetForwardVector()*180.f,P->GetActorRotation(),Params);
+            Target->Configure(0,1);Target->AttackCooldown=999.f;Target->GetCharacterMovement()->DisableMovement();Results->SwordTarget=Target;
+            P->Fire();P->Reload();P->SetAim(true);
+            PC->SetControlRotation(FRotator(LookPitch,0,0));
+            Check(P->Ammo==Ammo && P->IsSwordAttacking() && !P->bAiming && !P->bReloading,TEXT("Acheron attacks without rifle ammo, aiming or reload"));
+        }
+        else
+        {
+            P->Fire(); P->Reload(); P->SetAim(true);
+            Check(P->Ammo==Ammo && !P->bAiming && !P->bReloading,TEXT("Unarmed mode blocks shooting aiming and reload"));
+        }
         Key(EKeys::W,IE_Pressed);
     });
-    At(.95f,[=]() { Screenshot(TEXT("Run")); });
-    At(1.05f,[=]()
+    At(.35f,[=]() { if(Sword) { Check(P->IsSwordAttacking(),TEXT("Acheron remains in the slash animation through the damage window"));Screenshot(TEXT("SwordAttack")); } });
+    At(.55f,[=]()
     {
-        Check(P->GetVelocity().Size2D()>700 && P->LocomotionState==EBreachLocomotion::Sprint,TEXT("W in unarmed mode reaches sprint speed and animation"));
+        if(Sword) Check(Results->SwordTarget.IsValid() && Results->SwordTarget->bDefeated && P->SwordDamage>P->ShotDamage*5.f && P->ShotsHit>0,TEXT("Acheron slash lands at melee range with far higher damage than a bullet"));
+    });
+    At(.95f,[=]() { Screenshot(TEXT("Run")); });
+    At(1.18f,[=]()
+    {
+        Check(P->GetVelocity().Size2D()>(Sword?Move->UnarmedSpeed+10.f:700.f) && P->LocomotionState==EBreachLocomotion::Sprint,Sword?TEXT("W with Acheron's sword exceeds unarmed speed and uses the sprint animation"):TEXT("W in unarmed mode reaches sprint speed and animation"));
         StableEye(Results->RunEye,Results->RunSamples,TEXT("Sprint"));
         Key(EKeys::W,IE_Released);
     });
@@ -191,13 +215,22 @@ void ABreachGameMode::RunMovementTest()
     At(4.86f,[=]() { Key(EKeys::One,IE_Released); });
     At(5.1f,[=]()
     {
-        Check(!P->bUnarmed && P->WeaponRoot->IsVisible() && P->WorldWeaponRoot->IsVisible(),TEXT("1 restores rifle"));
-        const int32 Ammo=P->Ammo; P->Fire(); Check(P->Ammo==Ammo-1,TEXT("Restored rifle can fire"));
-        P->Ammo=5; P->Reserve=100; P->Reload();
-        Check(P->bReloading,TEXT("Armed reload starts")); Key(EKeys::Three,IE_Pressed);
+        if(Sword)
+        {
+            Check(P->bUnarmed && !P->WeaponRoot->IsVisible() && P->Sword->IsVisible(),TEXT("1 cannot give Acheron a rifle or remove her blade"));
+            const int32 Ammo=P->Ammo;P->Fire();Check(P->Ammo==Ammo,TEXT("Acheron slash never consumes rifle ammunition"));
+            P->Ammo=5;P->Reserve=100;P->Reload();Check(!P->bReloading,TEXT("Acheron has no rifle reload state"));Key(EKeys::Three,IE_Pressed);
+        }
+        else
+        {
+            Check(!P->bUnarmed && P->WeaponRoot->IsVisible() && P->WorldWeaponRoot->IsVisible(),TEXT("1 restores rifle"));
+            const int32 Ammo=P->Ammo; P->Fire(); Check(P->Ammo==Ammo-1,TEXT("Restored rifle can fire"));
+            P->Ammo=5; P->Reserve=100; P->Reload();
+            Check(P->bReloading,TEXT("Armed reload starts")); Key(EKeys::Three,IE_Pressed);
+        }
     });
     At(5.16f,[=]() { Key(EKeys::Three,IE_Released); P->SelectOperator(2); });
-    At(5.4f,[=]() { Check(P->OperatorIndex==2 && P->bUnarmed && P->HasLocomotionAnimations(),TEXT("Changing character preserves unarmed mode")); });
+    At(5.4f,[=]() { Check(P->OperatorIndex==2 && P->bUnarmed==!Sword && P->HasLocomotionAnimations(),Sword?TEXT("Leaving Acheron restores the previous rifle loadout"):TEXT("Changing character preserves unarmed mode")); });
     At(5.55f,[=]() { P->SelectOperator(Index); P->CrouchOn(); PC->SetControlRotation(FRotator(-35,0,0)); });
     At(5.95f,[=,this]()
     {
@@ -221,13 +254,15 @@ void ABreachGameMode::RunMovementTest()
     {
         P->GetCharacterMovement()->StopMovementImmediately();
         P->SetActorLocation(FVector(-1200,-1250,94));PC->SetControlRotation(FRotator(LookPitch,0,0));
+        if(Sword) P->SelectOperator(0);
         P->SetUnarmed(false);Key(EKeys::W,IE_Pressed);
         const auto* Move=CastChecked<UBreachMovementComponent>(P->GetCharacterMovement());
         Check(Move->SlideEntrySpeed>Move->RifleSpeed && Move->SlideEntrySpeed<Move->UnarmedSpeed,TEXT("Slide threshold lies between rifle and unarmed speeds"));
+        Check(Move->SwordSpeed>Move->UnarmedSpeed,TEXT("Acheron sword movement exceeds the former unarmed speed"));
     });
     At(7.7f,[=]() { Check(P->GetVelocity().Size2D()>490,TEXT("Rifle movement reaches normal speed before crouching"));Key(EKeys::LeftControl,IE_Pressed); });
     At(7.85f,[=]() { Check(P->bIsCrouched && !P->IsSliding(),TEXT("Ctrl at rifle speed crouches without a slide"));Key(EKeys::W,IE_Released);Key(EKeys::LeftControl,IE_Released); });
-    At(8.1f,[=]() { P->SetUnarmed(true);Key(EKeys::W,IE_Pressed); });
+    At(8.1f,[=]() { if(Sword) P->SelectOperator(Index);P->SetUnarmed(true);Key(EKeys::W,IE_Pressed); });
     At(8.6f,[=]() { Results->SlideEntry=P->GetVelocity().Size2D();Key(EKeys::LeftControl,IE_Pressed); });
     At(8.66f,[=]()
     {
@@ -312,7 +347,7 @@ void ABreachGameMode::RunMovementTest()
     };
     At(14.f,[=]()
     {
-        ResetRun();P->SetUnarmed(false);P->SetAim(true);P->TogglePause();P->TogglePause();
+        ResetRun();if(Sword) P->SelectOperator(0);P->SetUnarmed(false);P->SetAim(true);P->TogglePause();P->TogglePause();
         Check(!P->bAiming && Move->GetTargetMoveSpeed()==Move->RifleSpeed,TEXT("Pause clears both aim visuals and the slow movement intent"));
         Key(EKeys::W,IE_Pressed);
     });
@@ -329,7 +364,7 @@ void ABreachGameMode::RunMovementTest()
     At(16.4f,[=]() { Settled(Move->MaxWalkSpeedCrouched,TEXT("Crouched"));Key(EKeys::LeftControl,IE_Released); });
     At(16.47f,[=]() { Between(Move->MaxWalkSpeedCrouched,Move->RifleSpeed,TEXT("Standing")); });
     At(16.85f,[=]() { Settled(Move->RifleSpeed,TEXT("Standing")); });
-    At(17.f,[=]() { ResetRun();P->SetUnarmed(true); });
+    At(17.f,[=]() { ResetRun();if(Sword) P->SelectOperator(Index);P->SetUnarmed(true); });
     At(17.6f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
     At(17.83f,[=]() { Check(P->IsSliding(),TEXT("Slide jump begins from an active slide"));Results->JumpSpeed=P->GetVelocity().Size2D();Key(EKeys::SpaceBar,IE_Pressed); });
     At(17.91f,[=]()
@@ -339,12 +374,12 @@ void ABreachGameMode::RunMovementTest()
         Key(EKeys::SpaceBar,IE_Released);Screenshot(TEXT("SlideJump"));
     });
     At(18.4f,[=]() { Check(Move->IsFalling(),TEXT("Slide jump follows the airborne arc"));P->SetUnarmed(false); });
-    At(18.47f,[=]() { Check(P->GetVelocity().Size2D()>=Results->JumpSpeed-50.f,TEXT("Drawing the rifle in the air does not erase slide jump momentum")); });
+    At(18.47f,[=]() { Check(P->GetVelocity().Size2D()>=Results->JumpSpeed-50.f,Sword?TEXT("Acheron's locked sword stance does not erase slide jump momentum"):TEXT("Drawing the rifle in the air does not erase slide jump momentum")); });
     At(18.6f,[=]() { P->SetUnarmed(true); });
     At(19.08f,[=]() { Check(P->IsSliding() && P->GetVelocity().Size2D()>Move->SlideEntrySpeed,TEXT("Landing at speed with Ctrl held automatically continues sliding")); });
     At(19.3f,[=]() { Screenshot(TEXT("SlideLand")); });
     At(19.37f,[=]() { Key(EKeys::LeftControl,IE_Released); });
-    At(19.46f,[=]() { Check(!P->IsSliding() && P->GetVelocity().Size2D()>Move->UnarmedSpeed,TEXT("Slide exit eases down toward running speed instead of clamping momentum")); });
+    At(19.46f,[=]() { Check(!P->IsSliding() && P->GetVelocity().Size2D()>FastSpeed,TEXT("Slide exit eases down toward running speed instead of clamping momentum")); });
     At(20.f,[=]() { ResetRun(); });
     At(20.5f,[=]() { Key(EKeys::LeftControl,IE_Pressed); });
     At(20.65f,[=,this]()

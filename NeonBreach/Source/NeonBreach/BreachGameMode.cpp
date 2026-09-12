@@ -1,4 +1,5 @@
 #include "BreachGame.h"
+#include "BreachMovementComponent.h"
 #include "BreachVisuals.h"
 #include "CharacterRigData.h"
 #include "Camera/CameraComponent.h"
@@ -270,7 +271,14 @@ void ABreachGameMode::RunSmokeTest()
         {
             P->SelectOperator(I); P->UpdateOperatorPose(0);
             Check(P->HasFirstPersonRig() && P->Body->GetSkinnedAsset()==Breach::CharacterMesh(I) && P->WorldBody->GetSkinnedAsset()==Breach::CharacterMesh(I),*FString::Printf(TEXT("%s first-person and world views use complete source mesh"),Breach::Keys[I]));
-            Check(P->GripError()<5.f,*FString::Printf(TEXT("%s hands reach both weapon grips (%.2f cm)"),Breach::Keys[I],P->GripError()));
+            const FString GripMessage=I==1?FString::Printf(TEXT("%s hand reaches the sword grip (%.2f cm)"),Breach::Keys[I],P->GripError()):FString::Printf(TEXT("%s hands reach both weapon grips (%.2f cm)"),Breach::Keys[I],P->GripError());
+            Check(P->GripError()<5.f,*GripMessage);
+            if(I==1)
+            {
+                const auto* Move=CastChecked<UBreachMovementComponent>(P->GetCharacterMovement());
+                Check(P->bUnarmed && P->HasSwordRig() && P->Sword->IsVisible() && P->WorldSword->IsVisible() && P->Scabbard->IsVisible() && P->WorldScabbard->IsVisible() && !P->WeaponRoot->IsVisible(),TEXT("Acheron uses the supplied sword and scabbard and has no rifle"));
+                Check(P->SwordDamage>P->ShotDamage*5.f && Move->GetTargetMoveSpeed()==Move->SwordSpeed && Move->SwordSpeed>Move->UnarmedSpeed,TEXT("Acheron has high sword damage and enhanced movement speed"));
+            }
             FBreachPose Rig; Rig.Init(Breach::CharacterMesh(I),I);
             const FName Head=P->WorldBody->GetBoneName(Rig.Bone(EBreachBone::Head));
             Check(P->WorldBody->bCastHiddenShadow && P->WorldBody->GetBoneTransformByName(Head,EBoneSpaces::ComponentSpace).GetScale3D().GetMin()>.1f && P->Body->GetBoneTransformByName(Head,EBoneSpaces::ComponentSpace).GetScale3D().IsNearlyZero(),*FString::Printf(TEXT("%s owner view hides head while complete world body casts shadow"),Breach::Keys[I]));

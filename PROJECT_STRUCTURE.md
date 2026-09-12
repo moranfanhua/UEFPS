@@ -1,6 +1,6 @@
 # Neon Breach 项目结构说明
 
-这份文档说明项目中每个目录的作用、游戏启动后的调用关系，以及修改功能时应该从哪里入手。项目是 Unreal Engine 5.7 的 C++ 第一人称竞技场原型，核心玩法是持枪/空手移动、击杀敌人、波次刷新和角色选择。
+这份文档说明项目中每个目录的作用、游戏启动后的调用关系，以及修改功能时应该从哪里入手。项目是 Unreal Engine 5.7 的 C++ 第一人称竞技场原型，核心玩法是枪械或黄泉近战、快速移动、击杀敌人、波次刷新和角色选择。
 
 ## 1. 先建立整体认识
 
@@ -19,14 +19,14 @@ ABreachGameMode::BeginPlay()
         |
         +--> BuildArena()             创建或检查竞技场
         +--> Spawn display enemies    创建后方四个角色展示台
-        +--> ABreachCharacter         创建玩家、相机、枪和双份人物模型
+        +--> ABreachCharacter         创建玩家、相机、枪/黄泉刀和双份人物模型
         +--> ABreachHUD                显示 HUD，并打开初始选人界面
         |
         v
 玩家按 Enter 开始游戏
         |
         +--> 输入绑定 -> ABreachCharacter
-        +--> 射线命中 -> ABreachEnemy::TakeDamage()
+        +--> 射线或近战扫掠命中 -> ABreachEnemy::TakeDamage()
         +--> 敌人倒地 -> ABreachGameMode::EnemyDefeated()
         +--> 波次结束 -> ABreachGameMode::StartWave()
 ```
@@ -85,9 +85,9 @@ GPT_UE_TEST/
 | `BreachEnemy.cpp` | 敌人移动、朝向玩家、视线检测、攻击、受伤和死亡。普通移动由 `Pose.Walk()` 程序化生成，死亡优先播放对应的 `Death01` 动画。 |
 | `BreachAssets.cpp` | 编辑器资源处理：裁剪辅助第一人称手臂网格，以及从 JSON/动作文件烘焙死亡和角色动画。函数使用 `WITH_EDITOR`，打包后的游戏不会执行编辑器写入操作。 |
 | `BreachModelReview.cpp` | 阿斯卡纶正、侧、背离屏检查入口；只有显式使用 `-BreachModelReview` 才进入模型检查场景，附加 `-BreachReviewHead` 聚焦头部。`Scripts/VerifyModelReview.ps1 -Head` 封装该入口。保留原骨架的 `CopyCharacterGeometry` 位于 `BreachAssets.cpp`，网格更新仅允许编辑器构建执行。 |
-| `BreachCharacter.cpp` | 玩家角色的构造、输入绑定、相机、完整人物模型、枪械组件、射击、瞄准、换弹、受伤和重开。 |
-| `BreachLocomotion.cpp` | 玩家移动状态和动画切换：待机、持枪移动、空手奔跑、起跳、空中、落地、下蹲和滑铲。滑铲使用四个角色各自的 Mixamo `Running_Slide` 资源，按实际滑行时长播放贴地段；状态切换使用短时间骨骼混合，减少动作跳变。 |
-| `BreachMovementComponent.h/.cpp` | 自定义角色移动组件：统一处理持枪/空手/瞄准/下蹲速度过渡，Ctrl 惯性滑铲、有限转向、坡道加减速、滑铲跳和落地续滑；沿用 UE 地面碰撞，保存客户端移动重演状态，并向模拟代理复制滑铲姿态状态。 |
+| `BreachCharacter.cpp` | 玩家角色的构造、输入绑定、相机、完整人物模型、枪械组件、黄泉刀、射击/挥刀、瞄准、换弹、受伤和重开。黄泉固定持刀，以 180 点近战伤害攻击。 |
+| `BreachLocomotion.cpp` | 玩家移动状态和动画切换：待机、持枪移动、空手或黄泉持刀奔跑、起跳、空中、落地、下蹲和滑铲。滑铲使用四个角色各自的 Mixamo `Running_Slide` 资源，按实际滑行时长播放贴地段；状态切换使用短时间骨骼混合，减少动作跳变。 |
+| `BreachMovementComponent.h/.cpp` | 自定义角色移动组件：统一处理持枪/空手/黄泉持刀/瞄准/下蹲速度过渡，黄泉持刀速度为 870 cm/s；处理 Ctrl 惯性滑铲、有限转向、坡道加减速、滑铲跳和落地续滑，并保存客户端移动重演状态。 |
 
 `ABreachGameMode` 的主要运行数据如下：
 

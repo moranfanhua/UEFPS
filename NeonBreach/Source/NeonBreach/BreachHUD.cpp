@@ -42,10 +42,10 @@ void ABreachHUD::DrawHUD()
     // Crosshair expands during movement and contracts while aiming.
     const float Cx=W*.5f,Cy=H*.5f;
     const float Gap=P->bAiming?5:9+FMath::Clamp(P->GetVelocity().Size2D()/100.f,0.f,6.f);
-    if(!G->bGameOver && !P->bUnarmed)
+    if(!G->bGameOver && (!P->bUnarmed || P->UsesSword()))
     {
         Box(Cx-1,Cy-1,2,2,White);
-        if(!P->bAiming)
+        if(!P->bAiming && !P->UsesSword())
         {
             Box(Cx-Gap-7,Cy-1,7,2,White); Box(Cx+Gap,Cy-1,7,2,White);
             Box(Cx-1,Cy-Gap-7,2,7,White); Box(Cx-1,Cy+Gap,2,7,White);
@@ -58,8 +58,13 @@ void ABreachHUD::DrawHUD()
     }
     DrawPlayerVitals(P);
     Box(W-318,H-150,290,98,Panel); Box(W-31,H-150,3,98,Cyan);
-    Text(P->bUnarmed?TEXT("UNARMED   /   FREE HANDS"):TEXT("VX-30   /   PULSE RIFLE"),W-298,H-138,12,Muted);
-    if(P->bUnarmed)
+    Text(P->UsesSword()?TEXT("NODACHI   /   MELEE"):P->bUnarmed?TEXT("UNARMED   /   FREE HANDS"):TEXT("VX-30   /   PULSE RIFLE"),W-298,H-138,12,Muted);
+    if(P->UsesSword())
+    {
+        Text(P->IsSwordAttacking()?TEXT("SLASH"):P->IsSliding()?TEXT("SLIDE"):(P->bIsCrouched?TEXT("CROUCH"):TEXT("BLADE READY")),W-298,H-118,27,White);
+        Text(FString::Printf(TEXT("LMB  /  SLASH    %.0f DAMAGE"),P->SwordDamage),W-298,H-74,12,Cyan);
+    }
+    else if(P->bUnarmed)
     {
         Text(P->IsSliding()?TEXT("SLIDE"):(P->bIsCrouched?TEXT("CROUCH"):TEXT("RUN")),W-298,H-118,30,White);
         Text(TEXT("1  /  DRAW RIFLE"),W-298,H-74,12,Cyan);
@@ -75,7 +80,7 @@ void ABreachHUD::DrawHUD()
         Box(Cx-85,Cy+54,170,4,Panel); Box(Cx-85,Cy+54,170*P->ReloadProgress,4,Cyan);
         Text(TEXT("RELOADING"),Cx-42,Cy+68,11,White);
     }
-    //Text(TEXT("WASD MOVE  /  1 RIFLE  /  3 UNARMED-RUN  /  CTRL CROUCH  /  SPACE JUMP  /  LMB FIRE  /  RMB AIM  /  R RELOAD"),28,H-30,11,Muted);
+    //Text(TEXT("WASD MOVE  /  1 RIFLE  /  3 UNARMED-RUN  /  CTRL CROUCH  /  SPACE JUMP  /  LMB ATTACK  /  RMB AIM  /  R RELOAD"),28,H-30,11,Muted);
     //Text(TEXT("H SELECT  /  ESC PAUSE  /  ENTER RESTART"),W-340,H-30,11,Muted);
     for(TActorIterator<ABreachEnemy> It(GetWorld());It;++It)
     {
@@ -100,7 +105,7 @@ void ABreachHUD::DrawHUD()
         Text(G->bGameOver?TEXT("SIMULATION COMPLETE"):TEXT("SIMULATION PAUSED"),Cx-190,Cy-86,29,White);
         Text(FString::Printf(TEXT("WAVE %02d   /   %06d PTS   /   %02d CLEARED"),G->Wave,G->Score,G->Kills),Cx-180,Cy-30,15,Cyan);
         const int32 Accuracy=P->ShotsFired?FMath::RoundToInt(P->ShotsHit*100.f/P->ShotsFired):0;
-        Text(FString::Printf(TEXT("ACCURACY %d%%"),Accuracy),Cx-72,Cy+4,16,Muted);
+        Text(P->UsesSword()?FString::Printf(TEXT("HIT RATE %d%%"),Accuracy):FString::Printf(TEXT("ACCURACY %d%%"),Accuracy),Cx-72,Cy+4,16,Muted);
         Text(G->bGameOver?TEXT("ENTER  /  START A NEW RUN"):TEXT("ESC  /  RESUME     ENTER  /  RESTART"),Cx-171,Cy+67,15,White);
     }
 }

@@ -148,7 +148,7 @@ float ABreachEnemy::TakeDamage(float Damage,const FDamageEvent& Event,AControlle
         GetCharacterMovement()->StopMovementImmediately();
         GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         GetCharacterMovement()->DisableMovement();
-        if(auto* GM=GetWorld()->GetAuthGameMode<ABreachGameMode>()) GM->EnemyDefeated(this,Damage>50);
+        if(auto* GM=GetWorld()->GetAuthGameMode<ABreachGameMode>()) GM->EnemyDefeated(this,Event.IsOfType(FPointDamageEvent::ClassID) && Damage>50);
     }
     return Damage;
 }

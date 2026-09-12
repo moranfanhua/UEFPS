@@ -3,6 +3,7 @@
 #include "BreachVisuals.h"
 #include "Animation/AnimSequence.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/PoseableMeshComponent.h"
 #include "Components/PointLightComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TimerManager.h"
@@ -12,7 +13,7 @@ void ABreachCharacter::DrawRifle() { if(bUnarmed) SetUnarmed(false); }
 void ABreachCharacter::SetUnarmed(bool Enabled)
 {
     if(Health<=0) return;
-    bUnarmed=Enabled;
+    bUnarmed=UsesSword() || Enabled;
     bSprint=bUnarmed && !bIsCrouched;
     bTrigger=false; bAiming=false; bReloading=false;
     CastChecked<UBreachMovementComponent>(GetCharacterMovement())->SetLocomotionIntent(bUnarmed,bAiming);
@@ -21,6 +22,10 @@ void ABreachCharacter::SetUnarmed(bool Enabled)
     MuzzleLight->SetIntensity(0);
     WeaponRoot->SetVisibility(!bUnarmed,true);
     WorldWeaponRoot->SetVisibility(!bUnarmed,true);
+    Sword->SetVisibility(UsesSword() && bSwordRigReady,true);
+    WorldSword->SetVisibility(UsesSword() && bSwordRigReady,true);
+    Scabbard->SetVisibility(UsesSword() && bSwordRigReady,true);
+    WorldScabbard->SetVisibility(UsesSword() && bSwordRigReady,true);
     TArray<USceneComponent*> Parts;
     WorldWeaponRoot->GetChildrenComponents(true,Parts);
     for(auto* Part:Parts)
@@ -71,7 +76,7 @@ void ABreachCharacter::UpdateLocomotion(float Dt)
     auto* Animation=LocomotionAnimations.IsValidIndex(int32(Next))?LocomotionAnimations[int32(Next)].Get():nullptr;
     float Rate=1;
     if(Next==EBreachLocomotion::Jog) Rate=FMath::Clamp(Speed/510.f,.55f,1.4f);
-    if(Next==EBreachLocomotion::Sprint) Rate=FMath::Clamp(Speed/790.f,.55f,1.4f);
+    if(Next==EBreachLocomotion::Sprint) Rate=FMath::Clamp(Speed/(UsesSword()?UBreachMovementComponent::SwordSpeed:UBreachMovementComponent::UnarmedSpeed),.55f,1.4f);
     if(Next==EBreachLocomotion::CrouchWalk) Rate=FMath::Clamp(Speed/200.f,.55f,1.4f);
     LocomotionTime+=Dt*Rate;
     float Time=LocomotionTime;

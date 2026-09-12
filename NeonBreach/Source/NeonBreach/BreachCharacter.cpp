@@ -87,6 +87,40 @@ ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
     MuzzleLight->SetIntensity(0);
     MuzzleLight->SetAttenuationRadius(220);
     MuzzleLight->SetCastShadows(false);
+    Sword=CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("AcheronSword"));
+    Sword->SetupAttachment(GetCapsuleComponent());
+    Sword->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    Sword->SetOnlyOwnerSee(true);
+    Sword->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
+    Sword->SetCastShadow(false);
+    Sword->SetBoundsScale(2.f);
+    Sword->SetVisibility(false);
+    WorldSword=CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("AcheronWorldSword"));
+    WorldSword->SetupAttachment(GetCapsuleComponent());
+    WorldSword->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    WorldSword->SetOwnerNoSee(true);
+    WorldSword->SetCastHiddenShadow(true);
+    WorldSword->SetCastShadow(true);
+    WorldSword->bCastCinematicShadow=true;
+    WorldSword->SetBoundsScale(2.f);
+    WorldSword->SetVisibility(false);
+    Scabbard=CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("AcheronScabbard"));
+    Scabbard->SetupAttachment(GetCapsuleComponent());
+    Scabbard->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    Scabbard->SetOnlyOwnerSee(true);
+    Scabbard->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
+    Scabbard->SetCastShadow(false);
+    Scabbard->SetBoundsScale(2.f);
+    Scabbard->SetVisibility(false);
+    WorldScabbard=CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("AcheronWorldScabbard"));
+    WorldScabbard->SetupAttachment(GetCapsuleComponent());
+    WorldScabbard->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    WorldScabbard->SetOwnerNoSee(true);
+    WorldScabbard->SetCastHiddenShadow(true);
+    WorldScabbard->SetCastShadow(true);
+    WorldScabbard->bCastCinematicShadow=true;
+    WorldScabbard->SetBoundsScale(2.f);
+    WorldScabbard->SetVisibility(false);
     Body = CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("OperatorBody"));
     Body->SetupAttachment(GetCapsuleComponent());
     Body->SetRelativeLocation(FVector(-10,0,-92));
@@ -144,7 +178,7 @@ void ABreachCharacter::MoveForward(float V) { if(Health>0) AddMovementInput(FRot
 void ABreachCharacter::MoveRight(float V) { if(Health>0) AddMovementInput(FRotationMatrix(FRotator(0,GetControlRotation().Yaw,0)).GetUnitAxis(EAxis::Y), V); }
 void ABreachCharacter::Turn(float V) { if(Health>0) AddControllerYawInput(V * (bAiming ? .45f : .75f)); }
 void ABreachCharacter::LookUp(float V) { if(Health>0) AddControllerPitchInput(V * (bAiming ? .45f : .75f)); }
-void ABreachCharacter::StartFire() { if(!bUnarmed) { bTrigger=true; Fire(); } }
+void ABreachCharacter::StartFire() { if(UsesSword() || !bUnarmed) { bTrigger=true; Fire(); } }
 void ABreachCharacter::StopFire() { bTrigger=false; }
 void ABreachCharacter::SetAim(bool Value)
 {
@@ -160,6 +194,7 @@ void ABreachCharacter::Tick(float Dt)
 {
     Super::Tick(Dt);
     if (bTrigger) Fire();
+    UpdateSwordAttack(Dt);
     bSprint=bUnarmed && !bIsCrouched;
     Camera->SetFieldOfView(FMath::FInterpTo(Camera->FieldOfView, bAiming ? 66.f : 96.f, Dt, 12));
     Camera->SetFirstPersonFieldOfView(Camera->FieldOfView);
@@ -180,16 +215,26 @@ void ABreachCharacter::Tick(float Dt)
     WorldWeaponRoot->SetRelativeTransform(WeaponRoot->GetRelativeTransform());
     UpdateOperatorPose(Dt);
     Recoil = FMath::FInterpTo(Recoil,0,Dt,15);
-    MuzzleLight->SetIntensity(Recoil>.55f ? 5000.f : 0.f);
+    MuzzleLight->SetIntensity(!UsesSword() && Recoil>.55f ? 5000.f : 0.f);
     HitMarker=FMath::Max(0.f,HitMarker-Dt);
     DamageFlash=FMath::Max(0.f,DamageFlash-Dt);
 }
 
 void ABreachCharacter::Fire()
 {
-    if(Health<=0 || bUnarmed || bReloading || UGameplayStatics::IsGamePaused(this)) return;
+    if(Health<=0 || bReloading || UGameplayStatics::IsGamePaused(this)) return;
     const float Now=GetWorld()->GetTimeSeconds();
     if(Now<NextShot) return;
+    if(UsesSword())
+    {
+        NextShot=Now+SwordAttackInterval;
+        SwordAttackTime=0.f; bSwordDamageApplied=false;
+        SwordAttackOrigin=Camera->GetComponentLocation();
+        SwordAttackDirection=Camera->GetForwardVector();
+        ++ShotsFired;
+        return;
+    }
+    if(bUnarmed) return;
     if(Ammo<=0) { Reload(); return; }
     NextShot=Now+FireInterval;
     --Ammo; ++ShotsFired; Recoil=1;
@@ -218,6 +263,130 @@ void ABreachCharacter::Fire()
     AddControllerPitchInput(-.10f);
 }
 
+void ABreachCharacter::ConfigureSwordLoadout()
+{
+    if(!UsesSword())
+    {
+        SwordAttackTime=-1.f; bSwordDamageApplied=false;
+        Sword->SetVisibility(false,true); WorldSword->SetVisibility(false,true);
+        Scabbard->SetVisibility(false,true); WorldScabbard->SetVisibility(false,true);
+        return;
+    }
+    if(!bSwordRigReady)
+    {
+        auto* Asset=LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/Characters/AcheronSword/SK_AcheronSword.SK_AcheronSword"));
+        bSwordRigReady=Asset && SwordPose.InitSkeleton(Asset);
+        if(bSwordRigReady)
+        {
+            for(auto* Prop:{Sword.Get(),WorldSword.Get(),Scabbard.Get(),WorldScabbard.Get()})
+            {
+                Prop->SetSkinnedAssetAndUpdate(Asset);
+                SwordPose.Apply(Prop);
+                Prop->RefreshBoneTransforms();
+            }
+            Sword->SetMaterial(0,Breach::Material(TEXT("M_ShadowOverlay")));
+            WorldSword->SetMaterial(0,Breach::Material(TEXT("M_ShadowOverlay")));
+            Scabbard->SetMaterial(1,Breach::Material(TEXT("M_ShadowOverlay")));
+            WorldScabbard->SetMaterial(1,Breach::Material(TEXT("M_ShadowOverlay")));
+            bSwordRigReady=Sword->GetBoneIndex(TEXT("bone_002"))!=INDEX_NONE && Scabbard->GetBoneIndex(TEXT("bone_003"))!=INDEX_NONE;
+        }
+    }
+    if(!SwordAttackAnimation)
+        SwordAttackAnimation=LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Animations/Entrance/Acheron/A_Acheron_Sword_Attack.A_Acheron_Sword_Attack"));
+}
+
+void ABreachCharacter::UpdateSwordAttack(float Dt)
+{
+    if(!UsesSword() || SwordAttackTime<0.f) return;
+    SwordAttackTime+=FMath::Max(0.f,Dt);
+    if(!bSwordDamageApplied && SwordAttackTime>=SwordAttackInterval*.3f)
+    {
+        bSwordDamageApplied=true;
+        PerformSwordHit();
+    }
+    if(SwordAttackTime>=SwordAttackInterval) SwordAttackTime=-1.f;
+}
+
+void ABreachCharacter::PerformSwordHit()
+{
+    const FVector Forward=SwordAttackDirection;
+    const FVector Start=SwordAttackOrigin+Forward*30.f;
+    const FVector End=Start+Forward*SwordRange;
+    FCollisionQueryParams Params(SCENE_QUERY_STAT(BreachSword),true,this);
+    FHitResult Hit;
+    const bool bHit=GetWorld()->SweepSingleByChannel(Hit,Start,End,FQuat::Identity,ECC_Visibility,FCollisionShape::MakeSphere(SwordRadius),Params);
+    if(auto* Enemy=bHit?Cast<ABreachEnemy>(Hit.GetActor()):nullptr; Enemy && !Enemy->bDisplayOnly && !Enemy->bDefeated)
+    {
+        ++ShotsHit; bLastHeadshot=false; HitMarker=.22f;
+        UGameplayStatics::ApplyDamage(Enemy,SwordDamage,Controller,this,UDamageType::StaticClass());
+    }
+}
+
+void ABreachCharacter::ApplySwordAttackPose()
+{
+    if(!UsesSword() || SwordAttackTime<0.f || !SwordAttackAnimation) return;
+    const float Progress=FMath::Clamp(SwordAttackTime/FMath::Max(.01f,SwordAttackInterval),0.f,1.f);
+    const float SourceEnd=FMath::Min(.9f,SwordAttackAnimation->GetPlayLength());
+    const float SourceTime=Progress<.28f?FMath::Lerp(0.f,.32f,Progress/.28f):
+        (Progress<.55f?FMath::Lerp(.32f,.6f,(Progress-.28f)/.27f):FMath::Lerp(.6f,SourceEnd,(Progress-.55f)/.45f));
+    FBreachPose AttackPose=BodyPose;
+    if(!AttackPose.Sample(SwordAttackAnimation,SourceTime,false)) return;
+    const float BlendIn=FMath::SmoothStep(0.f,.1f,Progress);
+    const float BlendOut=1.f-FMath::SmoothStep(.82f,1.f,Progress);
+    const float Blend=FMath::Min(BlendIn,BlendOut);
+    const int32 Spine=BodyPose.Bone(EBreachBone::Spine);
+    for(int32 I=0;I<BodyPose.Local.Num();++I)
+        if(BodyPose.IsUnder(I,Spine) && AttackPose.Local.IsValidIndex(I))
+        {
+            FTransform Mixed;
+            Mixed.Blend(BodyPose.Local[I],AttackPose.Local[I],Blend);
+            BodyPose.Local[I]=Mixed;
+        }
+    BodyPose.Rebuild();
+}
+
+void ABreachCharacter::UpdateSwordVisual(const FBreachPose& Pose,UPoseableMeshComponent* CharacterMesh,UPoseableMeshComponent* SwordMesh)
+{
+    if(!CharacterMesh || !SwordMesh || !bSwordRigReady) return;
+    const int32 Hand=Pose.Bone(EBreachBone::RHand);
+    const int32 Middle=Pose.Fingers[1][6],Index=Pose.Fingers[1][3],Pinky=Pose.Fingers[1][12];
+    const int32 Handle=SwordMesh->GetBoneIndex(TEXT("bone_002"));
+    if(!Pose.CS.IsValidIndex(Hand) || !Pose.CS.IsValidIndex(Middle) || !Pose.CS.IsValidIndex(Index) || !Pose.CS.IsValidIndex(Pinky) || !SwordPose.ReferenceCS.IsValidIndex(Handle)) return;
+    const FVector HandPosition=Pose.CS[Hand].GetLocation();
+    FVector Along=(Pose.CS[Middle].GetLocation()-HandPosition).GetSafeNormal();
+    FVector Across=(Pose.CS[Index].GetLocation()-Pose.CS[Pinky].GetLocation()).GetSafeNormal();
+    Along=(Along-Across*FVector::DotProduct(Along,Across)).GetSafeNormal();
+    const FVector Normal=FVector::CrossProduct(Along,Across).GetSafeNormal();
+    const FTransform ToWorld=CharacterMesh->GetComponentTransform();
+    const FVector Axis=ToWorld.TransformVectorNoScale(Across).GetSafeNormal();
+    const FQuat Rotation=FRotationMatrix::MakeFromYZ(Axis,ToWorld.TransformVectorNoScale(Along)).ToQuat();
+    const FVector Grip=ToWorld.TransformPosition(HandPosition+Along*3.f+Normal*1.5f);
+    const FVector Anchor=SwordPose.ReferenceCS[Handle].GetLocation();
+    const float VisualScale=FMath::Max(.1f,SwordVisualScale);
+    SwordMesh->SetWorldTransform(FTransform(Rotation,Grip-Rotation.RotateVector(Anchor*VisualScale),FVector(VisualScale)));
+}
+
+void ABreachCharacter::UpdateScabbardVisual(const FBreachPose& Pose,UPoseableMeshComponent* CharacterMesh,UPoseableMeshComponent* ScabbardMesh)
+{
+    if(!CharacterMesh || !ScabbardMesh || !bSwordRigReady) return;
+    const int32 Hand=Pose.Bone(EBreachBone::RHand);
+    const int32 Middle=Pose.Fingers[1][6],Index=Pose.Fingers[1][3],Pinky=Pose.Fingers[1][12];
+    const int32 Handle=ScabbardMesh->GetBoneIndex(TEXT("bone_003"));
+    if(!Pose.CS.IsValidIndex(Hand) || !Pose.CS.IsValidIndex(Middle) || !Pose.CS.IsValidIndex(Index) || !Pose.CS.IsValidIndex(Pinky) || !SwordPose.ReferenceCS.IsValidIndex(Handle)) return;
+    const FVector HandPosition=Pose.CS[Hand].GetLocation();
+    FVector Along=(Pose.CS[Middle].GetLocation()-HandPosition).GetSafeNormal();
+    FVector Across=(Pose.CS[Index].GetLocation()-Pose.CS[Pinky].GetLocation()).GetSafeNormal();
+    Along=(Along-Across*FVector::DotProduct(Along,Across)).GetSafeNormal();
+    const FVector Normal=FVector::CrossProduct(Along,Across).GetSafeNormal();
+    const FTransform ToWorld=CharacterMesh->GetComponentTransform();
+    const FVector Axis=ToWorld.TransformVectorNoScale(Across).GetSafeNormal();
+    const FQuat Rotation=FRotationMatrix::MakeFromYZ(Axis,ToWorld.TransformVectorNoScale(Along)).ToQuat();
+    const FVector Grip=ToWorld.TransformPosition(HandPosition+Along*3.f+Normal*1.5f);
+    const FVector Anchor=SwordPose.ReferenceCS[Handle].GetLocation();
+    const float VisualScale=FMath::Max(.1f,SwordVisualScale);
+    ScabbardMesh->SetWorldTransform(FTransform(Rotation,Grip-Rotation.RotateVector(Anchor*VisualScale),FVector(VisualScale)));
+}
+
 void ABreachCharacter::Reload()
 {
     if(Health<=0 || bUnarmed || bReloading || Ammo>=MagazineSize || Reserve<=0) return;
@@ -244,7 +413,11 @@ float ABreachCharacter::TakeDamage(float Damage,const FDamageEvent& Event,AContr
 }
 void ABreachCharacter::SelectOperator(int32 Index)
 {
-    OperatorIndex=FMath::Clamp(Index,0,3);
+    const int32 NextOperator=FMath::Clamp(Index,0,3);
+    const bool WasSword=UsesSword();
+    if(!WasSword && NextOperator==1) bLoadoutBeforeSword=bUnarmed;
+    if(WasSword && NextOperator!=1) bUnarmed=bLoadoutBeforeSword;
+    OperatorIndex=NextOperator;
     if(auto* CharacterAsset=Breach::CharacterMesh(OperatorIndex))
     {
         Body->SetSkinnedAssetAndUpdate(CharacterAsset);
@@ -279,8 +452,10 @@ void ABreachCharacter::SelectOperator(int32 Index)
         bBodyRigReady=BodyPose.Init(CharacterAsset,OperatorIndex);
         BodyCloth.Init(CharacterAsset,OperatorIndex);
         LoadLocomotionAnimations();
-        UpdateOperatorPose(0);
     }
+    ConfigureSwordLoadout();
+    SetUnarmed(bUnarmed);
+    UpdateOperatorPose(0);
     if(auto* GM=GetWorld()->GetAuthGameMode<ABreachGameMode>())
     {
         GM->Notice=FString::Printf(TEXT("OPERATOR LINK / %s"),Breach::Names[OperatorIndex]); GM->NoticeTime=2.5f;
@@ -299,6 +474,7 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
 {
     if(!bBodyRigReady) return;
     UpdateLocomotion(Dt);
+    ApplySwordAttackPose();
     const auto Bounds=Body->GetSkinnedAsset()->GetBounds();
     const float Ground=Bounds.Origin.Z-Bounds.BoxExtent.Z;
     const float HalfHeight=GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
@@ -379,6 +555,17 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
             const FVector Palm=View.TransformVectorNoScale(Side?FVector(0,-1,0):FVector(0,0,1));
             Pose.PoseHand(Side,ToMesh.TransformVectorNoScale(Direction),ToMesh.TransformVectorNoScale(Palm),.85f);
         }
+        if(UsesSword())
+        {
+            const int32 Hand=Pose.Bone(EBreachBone::RHand);
+            const int32 Middle=Pose.Fingers[1][6],Index=Pose.Fingers[1][3],Pinky=Pose.Fingers[1][12];
+            if(Pose.CS.IsValidIndex(Hand) && Pose.CS.IsValidIndex(Middle) && Pose.CS.IsValidIndex(Index) && Pose.CS.IsValidIndex(Pinky))
+            {
+                const FVector Along=(Pose.CS[Middle].GetLocation()-Pose.CS[Hand].GetLocation()).GetSafeNormal();
+                const FVector Across=(Pose.CS[Index].GetLocation()-Pose.CS[Pinky].GetLocation()).GetSafeNormal();
+                Pose.PoseHand(1,Along,FVector::CrossProduct(Along,Across).GetSafeNormal(),.95f);
+            }
+        }
     };
     FBreachPose WorldPose=BodyPose;
     PoseArms(WorldPose,WorldBody->GetComponentTransform().Inverse());
@@ -391,6 +578,13 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     OwnerPose.Apply(Body,true);
     WorldBody->RefreshBoneTransforms();
     Body->RefreshBoneTransforms();
+    if(UsesSword() && bSwordRigReady)
+    {
+        UpdateSwordVisual(WorldPose,WorldBody,WorldSword);
+        UpdateSwordVisual(OwnerPose,Body,Sword);
+        UpdateScabbardVisual(WorldPose,WorldBody,WorldScabbard);
+        UpdateScabbardVisual(OwnerPose,Body,Scabbard);
+    }
     // Keep floor alignment out of the next animation transition's cached roots;
     // otherwise leaving a slide would apply the same tilt twice while blending.
     for(const auto& Root:UntiltedRoots) BodyPose.Local[Root.Key]=Root.Value;
@@ -399,6 +593,12 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
 float ABreachCharacter::GripError() const
 {
     if(!bBodyRigReady) return BIG_NUMBER;
+    if(UsesSword())
+    {
+        if(!bSwordRigReady || !Sword) return BIG_NUMBER;
+        const int32 Hand=BodyPose.Bone(EBreachBone::RHand);
+        return FVector::Distance(Sword->GetBoneLocationByName(TEXT("bone_002"),EBoneSpaces::WorldSpace),Body->GetBoneLocationByName(Body->GetBoneName(Hand),EBoneSpaces::WorldSpace));
+    }
     float Error=0;
     for(int32 S=0;S<2;++S)
     {

@@ -11,6 +11,7 @@ public:
     UBreachMovementComponent();
     static constexpr float RifleSpeed=510.f;
     static constexpr float UnarmedSpeed=790.f;
+    static constexpr float SwordSpeed=870.f;
     UPROPERTY(EditDefaultsOnly, Category="Locomotion") float AimSpeed=300.f;
     UPROPERTY(EditDefaultsOnly, Category="Locomotion") float SpeedRiseRate=1000.f;
     UPROPERTY(EditDefaultsOnly, Category="Locomotion") float SpeedFallRate=1200.f;
