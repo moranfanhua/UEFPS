@@ -277,6 +277,7 @@ void ABreachCharacter::SelectOperator(int32 Index)
                 }
         }
         bBodyRigReady=BodyPose.Init(CharacterAsset,OperatorIndex);
+        BodyCloth.Init(CharacterAsset,OperatorIndex);
         LoadLocomotionAnimations();
         UpdateOperatorPose(0);
     }
@@ -379,18 +380,15 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
             Pose.PoseHand(Side,ToMesh.TransformVectorNoScale(Direction),ToMesh.TransformVectorNoScale(Palm),.85f);
         }
     };
-    const bool SeparateWorldArms=!bUnarmed && !OwnerAdjustment.IsNearlyZero(.01f);
-    if(SeparateWorldArms)
-    {
-        FBreachPose WorldPose=BodyPose;
-        PoseArms(WorldPose,WorldBody->GetComponentTransform().Inverse());
-        WorldPose.Apply(WorldBody);
-    }
+    FBreachPose WorldPose=BodyPose;
+    PoseArms(WorldPose,WorldBody->GetComponentTransform().Inverse());
+    BodyCloth.Update(WorldPose,WorldBody->GetComponentTransform(),Dt,GetWorld(),this);
+    WorldPose.Apply(WorldBody);
     PoseArms(BodyPose,ToBody);
     // Both representations use the complete source mesh and locomotion pose.
     // Only the owning camera hides the head; world views and shadows keep it.
-    if(!SeparateWorldArms) BodyPose.Apply(WorldBody);
-    BodyPose.Apply(Body,true);
+    FBreachPose OwnerPose=BodyPose;BodyCloth.CopyTo(OwnerPose);
+    OwnerPose.Apply(Body,true);
     WorldBody->RefreshBoneTransforms();
     Body->RefreshBoneTransforms();
     // Keep floor alignment out of the next animation transition's cached roots;

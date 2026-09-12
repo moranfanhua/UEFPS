@@ -149,6 +149,7 @@ void ABreachGameMode::TickSelectionTest()
             if(Held) for(int32 Bone=0;Bone<Run->HeldPose.Num();++Bone)
                 Held&=Run->HeldPose[Bone].Equals(Stage->Preview->GetBoneTransformByName(Stage->Preview->GetBoneName(Bone),EBoneSpaces::ComponentSpace),.001f);
             Check(Held && Run->HeldCamera.Equals(Stage->Camera->GetRelativeTransform(),.001f),FString::Printf(TEXT("Operator %d pose and camera stay fixed after the entrance"),I));
+            if(I==0) Check(Stage->Preview->ActiveMorphTargets.Num()==2,TEXT("Eula holds the authored finishing expression with cloth frozen"));
             if(I==2)
             {
                 bool CatHeld=Stage && Stage->Cat && Stage->Cat->GetNumBones()==Run->HeldCatPose.Num() && Run->HeldCatPose.Num()>0;
@@ -158,6 +159,20 @@ void ABreachGameMode::TickSelectionTest()
             }
             FScreenshotRequest::RequestScreenshot(FPaths::ProjectDir()/FString::Printf(TEXT("Saved/Selection_%d_Hold.png"),I),true,false);
         });
+        if(I==0) for(int32 Expression=0;Expression<3;++Expression)
+        {
+            Add(.25f,[=]()
+            {
+                auto* Stage=HUD()->GetSelectionStage();FBreachPose Rig;Rig.Init(Breach::CharacterMesh(0),0);
+                auto* Finish=LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Animations/Entrance/Eula/A_Eula_Eula_VMD_Finish.A_Eula_Eula_VMD_Finish"));
+                Rig.Sample(Finish,0,false);
+                if(Expression!=2) Rig.MorphWeights.Reset();
+                if(Expression==1) Rig.MorphWeights.Add(TEXT("まばたき"),1.f);
+                Rig.Apply(Stage->Preview);Stage->Preview->RefreshBoneTransforms();
+                Check(Stage->Preview->ActiveMorphTargets.Num()==Expression,FString::Printf(TEXT("Rendered expression comparison %d receives correct morph count"),Expression));
+            });
+            Add(.25f,[=]() { FScreenshotRequest::RequestScreenshot(FPaths::ProjectDir()/FString::Printf(TEXT("Saved/Expression_%d.png"),Expression),true,false); });
+        }
     }
     Add(.3f,[=,this]()
     {

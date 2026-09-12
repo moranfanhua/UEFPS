@@ -331,6 +331,7 @@ void ABreachGameMode::RunSmokeTest()
         UGameplayStatics::ApplyDamage(P,1000,E->GetController(),E,UDamageType::StaticClass());
         Check(bGameOver,TEXT("Zero health ends simulation"));
     }
+    RunDeformationChecks([&](bool Pass,const FString& Message) { Check(Pass,*Message); });
     Report+=FString::Printf(TEXT("FAILURES=%d\n"),Failed);
     FFileHelper::SaveStringToFile(Report,*(FPaths::ProjectDir()/TEXT("Saved/smoke_test.txt")));
     UE_LOG(LogTemp,Display,TEXT("BREACH_TEST\n%s"),*Report);

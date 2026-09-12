@@ -117,6 +117,7 @@ void ABreachSelectionStage::Select(int32 Index)
     SelectedIndex=FMath::Clamp(Index,0,3);
     Preview->SetRelativeLocation(FVector::ZeroVector);SetupModel(Preview,SelectedIndex);
     bRigReady=Pose.Init(Breach::CharacterMesh(SelectedIndex),SelectedIndex);
+    Cloth.Init(Breach::CharacterMesh(SelectedIndex),SelectedIndex);ClothTime=0;
     static const TCHAR* Entrances[]={TEXT("Eula_VMD_Entry"),TEXT("Sword_Attack"),TEXT("Female_Punch"),TEXT("Catwalk_Sequence_03")};
     Entrance=Clip(SelectedIndex,Entrances[SelectedIndex]);
     if(HasCatEntrance()) Entrance=Clip(SelectedIndex,TEXT("Female_Idle"));
@@ -152,10 +153,12 @@ void ABreachSelectionStage::UpdatePreview()
     if(FinishPose && AnimationTime>MotionDuration)
     {
         const auto Entry=Pose.Local;
+        const auto EntryMorphs=Pose.MorphWeights;
         if(Pose.Sample(FinishPose,0,false))
         {
             const float Blend=FMath::SmoothStep(0.f,1.f,FMath::Clamp((AnimationTime-MotionDuration)/(EntranceDuration-MotionDuration),0.f,1.f));
             for(int32 I=0;I<Entry.Num();++I) { FTransform Mixed;Mixed.Blend(Entry[I],Pose.Local[I],Blend);Pose.Local[I]=Mixed; }
+            for(const FName Name:Pose.MorphNames) Pose.MorphWeights.FindOrAdd(Name)=FMath::Lerp(EntryMorphs.FindRef(Name),Pose.MorphWeights.FindRef(Name),Blend);
             Pose.Rebuild();
         }
     }
@@ -163,6 +166,7 @@ void ABreachSelectionStage::UpdatePreview()
     // Face the catwalk's stopping mark toward the camera while retaining its turn.
     Preview->SetRelativeRotation(FRotator(0,SelectedIndex==3?0.f:-90.f,0));
     if(HasSwordEntrance()) UpdateSwordEntrance();
+    Cloth.Update(Pose,Preview->GetComponentTransform(),FMath::Max(0.f,AnimationTime-ClothTime),GetWorld(),this);ClothTime=AnimationTime;
     Pose.Apply(Preview);Preview->RefreshBoneTransforms();
 
     // Frame the waist, face and raised hands in the space above the cards.

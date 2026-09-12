@@ -2,6 +2,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "BreachPose.h"
+#include "BreachCloth.h"
 #include "BreachSelectionStage.generated.h"
 
 class UCameraComponent;
@@ -54,6 +55,8 @@ private:
     FBreachPose SwordPose;
     bool bSwordReady=false;
     FBreachPose Pose;
+    FBreachCloth Cloth;
+    float ClothTime=0;
     float SourceEndTime=0;
     float HeadTopOffset=0;
     bool bRigReady=false;

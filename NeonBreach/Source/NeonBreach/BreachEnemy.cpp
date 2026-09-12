@@ -67,6 +67,7 @@ void ABreachEnemy::Configure(int32 Index,int32 Wave)
         // PMX -> glTF front maps to +Y; align it with Unreal's +X forward.
         Visual->SetRelativeRotation(FRotator(0,-90.f,0));
         Pose.Init(CharacterAsset,ModelIndex);
+        Cloth.Init(CharacterAsset,ModelIndex);
         DeathAnimation=LoadObject<UAnimSequence>(nullptr,*FString::Printf(TEXT("/Game/Animations/Death/A_%s_Death01.A_%s_Death01"),Breach::Keys[ModelIndex],Breach::Keys[ModelIndex]));
         DeathBoneIndices.Reset();
         if(DeathAnimation)
@@ -79,7 +80,7 @@ void ABreachEnemy::UpdatePose(float Dt)
     float Speed=GetVelocity().Size2D();
     Phase+=Dt*(Speed>10?7.f:2.f);
     Pose.Walk(Phase,Speed);
-    Pose.Apply(Visual);
+    FBreachPose Display=Pose;Cloth.Update(Display,Visual->GetComponentTransform(),Dt,GetWorld(),this);Display.Apply(Visual);
 }
 void ABreachEnemy::Tick(float Dt)
 {
@@ -174,7 +175,7 @@ void ABreachEnemy::UpdateDeathPose(float Dt)
             if(DeathStartPose.IsValidIndex(I)) Pose.CS[I].Blend(DeathStartPose[I],Target,Blend);
             else Pose.CS[I]=Target;
         }
-        Pose.Apply(Visual);
+        Cloth.Update(Pose,Visual->GetComponentTransform(),Dt,GetWorld(),this);Pose.Apply(Visual);
         return;
     }
     if(DespawnTime-Dt>=1.4f) return;
@@ -221,6 +222,6 @@ void ABreachEnemy::UpdateDeathPose(float Dt)
         Lift=FMath::Max(Lift,float(Ground.Z+Radius/Scale-Pose.CS[Pose.Bone(Contact)].GetLocation().Z));
     }
     for(FTransform& Transform:Pose.CS) Transform.AddToTranslation(FVector(0,0,Lift));
-    Pose.Apply(Visual);
+    Cloth.Update(Pose,Visual->GetComponentTransform(),Dt,GetWorld(),this);Pose.Apply(Visual);
 }
 

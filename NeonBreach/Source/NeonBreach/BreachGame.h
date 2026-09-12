@@ -5,6 +5,7 @@
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
 #include "BreachPose.h"
+#include "BreachCloth.h"
 #include "BreachGame.generated.h"
 
 class UCameraComponent;
@@ -86,6 +87,7 @@ public:
     float GripError() const;
 private:
     FBreachPose BodyPose;
+    FBreachCloth BodyCloth;
     UPROPERTY() TArray<TObjectPtr<UAnimSequence>> LocomotionAnimations;
     void LoadLocomotionAnimations();
     void UpdateLocomotion(float DeltaSeconds);
@@ -142,6 +144,7 @@ private:
     UPROPERTY() TObjectPtr<UAnimSequence> DeathAnimation;
     TArray<int32> DeathBoneIndices;
     FBreachPose Pose;
+    FBreachCloth Cloth;
     TArray<FTransform> DeathStartPose;
     float DeathFloorZ=0.f;
     float DeathDirection=1.f;
@@ -191,6 +194,8 @@ public:
     UFUNCTION(BlueprintCallable) static UAnimSequence* BakeDeathAnimation(USkeletalMesh* CharacterAsset,int32 ModelIndex,const FString& MotionFile,const FString& PackageName);
     UFUNCTION(BlueprintCallable) static UAnimSequence* BakeCharacterAnimation(USkeletalMesh* CharacterAsset,int32 ModelIndex,const FString& MotionFile,const FString& PackageName);
     UFUNCTION(BlueprintCallable) static UAnimSequence* BakeLocalAnimation(USkeletalMesh* CharacterAsset,const FString& MotionFile,const FString& PackageName);
+    UFUNCTION(BlueprintCallable) static bool ImportVMDExpressions(USkeletalMesh* Asset,const FString& SourceFile);
+    void RunDeformationChecks(TFunctionRef<void(bool,const FString&)> Check);
     UPROPERTY() TArray<TObjectPtr<ABreachEnemy>> Displays;
 };
 

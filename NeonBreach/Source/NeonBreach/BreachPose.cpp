@@ -4,14 +4,17 @@
 #include "Components/PoseableMeshComponent.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
+#include "Animation/MorphTarget.h"
 
 bool FBreachPose::InitSkeleton(USkeletalMesh* Asset)
 {
     Reference.Reset();ReferenceCS.Reset();Local.Reset();CS.Reset();Parents.Reset();AnimationBones.Reset();
+    MorphNames.Reset();MorphWeights.Reset();
     for(auto& B:Bones) B=INDEX_NONE;
     for(auto& Hand:Fingers) for(auto& Finger:Hand) Finger=INDEX_NONE;
     if(!Asset || Asset->GetRefSkeleton().GetNum()==0) return false;
     const FReferenceSkeleton& Ref=Asset->GetRefSkeleton();
+    for(const auto& Morph:Asset->GetMorphTargets()) if(Morph) MorphNames.Add(Morph->GetFName());
     Reference=Ref.GetRefBonePose(); Parents.SetNum(Reference.Num());
     for(int32 i=0;i<Parents.Num();++i) Parents[i]=Ref.GetParentIndex(i);
     AnimationBones.Reset();
@@ -45,7 +48,7 @@ bool FBreachPose::IsUnder(int32 I,int32 Ancestor) const
     while(Parents.IsValidIndex(I)) { if(I==Ancestor) return true; I=Parents[I]; }
     return false;
 }
-void FBreachPose::Reset() { Local=Reference; Rebuild(); }
+void FBreachPose::Reset() { Local=Reference; MorphWeights.Reset(); Rebuild(); }
 void FBreachPose::Rebuild()
 {
     CS.SetNum(Local.Num());
@@ -121,6 +124,9 @@ bool FBreachPose::Sample(UAnimSequence* Animation,float Time,bool Loop)
     if(!Animation || Animation->GetPlayLength()<=0) return false;
     const double Position=Loop?FMath::Fmod(FMath::Max(Time,0.f),Animation->GetPlayLength()):FMath::Clamp(Time,0.f,Animation->GetPlayLength());
     Local=Reference;
+    MorphWeights.Reset();
+    for(const FName Name:MorphNames)
+        MorphWeights.Add(Name,FMath::Clamp(Animation->EvaluateCurveData(Name,FAnimExtractContext(Position,false)),0.f,1.f));
     for(int32 I=0;I<Local.Num();++I)
         if(AnimationBones.IsValidIndex(I) && AnimationBones[I]>=0)
             Animation->GetBoneTransform(Local[I],FSkeletonPoseBoneIndex(AnimationBones[I]),FAnimExtractContext(Position,false),false);
@@ -129,6 +135,22 @@ bool FBreachPose::Sample(UAnimSequence* Animation,float Time,bool Loop)
 }
 void FBreachPose::Apply(UPoseableMeshComponent* Mesh,bool HideHead,bool HideArms) const
 {
+    if(!Mesh) return;
+    Mesh->ActiveMorphTargets.Reset();Mesh->MorphTargetWeights.Reset();
+    if(const auto* Asset=Cast<USkeletalMesh>(Mesh->GetSkinnedAsset()))
+    {
+        Mesh->MorphTargetWeights.SetNumZeroed(Asset->GetMorphTargets().Num());
+        for(int32 Index=0;Index<Asset->GetMorphTargets().Num();++Index)
+        {
+            const auto& Morph=Asset->GetMorphTargets()[Index];
+            if(Morph && FMath::Abs(MorphWeights.FindRef(Morph->GetFName()))>UE_SMALL_NUMBER)
+            {
+                Mesh->MorphTargetWeights[Index]=MorphWeights.FindRef(Morph->GetFName());
+                Mesh->ActiveMorphTargets.Add(Morph.Get(),Index);
+            }
+        }
+    }
+    Mesh->MarkRenderDynamicDataDirty();
     for(int32 i=0;i<CS.Num();++i)
     {
         FTransform Transform=CS[i];

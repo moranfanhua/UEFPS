@@ -14,6 +14,8 @@ struct FBreachPose
     TArray<FTransform> Reference,ReferenceCS,Local,CS;
     TArray<int32> Parents;
     TArray<int32> AnimationBones;
+    TArray<FName> MorphNames;
+    TMap<FName,float> MorphWeights;
     int32 Bones[17];
     int32 Fingers[2][15];
     bool InitSkeleton(USkeletalMesh* Asset);
