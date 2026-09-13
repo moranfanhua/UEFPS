@@ -141,6 +141,7 @@ private:
     FTransform FirstPersonSwordGrip=FTransform::Identity;
     bool bFirstPersonSwordGripReady=false;
     void ConfigureSwordLoadout();
+    void UpdateSwordVisibility();
     void UpdateSwordAttack(float DeltaSeconds);
     void PerformSwordHit();
     void ApplySwordAttackPose();

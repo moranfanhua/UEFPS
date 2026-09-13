@@ -267,9 +267,22 @@ void ABreachGameMode::RunSmokeTest()
     if(P)
     {
         Check(P->GetActorLocation().Z>85 && P->GetActorLocation().Z<140,TEXT("Player supported by arena floor"));
+        const auto CheckSwordShadows=[&]()
+        {
+            const bool Equipped=P->UsesSword() && P->HasSwordRig();
+            bool Correct=true;
+            for(auto* Prop:{P->Sword.Get(),P->WorldSword.Get(),P->Scabbard.Get(),P->WorldScabbard.Get()})
+            {
+                const bool WorldProp=Prop==P->WorldSword || Prop==P->WorldScabbard;
+                Correct&=Prop->IsVisible()==Equipped && bool(Prop->CastShadow)==(Equipped && WorldProp) &&
+                    bool(Prop->bCastHiddenShadow)==(Equipped && Prop==P->WorldSword);
+            }
+            Check(Correct,*FString::Printf(TEXT("%s %s loadout has only equipped sword shadows"),Breach::Keys[P->OperatorIndex],P->bUnarmed?TEXT("melee"):TEXT("rifle")));
+        };
         for(int32 I=0;I<4;++I)
         {
             P->SelectOperator(I); P->UpdateOperatorPose(0);
+            CheckSwordShadows();
             Check(P->HasFirstPersonRig() && P->Body->GetSkinnedAsset()==Breach::CharacterMesh(I) && P->WorldBody->GetSkinnedAsset()==Breach::CharacterMesh(I),*FString::Printf(TEXT("%s first-person and world views use complete source mesh"),Breach::Keys[I]));
             const FString GripMessage=I==1?FString::Printf(TEXT("%s hand reaches the sword grip (%.2f cm)"),Breach::Keys[I],P->GripError()):FString::Printf(TEXT("%s hands reach both weapon grips (%.2f cm)"),Breach::Keys[I],P->GripError());
             Check(P->GripError()<5.f,*GripMessage);
@@ -299,7 +312,17 @@ void ABreachGameMode::RunSmokeTest()
                 Check(FVector::DotProduct(Facing,Delta(EBreachBone::LFoot).RotateVector(FVector::RightVector).GetSafeNormal2D())>.85f && FVector::DotProduct(Facing,Delta(EBreachBone::RFoot).RotateVector(FVector::RightVector).GetSafeNormal2D())>.85f,*FString::Printf(TEXT("%s torso and both feet face the same way"),Breach::Keys[I]));
             }
         }
-        P->SelectOperator(3); Check(P->Body->GetSkinnedAsset()==Breach::CharacterMesh(3),TEXT("Operator switching uses supplied mesh"));
+        // Exercise cached props when leaving and re-entering Acheron for every
+        // ordinary operator, with both possible restored rifle/melee loadouts.
+        for(const int32 I:{0,2,3}) for(const bool Unarmed:{false,true})
+        {
+            P->SelectOperator(I); P->SetUnarmed(Unarmed);
+            P->SelectOperator(1); CheckSwordShadows();
+            P->SelectOperator(I); CheckSwordShadows();
+            Check(P->bUnarmed==Unarmed,TEXT("Leaving Acheron restores the previous loadout"));
+            P->SetUnarmed(!Unarmed); CheckSwordShadows();
+        }
+        P->SelectOperator(3); P->SetUnarmed(false); Check(P->Body->GetSkinnedAsset()==Breach::CharacterMesh(3),TEXT("Operator switching uses supplied mesh"));
         P->Ammo=3; P->Reserve=7; P->Reload();
         Check(P->bReloading,TEXT("Reload starts"));
         P->FinishReload(); Check(P->Ammo==10 && P->Reserve==0,TEXT("Partial reload conserves ammo"));

@@ -24,7 +24,9 @@ void ABreachGameMode::RunMovementTest()
     auto* PC=UGameplayStatics::GetPlayerController(this,0);
     if(!P || !PC) return;
     int32 Index=0; FParse::Value(FCommandLine::Get(),TEXT("BreachOperator="),Index); Index=FMath::Clamp(Index,0,3);
-    P->SelectOperator(Index); P->SetUnarmed(false);
+    // A fresh ordinary operator has no loaded sword mesh and can conceal ghost
+    // shadows. Preload Acheron before all movement and screenshot checks.
+    P->SelectOperator(1); P->SelectOperator(Index); P->SetUnarmed(false);
     const bool Sword=P->UsesSword();
     P->SetActorLocation(FVector(-1200,-1250,94));
     float LookPitch=0; FParse::Value(FCommandLine::Get(),TEXT("BreachLookPitch="),LookPitch);
@@ -168,6 +170,11 @@ void ABreachGameMode::RunMovementTest()
         }
         else
         {
+            Check(P->HasSwordRig() && !P->Sword->IsVisible() && !P->WorldSword->IsVisible() &&
+                !P->Scabbard->IsVisible() && !P->WorldScabbard->IsVisible() &&
+                !P->WorldSword->CastShadow && !P->WorldSword->bCastHiddenShadow &&
+                !P->WorldScabbard->CastShadow && !P->WorldScabbard->bCastHiddenShadow,
+                TEXT("Leaving Acheron removes cached sword and scabbard shadows"));
             PC->SetControlRotation(FRotator::ZeroRotator);
             FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
             auto* Target=GetWorld()->SpawnActor<ABreachEnemy>(P->GetActorLocation()+P->Camera->GetForwardVector()*115.f,P->GetActorRotation(),Params);

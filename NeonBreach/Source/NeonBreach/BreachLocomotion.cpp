@@ -23,10 +23,7 @@ void ABreachCharacter::SetUnarmed(bool Enabled)
     MuzzleLight->SetIntensity(0);
     WeaponRoot->SetVisibility(!bUnarmed,true);
     WorldWeaponRoot->SetVisibility(!bUnarmed,true);
-    Sword->SetVisibility(UsesSword() && bSwordRigReady,true);
-    WorldSword->SetVisibility(UsesSword() && bSwordRigReady,true);
-    Scabbard->SetVisibility(UsesSword() && bSwordRigReady,true);
-    WorldScabbard->SetVisibility(UsesSword() && bSwordRigReady,true);
+    UpdateSwordVisibility();
     TArray<USceneComponent*> Parts;
     WorldWeaponRoot->GetChildrenComponents(true,Parts);
     for(auto* Part:Parts)

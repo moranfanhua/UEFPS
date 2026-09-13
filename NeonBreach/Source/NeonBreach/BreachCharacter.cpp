@@ -99,12 +99,9 @@ ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
     WorldSword->SetupAttachment(GetCapsuleComponent());
     WorldSword->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     WorldSword->SetOwnerNoSee(true);
-    // Keep the blade in the owner's full-body shadow. The separate scabbard
-    // component below uses the same compound source mesh, so only this blade
-    // instance may cast while hidden or the concealed blade geometry is
-    // projected a second time from the scabbard transform.
-    WorldSword->SetCastHiddenShadow(true);
-    WorldSword->SetCastShadow(true);
+    // Shadows are enabled only while Acheron has a valid equipped sword rig.
+    WorldSword->SetCastHiddenShadow(false);
+    WorldSword->SetCastShadow(false);
     WorldSword->bCastCinematicShadow=true;
     WorldSword->SetBoundsScale(2.f);
     WorldSword->SetVisibility(false);
@@ -121,7 +118,7 @@ ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
     WorldScabbard->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     WorldScabbard->SetOwnerNoSee(true);
     WorldScabbard->SetCastHiddenShadow(false);
-    WorldScabbard->SetCastShadow(true);
+    WorldScabbard->SetCastShadow(false);
     WorldScabbard->bCastCinematicShadow=true;
     WorldScabbard->SetBoundsScale(2.f);
     WorldScabbard->SetVisibility(false);
@@ -278,14 +275,27 @@ void ABreachCharacter::Fire()
     AddControllerPitchInput(-.10f);
 }
 
+void ABreachCharacter::UpdateSwordVisibility()
+{
+    const bool Equipped=UsesSword() && bSwordRigReady;
+    for(auto* Prop:{Sword.Get(),WorldSword.Get(),Scabbard.Get(),WorldScabbard.Get()})
+    {
+        Prop->SetVisibility(Equipped,true);
+        Prop->SetCastShadow(Equipped && (Prop==WorldSword || Prop==WorldScabbard));
+        // Hiding a cached mesh does not suppress hidden shadows. Only the
+        // equipped world blade contributes to the owner's shadow; the scabbard
+        // shares its compound mesh and must not project a duplicate hidden blade.
+        Prop->SetCastHiddenShadow(Equipped && Prop==WorldSword);
+    }
+}
+
 void ABreachCharacter::ConfigureSwordLoadout()
 {
     bFirstPersonSwordGripReady=false;
     if(!UsesSword())
     {
         SwordAttackTime=-1.f; bSwordDamageApplied=false;
-        Sword->SetVisibility(false,true); WorldSword->SetVisibility(false,true);
-        Scabbard->SetVisibility(false,true); WorldScabbard->SetVisibility(false,true);
+        UpdateSwordVisibility();
         return;
     }
     if(!bSwordRigReady)
@@ -309,6 +319,7 @@ void ABreachCharacter::ConfigureSwordLoadout()
     }
     if(!SwordAttackAnimation)
         SwordAttackAnimation=LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Animations/Entrance/Acheron/A_Acheron_Sword_Attack.A_Acheron_Sword_Attack"));
+    UpdateSwordVisibility();
 }
 
 void ABreachCharacter::UpdateSwordAttack(float Dt)
