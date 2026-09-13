@@ -12,6 +12,107 @@
 #include "UObject/Package.h"
 #endif
 
+int32 ABreachGameMode::RemoveAscalonSleeveBlade(USkeletalMesh* Asset,bool bApply)
+{
+#if WITH_EDITOR
+    // Work on the current asset, including user geometry edits. The blade shares
+    // its material with the coat, so remove only its disconnected forearm island.
+    if(!Asset || Asset->GetPathName()!=TEXT("/Game/Characters/Ascalon/SK_Ascalon.SK_Ascalon") ||
+       Asset->GetLODNum()!=1 || !Asset->GetSkeleton()) return -1;
+    const FMeshDescription* Original=Asset->GetMeshDescription(0);
+    if(!Original) return -1;
+    FMeshDescription Copy(*Original);
+    FSkeletalMeshAttributes Attributes(Copy);
+    const auto Positions=Attributes.GetVertexPositions();
+    const auto Weights=Attributes.GetVertexSkinWeights();
+    const auto SlotNames=Attributes.GetPolygonGroupMaterialSlotNames();
+    TSet<FPolygonGroupID> Groups;
+    for(const FPolygonGroupID Group:Copy.PolygonGroups().GetElementIDs())
+        for(const FSkeletalMaterial& Slot:Asset->GetMaterials())
+            if(Slot.MaterialInterface && Slot.MaterialInterface->GetName()==TEXT("MI_Ascalon_5") &&
+               (Slot.ImportedMaterialSlotName==SlotNames[Group] || Slot.MaterialSlotName==SlotNames[Group])) Groups.Add(Group);
+    FBreachPose Rig;
+    if(!Rig.Init(Asset,3)) return -1;
+    const int32 Forearm=Rig.Bone(EBreachBone::LElbow);
+    if(Groups.Num()!=1 || Forearm==INDEX_NONE) return -1;
+    TMap<FVertexID,FVertexID> Parent;
+    TArray<FPolygonID> Polygons;
+    for(const FPolygonID Polygon:Copy.Polygons().GetElementIDs())
+        if(Groups.Contains(Copy.GetPolygonPolygonGroup(Polygon)))
+        {
+            Polygons.Add(Polygon);
+            for(const FVertexInstanceID Instance:Copy.GetPolygonVertexInstances(Polygon))
+            {
+                const FVertexID Vertex=Copy.GetVertexInstanceVertex(Instance);
+                Parent.Add(Vertex,Vertex);
+            }
+        }
+    const auto Find=[&Parent](FVertexID Vertex)
+    {
+        while(Parent[Vertex]!=Vertex) { Parent[Vertex]=Parent[Parent[Vertex]]; Vertex=Parent[Vertex]; }
+        return Vertex;
+    };
+    // UV and normal seams may split vertices; weld positions for selection only.
+    TMap<FIntVector,FVertexID> Welded;
+    for(const auto& Entry:Parent)
+    {
+        const FVector3f P=Positions[Entry.Key];
+        const FIntVector Key(FMath::RoundToInt(P.X*10000),FMath::RoundToInt(P.Y*10000),FMath::RoundToInt(P.Z*10000));
+        if(const FVertexID* Other=Welded.Find(Key)) Parent[Find(Entry.Key)]=Find(*Other);
+        else Welded.Add(Key,Entry.Key);
+    }
+    for(const FPolygonID Polygon:Polygons)
+    {
+        const auto Instances=Copy.GetPolygonVertexInstances(Polygon);
+        const FVertexID First=Copy.GetVertexInstanceVertex(Instances[0]);
+        for(const FVertexInstanceID Instance:Instances) Parent[Find(Copy.GetVertexInstanceVertex(Instance))]=Find(First);
+    }
+    TMap<FVertexID,TArray<FVertexID>> Islands;
+    for(const auto& Entry:Parent) Islands.FindOrAdd(Find(Entry.Key)).Add(Entry.Key);
+    TArray<FVertexID> BladeIslands;
+    for(const auto& Island:Islands)
+    {
+        float ForearmWeight=0;
+        FBox Bounds(ForceInit);
+        for(const FVertexID Vertex:Island.Value)
+        {
+            Bounds+=FVector(Positions[Vertex]);
+            for(const auto Weight:Weights.Get(Vertex))
+                if(Weight.GetBoneIndex()==Forearm) ForearmWeight+=Weight.GetWeight();
+        }
+        const float Ratio=ForearmWeight/FMath::Max(1,Island.Value.Num());
+        UE_LOG(LogTemp,Display,TEXT("ASCALON_BLADE_ISLAND vertices=%d forearm=%.6f bounds=%s"),Island.Value.Num(),Ratio,*Bounds.ToString());
+        if(Ratio>.9f) BladeIslands.Add(Island.Key);
+    }
+    // Refuse ambiguous selections or removal of the shared coat material.
+    if(BladeIslands.Num()>1 || Islands.Num()<2) return -1;
+    if(BladeIslands.IsEmpty())
+    {
+        UE_LOG(LogTemp,Display,TEXT("ASCALON_BLADE_ABSENT material_polygons=%d total_triangles=%d"),Polygons.Num(),Copy.Triangles().Num());
+        return 0;
+    }
+    TArray<FPolygonID> Remove;
+    for(const FPolygonID Polygon:Polygons)
+        if(Find(Copy.GetVertexInstanceVertex(Copy.GetPolygonVertexInstances(Polygon)[0]))==BladeIslands[0]) Remove.Add(Polygon);
+    if(Remove.IsEmpty() || Remove.Num()>=Polygons.Num()) return -1;
+    UE_LOG(LogTemp,Display,TEXT("ASCALON_BLADE_SELECTION polygons=%d material_polygons=%d total_triangles=%d apply=%d"),
+        Remove.Num(),Polygons.Num(),Copy.Triangles().Num(),bApply);
+    if(!bApply) return Remove.Num();
+    Copy.DeletePolygons(Remove);
+    FElementIDRemappings Remappings;
+    Copy.Compact(Remappings);
+    Asset->Modify();
+    Asset->CreateMeshDescription(0,MoveTemp(Copy));
+    if(!Asset->CommitMeshDescription(0)) return -1;
+    // Materials, skeleton, bind pose and imported bounds are intentionally retained.
+    Asset->PostEditChange();
+    Asset->MarkPackageDirty();
+    return Remove.Num();
+#else
+    return -1;
+#endif
+}
+
 bool ABreachGameMode::CopyCharacterGeometry(USkeletalMesh* Target,USkeletalMesh* Source)
 {
 #if WITH_EDITOR

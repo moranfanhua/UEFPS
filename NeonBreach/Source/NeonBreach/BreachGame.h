@@ -241,6 +241,7 @@ public:
     UFUNCTION(BlueprintCallable) static USkeleton* EnsureSkeleton(USkeletalMesh* CharacterAsset);
     UFUNCTION(BlueprintCallable) static int32 PrepareFirstPersonArms(USkeletalMesh* CharacterAsset,int32 ModelIndex);
     UFUNCTION(BlueprintCallable) static bool CopyCharacterGeometry(USkeletalMesh* Target,USkeletalMesh* Source);
+    UFUNCTION(BlueprintCallable) static int32 RemoveAscalonSleeveBlade(USkeletalMesh* Asset,bool bApply=false);
     UFUNCTION(BlueprintCallable) static UAnimSequence* BakeDeathAnimation(USkeletalMesh* CharacterAsset,int32 ModelIndex,const FString& MotionFile,const FString& PackageName);
     UFUNCTION(BlueprintCallable) static UAnimSequence* BakeCharacterAnimation(USkeletalMesh* CharacterAsset,int32 ModelIndex,const FString& MotionFile,const FString& PackageName);
     UFUNCTION(BlueprintCallable) static UAnimSequence* BakeLocalAnimation(USkeletalMesh* CharacterAsset,const FString& MotionFile,const FString& PackageName);

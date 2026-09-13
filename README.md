@@ -23,6 +23,8 @@
 
 四张手工头像位于 `/Game/Characters/Portraits/T_<Key>_Portrait`，选人页保留用户修改的竖版卡片，战斗 HUD 使用同一套贴图。更换角色资源不会重新生成或覆盖这些头像。
 
+阿斯卡纶当前网格已删除 `MI_Ascalon_5` 中独立绑定左前臂的多余袖箭，保留该材质下的衣摆及已有模型修订。编辑器辅助入口 `RemoveAscalonSleeveBlade` 按材质、连通区域和现有骨骼映射定位，只修改当前网格，不重新导入原 PMX；默认仅检查，应用前需将当前 `SK_Ascalon.uasset` 备份至 `Saved/`。
+
 ### 动画来源
 
 - 女性动作来源：Quaternius **Animated Women Pack**，官方页面：<https://quaternius.com/packs/animatedwomen.html>
