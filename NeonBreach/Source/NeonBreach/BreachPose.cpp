@@ -84,7 +84,7 @@ void FBreachPose::SolveArm(int32 Side,const FVector& Target,const FVector& Hint)
     Aim(Upper,Lower,Elbow-Shoulder);
     Aim(Lower,Hand,Shoulder+Direction*D-CS[Lower].GetLocation());
 }
-void FBreachPose::PoseHand(int32 Side,const FVector& Direction,const FVector& Normal,float Curl)
+void FBreachPose::PoseHand(int32 Side,const FVector& Direction,const FVector& Normal,float Curl,bool bRelaxTriggerFinger)
 {
     const int32 Hand=Bone(Side?EBreachBone::RHand:EBreachBone::LHand);
     const int32 Middle=Fingers[Side][6],Index=Fingers[Side][3],Pinky=Fingers[Side][12];
@@ -99,7 +99,7 @@ void FBreachPose::PoseHand(int32 Side,const FVector& Direction,const FVector& No
     const FVector Axis=FVector::CrossProduct(Along,TargetNormal).GetSafeNormal();
     for(int32 Finger=0;Finger<5;++Finger) for(int32 Joint=0;Joint<3;++Joint)
     {
-        const float Amount=(Finger==0?.25f:(Side==1 && Finger==1?.4f:1.f))*Curl;
+        const float Amount=(Finger==0?.25f:(bRelaxTriggerFinger && Side==1 && Finger==1?.4f:1.f))*Curl;
         Rotate(Fingers[Side][Finger*3+Joint],FQuat(Axis,FMath::DegreesToRadians((Joint==1?80.f:(Joint==0?65.f:50.f))*Amount)));
     }
 }

@@ -326,7 +326,7 @@ void ABreachCharacter::UpdateSwordAttack(float Dt)
 {
     if(!UsesSword() || SwordAttackTime<0.f) return;
     SwordAttackTime+=FMath::Max(0.f,Dt);
-    if(!bSwordDamageApplied && SwordAttackTime>=SwordAttackInterval*.3f)
+    if(!bSwordDamageApplied && SwordAttackTime>=SwordAttackInterval*.42f)
     {
         bSwordDamageApplied=true;
         PerformSwordHit();
@@ -461,7 +461,9 @@ void ABreachCharacter::UpdateSwordVisual(const FBreachPose& Pose,UPoseableMeshCo
         const FTransform View=Camera->GetComponentTransform();
         const FTransform RelativeGrip=FTransform(Rotation,Grip).GetRelativeTransform(View);
         const bool bLockRunningGrip=SwordAttackTime<0.f && GetVelocity().Size2D()>20.f && GetCharacterMovement()->IsMovingOnGround();
-        if(!bFirstPersonSwordGripReady || bLockRunningGrip)
+        // The attack is already authored for the camera. Filtering it again
+        // would leave the weapon behind the two hands during the fast cut.
+        if(!bFirstPersonSwordGripReady || bLockRunningGrip || IsSwordAttacking())
         {
             FirstPersonSwordAnchor=RelativeGrip;
             bFirstPersonSwordGripReady=true;
@@ -675,6 +677,56 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
         LocomotionState==EBreachLocomotion::JumpLoop || LocomotionState==EBreachLocomotion::JumpLand;
     const auto PoseArms=[&](FBreachPose& Pose,const FTransform& ToMesh,bool bOwnerView)
     {
+        if(IsSwordAttacking())
+        {
+            const float Progress=FMath::Clamp(SwordAttackTime/FMath::Max(.01f,SwordAttackInterval),0.f,1.f);
+            const float Cut=FMath::SmoothStep(.28f,.62f,Progress);
+            // Positive camera Y is screen right. Both hands carry the same
+            // hilt from upper right to lower left; the blade points forward
+            // enough to keep its tip within the first-person composition.
+            const FVector Grip=FMath::Lerp(FVector(32.f,17.f,-9.f),FVector(34.f,-17.f,-15.f),Cut);
+            const FVector Axis=FMath::Lerp(FVector(.60f,.55f,.58f),FVector(.70f,-.60f,-.30f),Cut).GetSafeNormal();
+            // Keep the wrists' roll continuous as the blade crosses forward;
+            // projecting forward onto the blade plane flips the large cuff up.
+            const FVector Along=FVector::CrossProduct(Axis,FVector::UpVector).GetSafeNormal();
+            const FVector Normal=FVector::CrossProduct(Along,Axis).GetSafeNormal();
+            FBreachPose Attack=Pose;
+            for(int32 Side=0;Side<2;++Side)
+                for(int32 Finger:Attack.Fingers[Side])
+                    if(Attack.Local.IsValidIndex(Finger)) Attack.Local[Finger]=Attack.Reference[Finger];
+            Attack.Rebuild();
+            const float Spacing=18.f*FMath::Max(.1f,SwordVisualScale);
+            for(int32 Side=0;Side<2;++Side)
+            {
+                // Both index fingers face the guard. PoseHand accounts for
+                // the left hand's mirrored palm, so do not reverse its fingers.
+                const FVector FingerDirection=Along;
+                const FVector Palm=Side?Normal:-Normal;
+                const FVector Hand=Grip-Axis*(Side?0.f:Spacing)-FingerDirection*3.f-Palm*1.5f;
+                const FVector Elbow=bOwnerView && Side==0?FVector(28.f,-24.f,-48.f):FVector(5.f,Side?40.f:-40.f,-34.f);
+                Attack.SolveArm(Side,ToMesh.TransformPosition(View.TransformPosition(Hand)),
+                    ToMesh.TransformPosition(View.TransformPosition(Elbow)));
+                Attack.PoseHand(Side,ToMesh.TransformVectorNoScale(View.TransformVectorNoScale(FingerDirection)),
+                    ToMesh.TransformVectorNoScale(View.TransformVectorNoScale(Palm)),.95f,false);
+            }
+            if(bOwnerView)
+            {
+                // Acheron's two long left-sleeve panels inherit wrist roll.
+                // Let them hang below the grip instead of pointing at the eye;
+                // retain their attachment points, lengths and world simulation.
+                const FVector Down=ToMesh.TransformVectorNoScale(View.TransformVectorNoScale(FVector(.2f,-.15f,-1.f))).GetSafeNormal();
+                for(const auto Pair:{TPair<FName,FName>(TEXT("bone_209"),TEXT("bone_210")),{TEXT("bone_223"),TEXT("bone_224")}})
+                    Attack.Aim(Body->GetBoneIndex(Pair.Key),Body->GetBoneIndex(Pair.Value),Down);
+            }
+            const float Blend=FMath::SmoothStep(0.f,.18f,Progress)*(1.f-FMath::SmoothStep(.76f,1.f,Progress));
+            for(int32 I=0;I<Pose.Local.Num();++I)
+                if(Pose.IsUnder(I,Pose.Bone(EBreachBone::LArm)) || Pose.IsUnder(I,Pose.Bone(EBreachBone::RArm)))
+                {
+                    FTransform Mixed; Mixed.Blend(Pose.Local[I],Attack.Local[I],Blend); Pose.Local[I]=Mixed;
+                }
+            Pose.Rebuild();
+            return;
+        }
         if(IsPunchAttacking())
         {
             const float Progress=FMath::Clamp(PunchAttackTime/FMath::Max(.01f,PunchAttackInterval),0.f,1.f);
@@ -738,11 +790,20 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     const auto LockRunningSwordHand=[&](FBreachPose& Pose,const FTransform& ToMesh)
     {
         if(!UsesSword() || LocomotionState!=EBreachLocomotion::Sprint) return;
+        float Weight=1.f;
+        if(IsSwordAttacking())
+        {
+            const float Progress=FMath::Clamp(SwordAttackTime/FMath::Max(.01f,SwordAttackInterval),0.f,1.f);
+            // Release the running rest during windup and rejoin it during
+            // recovery, without overriding either hand during the actual cut.
+            Weight=1.f-FMath::SmoothStep(0.f,.18f,Progress)+FMath::SmoothStep(.76f,1.f,Progress);
+            if(Weight<=UE_SMALL_NUMBER) return;
+        }
         const int32 Hand=Pose.Bone(EBreachBone::RHand);
         if(!Pose.CS.IsValidIndex(Hand)) return;
         const FVector Delta=ToMesh.TransformPosition(View.TransformPosition(SwordRunGripOffset))-Pose.CS[Hand].GetLocation();
         for(int32 I=0;I<Pose.CS.Num();++I)
-            if(Pose.IsUnder(I,Hand)) Pose.CS[I].AddToTranslation(Delta);
+            if(Pose.IsUnder(I,Hand)) Pose.CS[I].AddToTranslation(Delta*Weight);
     };
     FBreachPose WorldPose=BodyPose;
     PoseArms(WorldPose,WorldBody->GetComponentTransform().Inverse(),false);
@@ -753,10 +814,10 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     // Both representations use the complete source mesh and locomotion pose.
     // Only the owning camera hides the head; world views and shadows keep it.
     FBreachPose OwnerPose=BodyPose;
-    // World cloth remains fully simulated, but first-person jump frames use
-    // the authored cloth pose so sleeves and loose costume parts do not float
-    // in response to arm swing that the owning player cannot see.
-    if(!bOwnerJumpPose) BodyCloth.CopyTo(OwnerPose);
+    // World cloth remains fully simulated. Keep the authored local cloth
+    // during owner jumps and slashes so the large sleeve cannot sweep across
+    // the camera and conceal the two-handed cut.
+    if(!bOwnerJumpPose && !IsSwordAttacking()) BodyCloth.CopyTo(OwnerPose);
     LockRunningSwordHand(OwnerPose,Body->GetComponentTransform().Inverse());
     OwnerPose.Apply(Body,true);
     WorldBody->RefreshBoneTransforms();

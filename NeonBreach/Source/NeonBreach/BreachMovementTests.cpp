@@ -36,6 +36,7 @@ void ABreachGameMode::RunMovementTest()
         FString Text; int32 Failed=0,PunchSequenceShots=0; float StandingEye=0,AirLegReach=0,SlideEntry=0,SlideBoosted=0,SlideEntryLegReach=0,SlideWallX=0,TapSpeed=0,JumpSpeed=0,RampSpeed=0,PunchTargetStartHealth=0; TWeakObjectPtr<AActor> Roof,Ramp; TWeakObjectPtr<ABreachEnemy> SwordTarget,PunchTarget;
         FBox RunEye{ForceInit},CrouchEye{ForceInit},JumpEye{ForceInit},JogEye{ForceInit},SlideEye{ForceInit},SwordHandView{ForceInit},WorldSwordHand{ForceInit},JumpLeftHandView{ForceInit},JumpRightHandView{ForceInit};
         int32 RunSamples=0,CrouchSamples=0,JumpSamples=0,JogSamples=0,SlideSamples=0,SwordHandSamples=0,JumpHandSamples=0;
+        FVector SwordWindupTip=FVector::ZeroVector;
     };
     auto Results=MakeShared<FResults>();
     FString Prefix=FString::Printf(TEXT("%s_%s"),FParse::Param(FCommandLine::Get(),TEXT("BreachMovementFirstPerson"))?TEXT("MovementFPS"):TEXT("Movement"),Breach::Keys[Index]);
@@ -122,6 +123,24 @@ void ABreachGameMode::RunMovementTest()
             FScreenshotRequest::RequestScreenshot(FPaths::ProjectDir()/TEXT("Saved")/(Prefix+TEXT("_")+Name+TEXT(".png")),true,false);
         }
     };
+    const auto SwordFrame=[=](const TCHAR* Name)
+    {
+        const FTransform ToView=P->Camera->GetComponentTransform().Inverse();
+        const FVector Tip=ToView.TransformPosition(P->Sword->GetBoneLocationByName(TEXT("bone_005"),EBoneSpaces::WorldSpace));
+        for(auto* Mesh:{P->Body.Get(),P->WorldBody.Get()})
+        {
+            auto* Blade=Mesh==P->Body?P->Sword.Get():P->WorldSword.Get();
+            const FVector Grip=Blade->GetBoneLocationByName(TEXT("bone_002"),EBoneSpaces::WorldSpace);
+            const float Right=FVector::Distance(Grip,Mesh->GetBoneLocationByName(RightHandName,EBoneSpaces::WorldSpace));
+            const float Left=FVector::Distance(Grip,Mesh->GetBoneLocationByName(LeftHandName,EBoneSpaces::WorldSpace));
+            Check(Right<5.f && Left<14.f,FString::Printf(TEXT("%s %s both hands remain on the hilt (right %.1f, left %.1f cm)"),Name,Mesh==P->Body?TEXT("owner"):TEXT("world"),Right,Left));
+        }
+        const float HalfWidth=FMath::Tan(FMath::DegreesToRadians(P->Camera->FieldOfView*.5f));
+        Check(Tip.X>0.f && FMath::Abs(Tip.Y/Tip.X)<HalfWidth*.95f && FMath::Abs(Tip.Z/Tip.X)<HalfWidth*9.f/16.f*.95f,
+            FString::Printf(TEXT("%s blade tip stays within the first-person frame (%s)"),Name,*Tip.ToString()));
+        Screenshot(Name);
+        return Tip;
+    };
     if(Capture && !FParse::Param(FCommandLine::Get(),TEXT("BreachMovementFirstPerson")))
     {
         auto* Preview=GetWorld()->SpawnActor<ACameraActor>();
@@ -189,12 +208,16 @@ void ABreachGameMode::RunMovementTest()
     });
     At(.4f,[=]()
     {
-        if(Sword) { Check(P->IsSwordAttacking(),TEXT("Acheron remains in the slash animation through the damage window"));Screenshot(TEXT("SwordAttack")); }
+        if(Sword) { Check(P->IsSwordAttacking(),TEXT("Acheron remains in the slash animation through the damage window"));SwordFrame(TEXT("SwordAttack")); }
         else { Check(P->IsPunchAttacking(),TEXT("Unarmed punch remains animated through the damage window"));Screenshot(TEXT("PunchAttack")); }
     });
     At(.55f,[=]()
     {
-        if(Sword) Check(Results->SwordTarget.IsValid() && Results->SwordTarget->bDefeated && P->SwordDamage>P->ShotDamage*5.f && P->ShotsHit>0,TEXT("Acheron slash lands at melee range with far higher damage than a bullet"));
+        if(Sword)
+        {
+            Check(Results->SwordTarget.IsValid() && Results->SwordTarget->bDefeated && P->SwordDamage>P->ShotDamage*5.f && P->ShotsHit>0,TEXT("Acheron slash lands at melee range with far higher damage than a bullet"));
+            if(Results->SwordTarget.IsValid()) Results->SwordTarget->Destroy();
+        }
         else
         {
             Check(Results->PunchTarget.IsValid() && FMath::IsNearlyEqual(Results->PunchTarget->Health,Results->PunchTargetStartHealth-P->PunchDamage,.1f) &&
@@ -506,11 +529,21 @@ void ABreachGameMode::RunMovementTest()
     At(29.f,[=]() { Check(!P->IsSliding() && P->bIsCrouched,TEXT("Uphill slide naturally ends at low speed"));Key(EKeys::LeftControl,IE_Released);Key(EKeys::W,IE_Released); });
     At(29.08f,[=]()
     {
-        if(Sword) return;
         ResetRun();P->SelectOperator(Index);P->SetUnarmed(true);
+        if(Sword) { P->Fire(); return; }
         Results->PunchSequenceShots=P->ShotsFired;
         Key(EKeys::LeftMouseButton,IE_Pressed);
     });
+    At(29.28f,[=]() { if(Sword) Results->SwordWindupTip=SwordFrame(TEXT("SwordWindup")); });
+    At(29.41f,[=]() { if(Sword) SwordFrame(TEXT("SwordCut")); });
+    At(29.56f,[=]()
+    {
+        if(!Sword) return;
+        const FVector Tip=SwordFrame(TEXT("SwordFollowThrough"));
+        Check(Results->SwordWindupTip.Y>Tip.Y+20.f && Results->SwordWindupTip.Z>Tip.Z+20.f,
+            TEXT("Two-handed cut travels from screen upper right to lower left"));
+    });
+    At(29.86f,[=]() { if(Sword) { Check(!P->IsSwordAttacking(),TEXT("Two-handed slash completes its recovery")); Screenshot(TEXT("SwordRecovery")); } });
     At(29.3f,[=]()
     {
         if(Sword) return;
@@ -529,7 +562,14 @@ void ABreachGameMode::RunMovementTest()
         Screenshot(TEXT("PunchLeft"));
     });
     At(30.f,[=]() { if(!Sword) Key(EKeys::LeftMouseButton,IE_Released); });
-    At(30.4f,[=,this]() mutable
+    At(29.95f,[=]() { if(Sword) { Results->PunchSequenceShots=P->ShotsFired; Key(EKeys::LeftMouseButton,IE_Pressed); } });
+    At(30.88f,[=]()
+    {
+        if(!Sword) return;
+        Check(P->IsSwordAttacking() && P->ShotsFired>=Results->PunchSequenceShots+2,TEXT("Held sword input repeats the two-handed slash after recovery"));
+        SwordFrame(TEXT("SwordRepeat")); Key(EKeys::LeftMouseButton,IE_Released);
+    });
+    At(Sword?31.5f:30.4f,[=,this]() mutable
     {
         if(Results->Ramp.IsValid()) Results->Ramp->Destroy();
         GetWorldTimerManager().ClearTimer(CameraMonitor);
