@@ -6,6 +6,10 @@
 
 ---
 
+## 场景大纲
+
+`Arena` 大纲按 `01_Structure`、`02_Props_and_Cover`、`03_Operator_Displays`、`04_Lighting`、`05_Post_Process` 和 `06_Gameplay` 分组；对象名称同样只使用英文与 ASCII 符号，并以坐标区分同类部件，便于脚本、版本管理和跨系统工具处理。`BreachArena.cpp` 的 `OrganizeArenaOutliner` 只补充编辑器中的默认名称和空文件夹，保留手工命名与分组；`BuildArena` / `BakeArena` 生成场景时自动沿用。整理已有地图可单独调用该入口，不必重新生成场景。
+
 ## 模型与动作清单
 
 以下是项目当前实际使用的角色模型、动画资源和输入动作。四个角色均使用完整人物模型；第一人称视角只隐藏本地视角中的头部，世界模型仍保留完整身体并投射影子，方便后续多人联机。

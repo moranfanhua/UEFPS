@@ -238,6 +238,7 @@ public:
     float AutoTime = 0.f;
     UFUNCTION(BlueprintCallable, CallInEditor) void BuildArena();
     UFUNCTION(BlueprintCallable) static void BakeArena(UObject* WorldContext);
+    UFUNCTION(BlueprintCallable, Category="Arena") static int32 OrganizeArenaOutliner(UObject* WorldContext);
     UFUNCTION(BlueprintCallable) static void BindSkeleton(USkeletalMesh* CharacterAsset, USkeleton* SkeletonAsset);
     UFUNCTION(BlueprintCallable) static USkeleton* EnsureSkeleton(USkeletalMesh* CharacterAsset);
     UFUNCTION(BlueprintCallable) static int32 PrepareFirstPersonArms(USkeletalMesh* CharacterAsset,int32 ModelIndex);

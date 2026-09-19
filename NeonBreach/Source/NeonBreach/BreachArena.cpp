@@ -10,6 +10,7 @@
 #include "Engine/PointLight.h"
 #include "Engine/SkyLight.h"
 #include "Engine/PostProcessVolume.h"
+#include "GameFramework/PlayerStart.h"
 #include "EngineUtils.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
@@ -46,6 +47,96 @@ void ABreachGameMode::BakeArena(UObject* WorldContext)
     Builder->Destroy();
 }
 
+int32 ABreachGameMode::OrganizeArenaOutliner(UObject* WorldContext)
+{
+#if WITH_EDITOR
+    UWorld* World=GEngine->GetWorldFromContextObject(WorldContext,EGetWorldErrorMode::ReturnNull);
+    if(!World || World->IsGameWorld()) return 0;
+    int32 Changed=0;
+    for(TActorIterator<AActor> It(World);It;++It)
+    {
+        AActor* Actor=*It;
+        const bool PlayerStart=Actor->IsA<APlayerStart>();
+        if(!PlayerStart && !Actor->ActorHasTag(TEXT("BreachArena"))) continue;
+        const FVector P=Actor->GetActorLocation();
+        FString Folder,Label;
+        if(PlayerStart) { Folder=TEXT("06_Gameplay/Player_Start"); Label=TEXT("Player_Start_Facing_Arena"); }
+        else if(auto* Sign=Actor->FindComponentByClass<UTextRenderComponent>())
+        {
+            Folder=TEXT("02_Props_and_Cover/Signs"); Label=TEXT("Sign_")+Sign->Text.ToString();
+            if(P.X<-2100 && P.Z<450)
+            {
+                const int32 Bay=FMath::Clamp(FMath::RoundToInt((P.Y+660.f)/440.f),0,3);
+                Folder=FString::Printf(TEXT("03_Operator_Displays/%02d_%s"),Bay+1,Breach::Keys[Bay]);
+                Label=FString::Printf(TEXT("Operator_Placard_%s"),Breach::Keys[Bay]);
+            }
+        }
+        else if(Actor->IsA<ADirectionalLight>()) { Folder=TEXT("04_Lighting/Key_Light"); Label=TEXT("Arena_Key_Light"); }
+        else if(Actor->IsA<APointLight>())
+        {
+            Folder=P.Z>500?TEXT("04_Lighting/Area_Fill"):TEXT("04_Lighting/Display_Fill");
+            Label=P.Z>500?TEXT("Area_Fill_Light"):TEXT("Display_Fill_Light");
+        }
+        else if(Actor->IsA<ASkyLight>()) { Folder=TEXT("04_Lighting/Ambient"); Label=TEXT("Sky_Ambient_Light"); }
+        else if(Actor->IsA<APostProcessVolume>()) { Folder=TEXT("05_Post_Process"); Label=TEXT("Global_Post_Process"); }
+        else if(auto* Mesh=Actor->FindComponentByClass<UStaticMeshComponent>())
+        {
+            const FString Mat=Mesh->GetMaterial(0)?Mesh->GetMaterial(0)->GetName():FString();
+            const FVector Size=Actor->GetActorScale3D().GetAbs()*100.f;
+            const bool Emissive=Mat==TEXT("M_Cyan") || Mat==TEXT("M_White") || Mat==TEXT("M_Orange");
+            if(Mat==TEXT("M_Floor")) { Folder=TEXT("01_Structure/Floor"); Label=TEXT("Arena_Floor"); }
+            else if(P.Z<5) { Folder=TEXT("01_Structure/Floor"); Label=Size.X<Size.Y?TEXT("Floor_Grid_Line_Y"):TEXT("Floor_Grid_Line_X"); }
+            else if(P.Z>700)
+            {
+                Folder=TEXT("01_Structure/Ceiling"); Label=Emissive?TEXT("Ceiling_Light_Bar"):(Size.X>4000?TEXT("Ceiling_Panel"):TEXT("Ceiling_Beam"));
+            }
+            else if(P.X>=-2180 && P.X<-1800 && FMath::Abs(P.Y)<1000 && P.Z<450)
+            {
+                const int32 Bay=FMath::Clamp(FMath::RoundToInt((P.Y+660.f)/440.f),0,3);
+                Folder=FString::Printf(TEXT("03_Operator_Displays/%02d_%s"),Bay+1,Breach::Keys[Bay]);
+                Label=Emissive?TEXT("Display_Light_Strip"):(P.Z<50?TEXT("Display_Pedestal"):TEXT("Display_Backdrop"));
+            }
+            else if(FMath::Abs(P.X-250)<250 && FMath::Abs(P.Y)<250)
+            {
+                Folder=TEXT("02_Props_and_Cover/Central_Reactor");
+                Label=Emissive?TEXT("Reactor_Emissive_Core"):(P.Z<50?TEXT("Reactor_Base"):(P.Z>300?TEXT("Reactor_Cap"):(Size.X<50?TEXT("Reactor_Support"):TEXT("Reactor_Body"))));
+            }
+            else if(P.X>2100 && FMath::Abs(P.Y)>900 && FMath::Abs(P.Y)<1400)
+            {
+                Folder=TEXT("02_Props_and_Cover/Exit_Frames"); Label=Emissive?TEXT("Exit_Outline_Light"):TEXT("Exit_Panel");
+            }
+            else if(FMath::Abs(P.X)<1800 && FMath::Abs(P.Y)<1100 && P.Z<200)
+            {
+                Folder=TEXT("02_Props_and_Cover/Combat_Cover");
+                Label=Emissive?TEXT("Cover_Indicator_Light"):(Mat==TEXT("M_Wall")?TEXT("Cover_Side_Panel"):(Size.Z<10?TEXT("Cover_Top"):TEXT("Cover_Body")));
+            }
+            else
+            {
+                Folder=Emissive?TEXT("01_Structure/Boundary_Lighting"):TEXT("01_Structure/Walls_and_Supports");
+                Label=Emissive?TEXT("Boundary_Light_Strip"):(Mat==TEXT("M_Wall")?TEXT("Perimeter_Wall"):(P.Z>600?TEXT("Ceiling_Brace"):TEXT("Wall_Support")));
+            }
+        }
+        if(Folder.IsEmpty()) continue;
+        if(!PlayerStart && !Actor->FindComponentByClass<UTextRenderComponent>())
+            Label+=FString::Printf(TEXT(" [X%d Y%d Z%d]"),FMath::RoundToInt(P.X),FMath::RoundToInt(P.Y),FMath::RoundToInt(P.Z));
+        // Fill missing metadata only: later manual folder and label edits win.
+        const bool SetFolder=Actor->GetFolderPath().IsNone();
+        const FString ExistingLabel=Actor->GetActorLabel();
+        const bool SetLabel=ExistingLabel==Actor->GetName() || ExistingLabel==Actor->GetName().Replace(TEXT("_"),TEXT(""));
+        if(SetFolder || SetLabel)
+        {
+            Actor->Modify();
+            if(SetFolder) Actor->SetFolderPath(FName(*Folder));
+            if(SetLabel) Actor->SetActorLabel(Label);
+            ++Changed;
+        }
+    }
+    return Changed;
+#else
+    return 0;
+#endif
+}
+
 namespace Breach
 {
     const TCHAR* Keys[4]={TEXT("Eula"),TEXT("Acheron"),TEXT("Lizhiyan"),TEXT("Ascalon")};
@@ -71,6 +162,7 @@ void ABreachGameMode::BuildArena()
     for(TActorIterator<AActor> It(GetWorld());It;++It) if(It->ActorHasTag(TEXT("BreachArena"))) HasArena=true;
     if(HasArena)
     {
+        OrganizeArenaOutliner(this);
         // Existing baked maps keep their geometry and lighting edits, while
         // operator placards follow the current roster just like the HUD.
         for(TActorIterator<AActor> It(GetWorld());It;++It)
@@ -214,5 +306,6 @@ void ABreachGameMode::BuildArena()
     PP->Settings.bOverride_AutoExposureApplyPhysicalCameraExposure=true; PP->Settings.AutoExposureApplyPhysicalCameraExposure=false;
     PP->Settings.bOverride_BloomIntensity=true; PP->Settings.BloomIntensity=.45f;
     PP->Settings.bOverride_VignetteIntensity=true; PP->Settings.VignetteIntensity=.22f;
+    OrganizeArenaOutliner(this);
 }
 
