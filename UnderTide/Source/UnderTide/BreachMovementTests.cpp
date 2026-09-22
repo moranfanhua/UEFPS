@@ -161,7 +161,8 @@ void ABreachGameMode::RunMovementTest()
         },.016f,true);
     }
     Check(P->HasLocomotionAnimations(),TEXT("All locomotion states have animation assets"));
-    Check(P->Camera->FieldOfView>=109.f && P->BaseFieldOfView>=109.f && P->AimFieldOfView>66.f,TEXT("All operators use the expanded first-person field of view"));
+    Check(FMath::IsNearlyEqual(P->Camera->FieldOfView,110.f) && FMath::IsNearlyEqual(P->BaseFieldOfView,110.f) &&
+        FMath::IsNearlyEqual(P->AimFieldOfView,46.f),TEXT("All operators retain 110-degree hip view and the enlarged 46-degree ADS view"));
     At(.1f,[=]() { Results->StandingEye=P->Camera->GetComponentLocation().Z; Key(EKeys::Three,IE_Pressed); });
     At(.16f,[=]() { Key(EKeys::Three,IE_Released); });
     At(.22f,[=,this]()

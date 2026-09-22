@@ -18,6 +18,102 @@ void ABreachGameMode::RunWeaponTest()
     auto* P=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0));
     auto* PC=UGameplayStatics::GetPlayerController(this,0);
     if(!P || !PC) return;
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachReticleReview")))
+    {
+        auto* HUD=Cast<ABreachHUD>(PC->GetHUD());
+        if(!HUD) return;
+        struct FReticleReview { int32 Step=0,Failures=0; FString Report; FTimerHandle Timer; };
+        auto Review=MakeShared<FReticleReview>();
+        const auto Check=[=](bool Pass,const FString& Message)
+        {
+            Review->Failures+=!Pass;
+            Review->Report+=FString::Printf(TEXT("%s %s\n"),Pass?TEXT("PASS"):TEXT("FAIL"),*Message);
+        };
+        const auto Capture=[=](int32 Weapon,const TCHAR* State)
+        {
+            if(FParse::Param(FCommandLine::Get(),TEXT("BreachWeaponCapture")))
+                FScreenshotRequest::RequestScreenshot(FPaths::ProjectDir()/FString::Printf(
+                    TEXT("Saved/Reticle_%s_%s.png"),Breach::WeaponNames[Weapon],State),true,false);
+        };
+        P->SetActorLocation(FVector(-1200,-1250,94));PC->SetControlRotation(FRotator::ZeroRotator);
+        PC->SetViewTarget(P);HUD->bShowHUD=true;
+        GetWorldTimerManager().SetTimer(Review->Timer,[=,this]()
+        {
+            if(Review->Step==28)
+            {
+                P->SelectOperator(1);P->SetAim(true);
+                Check(HUD->GetAimReticleOpacity()==0,TEXT("Sword never displays a firearm reticle"));
+                Review->Report+=FString::Printf(TEXT("FAILURES=%d\n"),Review->Failures);
+                FFileHelper::SaveStringToFile(Review->Report,*(FPaths::ProjectDir()/TEXT("Saved/reticle_review.txt")));
+                GetWorldTimerManager().ClearTimer(Review->Timer);PC->ConsoleCommand(TEXT("quit"));return;
+            }
+            const int32 Weapon=Review->Step/7,Stage=Review->Step%7;
+            const FString Key=Breach::WeaponNames[Weapon];
+            if(Stage==0)
+            {
+                P->SelectOperator(0);P->DrawRifle();P->SelectWeapon(Weapon);P->SetAim(false);
+                Check(HUD->GetAimReticleOpacity()==0,Key+TEXT(" switching/hip has no reticle"));
+            }
+            if(Stage==1)
+            {
+                Capture(Weapon,TEXT("Hip"));
+                FTimerHandle Next;GetWorldTimerManager().SetTimer(Next,[=]() { P->SetAim(true); },.15f,false);
+            }
+            if(Stage==2)
+            {
+                Check(HUD->GetAimReticleOpacity()>.99f,Key+TEXT(" settled ADS shows reticle"));
+                Check(FMath::IsNearlyEqual(P->Camera->FieldOfView,46.f,.01f) &&
+                    FMath::IsNearlyEqual(P->Camera->FirstPersonFieldOfView,46.f,.01f),
+                    Key+TEXT(" world and first-person weapon share the enlarged ADS projection"));
+                Capture(Weapon,TEXT("Aim"));
+                FTimerHandle Next;GetWorldTimerManager().SetTimer(Next,[=]()
+                {
+                    P->SetAim(false);
+                    Check(P->GetAimBlend()>.99f && HUD->GetAimReticleOpacity()==0,
+                        Key+TEXT(" release hides reticle before the weapon lowers"));
+                    Capture(Weapon,TEXT("Release"));
+                },.15f,false);
+            }
+            if(Stage==3)
+            {
+                Check(HUD->GetAimReticleOpacity()==0,Key+TEXT(" hip return remains hidden"));
+                Check(FMath::IsNearlyEqual(P->Camera->FieldOfView,110.f,.01f) &&
+                    FMath::IsNearlyEqual(P->Camera->FirstPersonFieldOfView,110.f,.01f),
+                    Key+TEXT(" releasing ADS restores the unchanged hip projection"));
+                P->SetAim(true);
+            }
+            if(Stage==4)
+            {
+                Check(HUD->GetAimReticleOpacity()>.99f,Key+TEXT(" repeated ADS restores reticle"));
+                auto* Preview=GetWorld()->SpawnActor<ACameraActor>();
+                PC->SetViewTarget(Preview);
+                Check(HUD->GetAimReticleOpacity()==0,Key+TEXT(" external camera hides reticle"));
+                PC->SetViewTarget(P);Preview->Destroy();
+                UGameplayStatics::SetGamePaused(this,true);
+                Check(HUD->GetAimReticleOpacity()==0,Key+TEXT(" pause hides reticle"));
+                UGameplayStatics::SetGamePaused(this,false);
+                HUD->ToggleSelection();
+                Check(HUD->IsSelectionOpen() && HUD->GetAimReticleOpacity()==0,Key+TEXT(" selection hides reticle"));
+                HUD->ToggleSelection();
+                Check(!UGameplayStatics::IsGamePaused(this) && !PC->IsMoveInputIgnored() &&
+                    !PC->IsLookInputIgnored() && HUD->GetAimReticleOpacity()>.99f,
+                    Key+TEXT(" closing selection restores ADS and input"));
+                const float Health=P->Health;P->Health=0;
+                Check(HUD->GetAimReticleOpacity()==0,Key+TEXT(" death hides reticle"));P->Health=Health;
+                P->Ammo=FMath::Max(0,P->Ammo-1);P->Reload();
+                Check(P->bReloading && HUD->GetAimReticleOpacity()==0,Key+TEXT(" reload hides reticle while aim is held"));
+                Capture(Weapon,TEXT("Reload"));
+            }
+            if(Stage==5)
+            {
+                P->HolsterRifle();P->SetAim(true);
+                Check(HUD->GetAimReticleOpacity()==0,Key+TEXT(" unarmed never displays a reticle"));
+                Capture(Weapon,TEXT("Unarmed"));
+            }
+            ++Review->Step;
+        },.8f,true,1.f);
+        return;
+    }
     // Optional reference review: every firearm on every firearm-capable rig,
     // from front, side, owner hip and owner ADS, after each pose has settled.
     if(FParse::Param(FCommandLine::Get(),TEXT("BreachGunPoseReview")))

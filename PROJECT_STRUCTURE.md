@@ -260,6 +260,8 @@ SourceAssets/
 
 这些 JSON 是导入和排查模型问题时的参考资料，不是运行时必须加载的游戏资源。`CharacterRigData.h` 是从骨骼映射生成到 C++ 中的运行时版本。
 
+第一人称开镜准星独立位于 `BreachReticleHUD.cpp`，由 `BreachHUD.cpp` 调用，负责四枪矢量轮廓、屏幕缩放及开镜/选人/换弹等显隐条件；`BreachWeaponTests.cpp` 的 `-BreachReticleReview` 分支检查准星状态并输出截图。
+
 ## 7. 修改功能时从哪里开始
 
 | 想修改的内容 | 建议先看 |

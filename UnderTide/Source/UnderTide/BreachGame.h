@@ -62,7 +62,7 @@ public:
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Body;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> WorldBody;
     UPROPERTY(EditAnywhere, Category="Camera") float BaseFieldOfView = 110.f;
-    UPROPERTY(EditAnywhere, Category="Camera") float AimFieldOfView = 76.f;
+    UPROPERTY(EditAnywhere, Category="Camera") float AimFieldOfView = 46.f;
     UPROPERTY(EditAnywhere, Category="Weapon") float FireInterval = 0.105f;
     UPROPERTY(EditAnywhere, Category="Weapon") float ShotDamage = 34.f;
     UPROPERTY(EditAnywhere, Category="Weapon") int32 MagazineSize = 30;
@@ -295,6 +295,7 @@ public:
     bool IsWeaponSelectionAvailable() const;
     int32 GetSelectedWeaponIndex() const;
     bool IsSelectionOpen() const { return bSelectionOpen; }
+    float GetAimReticleOpacity() const;
     ABreachSelectionStage* GetSelectionStage() const { return SelectionStage; }
     FVector2D OperatorCardCenter(int32 Index) const;
     FVector2D WeaponCardCenter(int32 Index) const;
@@ -309,6 +310,7 @@ private:
     void DrawWeaponSelection();
     void EnsureSelectionStage();
     void DrawPlayerVitals(const ABreachCharacter* Player);
+    void DrawAimReticle(const ABreachCharacter* Player);
     void MenuText(const FString& Value,float X,float Y,float Size,FLinearColor Color,bool Chinese=false);
     void Text(const FString& Value, float X, float Y, float Size, FLinearColor Color);
     void Box(float X, float Y, float W, float H, FLinearColor Color);

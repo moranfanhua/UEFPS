@@ -40,6 +40,7 @@ void ABreachHUD::DrawHUD()
         Text(FString::Printf(TEXT("NEXT WAVE IN %d"),FMath::CeilToInt(G->Intermission)),W*.5f-95,119,17,Cyan);
     if(G->NoticeTime>0 && !G->bGameOver) Text(G->Notice,W*.5f-G->Notice.Len()*4.1f,164,15,Cyan);
     const float Cx=W*.5f,Cy=H*.5f;
+    DrawAimReticle(P);
     if(!G->bGameOver && P->HitMarker>0)
     {
         const FLinearColor Hit=P->bLastHeadshot?Orange:Cyan;
