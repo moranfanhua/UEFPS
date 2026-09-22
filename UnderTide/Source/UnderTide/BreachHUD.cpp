@@ -39,22 +39,11 @@ void ABreachHUD::DrawHUD()
     if(!G->bGameOver && !G->bGallery && G->EnemiesAlive==0 && G->RemainingToSpawn==0)
         Text(FString::Printf(TEXT("NEXT WAVE IN %d"),FMath::CeilToInt(G->Intermission)),W*.5f-95,119,17,Cyan);
     if(G->NoticeTime>0 && !G->bGameOver) Text(G->Notice,W*.5f-G->Notice.Len()*4.1f,164,15,Cyan);
-    // Crosshair expands during movement and contracts while aiming.
     const float Cx=W*.5f,Cy=H*.5f;
-    const float Gap=P->bAiming?5:9+FMath::Clamp(P->GetVelocity().Size2D()/100.f,0.f,6.f);
-    if(!G->bGameOver)
+    if(!G->bGameOver && P->HitMarker>0)
     {
-        Box(Cx-1,Cy-1,2,2,White);
-        if(!P->bAiming && !P->UsesSword() && !P->bUnarmed)
-        {
-            Box(Cx-Gap-7,Cy-1,7,2,White); Box(Cx+Gap,Cy-1,7,2,White);
-            Box(Cx-1,Cy-Gap-7,2,7,White); Box(Cx-1,Cy+Gap,2,7,White);
-        }
-        if(P->HitMarker>0)
-        {
-            const FLinearColor Hit=P->bLastHeadshot?Orange:Cyan;
-            for(int32 X : {-1,1}) for(int32 Y : {-1,1}) DrawLine((Cx+X*7)*S,(Cy+Y*7)*S,(Cx+X*14)*S,(Cy+Y*14)*S,Hit,2*S);
-        }
+        const FLinearColor Hit=P->bLastHeadshot?Orange:Cyan;
+        for(int32 X : {-1,1}) for(int32 Y : {-1,1}) DrawLine((Cx+X*7)*S,(Cy+Y*7)*S,(Cx+X*14)*S,(Cy+Y*14)*S,Hit,2*S);
     }
     DrawPlayerVitals(P);
     Box(W-318,H-150,290,98,Panel); Box(W-31,H-150,3,98,Cyan);

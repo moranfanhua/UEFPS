@@ -858,7 +858,7 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
             const int32 Guard=1-Strike;
             const float StrikeSign=Strike?1.f:-1.f;
             // Each trigger cycle mirrors the same readable straight-punch arc.
-            // The active fist reaches just below its side of the crosshair while
+            // The active fist reaches just below its side of the viewport center while
             // the other hand stays low as a guard.
             const FVector Ready=bOwnerView?FVector(22.f,StrikeSign*21.f,-42.f):FVector(30.f,StrikeSign*14.f,-24.f);
             const FVector Impact=bOwnerView?FVector(64.f,StrikeSign*3.f,-7.f):FVector(76.f,StrikeSign*14.f,-24.f);
