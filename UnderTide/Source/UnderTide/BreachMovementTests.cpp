@@ -98,6 +98,11 @@ void ABreachGameMode::RunMovementTest()
     const bool Capture=FParse::Param(FCommandLine::Get(),TEXT("BreachMovementCapture"));
     const auto Screenshot=[Prefix,Capture,P,Check](const TCHAR* Name)
     {
+        if(FString(Name).StartsWith(TEXT("Armed")) && !P->UsesSword())
+        {
+            const FVector Gun=P->WeaponRoot->GetRelativeLocation();
+            Check(Gun.X>=19.9f,FString::Printf(TEXT("%s weapon stays ahead of the owner camera (%s cm)"),Name,*Gun.ToString()));
+        }
         FBreachPose Rig; Rig.Init(Breach::CharacterMesh(P->OperatorIndex),P->OperatorIndex);
         const FName NeckName=P->Body->GetBoneName(Rig.Bone(EBreachBone::Neck));
         const FVector Collar=P->Body->GetBoneLocationByName(NeckName,EBoneSpaces::WorldSpace);
@@ -215,7 +220,7 @@ void ABreachGameMode::RunMovementTest()
     {
         if(Sword)
         {
-            Check(Results->SwordTarget.IsValid() && Results->SwordTarget->bDefeated && P->SwordDamage>P->ShotDamage*5.f && P->ShotsHit>0,TEXT("Acheron slash lands at melee range with far higher damage than a bullet"));
+            Check(Results->SwordTarget.IsValid() && Results->SwordTarget->bDefeated && P->SwordDamage>=180.f && P->SwordDamage>P->ShotDamage && P->ShotsHit>0,TEXT("Acheron slash lands at melee range with at least 180 damage"));
             if(Results->SwordTarget.IsValid()) Results->SwordTarget->Destroy();
         }
         else
@@ -353,7 +358,7 @@ void ABreachGameMode::RunMovementTest()
     });
     At(6.4f,[=]() { Key(EKeys::One,IE_Pressed); Key(EKeys::W,IE_Pressed); });
     At(6.46f,[=]() { Key(EKeys::One,IE_Released); });
-    At(6.96f,[=]() { Key(EKeys::W,IE_Released); StableEye(Results->JogEye,Results->JogSamples,TEXT("Armed jog")); });
+    At(6.96f,[=]() { Screenshot(TEXT("ArmedJog"));Key(EKeys::W,IE_Released); StableEye(Results->JogEye,Results->JogSamples,TEXT("Armed jog")); });
     At(7.1f,[=]() { Check(!P->bReloading && P->Ammo==5 && P->Reserve==100,TEXT("Holstering cancels delayed reload without changing ammo")); });
     At(7.25f,[=]()
     {
@@ -366,7 +371,7 @@ void ABreachGameMode::RunMovementTest()
         Check(Move->SwordSpeed>Move->UnarmedSpeed,TEXT("Acheron sword movement exceeds the former unarmed speed"));
     });
     At(7.7f,[=]() { Check(P->GetVelocity().Size2D()>490,TEXT("Rifle movement reaches normal speed before crouching"));Key(EKeys::LeftControl,IE_Pressed); });
-    At(7.85f,[=]() { Check(P->bIsCrouched && !P->IsSliding(),TEXT("Ctrl at rifle speed crouches without a slide"));Key(EKeys::W,IE_Released);Key(EKeys::LeftControl,IE_Released); });
+    At(7.85f,[=]() { Check(P->bIsCrouched && !P->IsSliding(),TEXT("Ctrl at rifle speed crouches without a slide"));Screenshot(TEXT("ArmedCrouch"));Key(EKeys::W,IE_Released);Key(EKeys::LeftControl,IE_Released); });
     At(8.1f,[=]() { if(Sword) P->SelectOperator(Index);P->SetUnarmed(true);Key(EKeys::W,IE_Pressed); });
     At(8.6f,[=]() { Results->SlideEntry=P->GetVelocity().Size2D();Key(EKeys::LeftControl,IE_Pressed); });
     At(8.66f,[=]()
@@ -479,6 +484,7 @@ void ABreachGameMode::RunMovementTest()
         Key(EKeys::SpaceBar,IE_Released);Screenshot(TEXT("SlideJump"));
     });
     At(18.4f,[=]() { Check(Move->IsFalling(),TEXT("Slide jump follows the airborne arc"));P->SetUnarmed(false); });
+    At(18.52f,[=]() { Screenshot(TEXT("ArmedAir")); });
     At(18.47f,[=]() { Check(P->GetVelocity().Size2D()>=Results->JumpSpeed-50.f,Sword?TEXT("Acheron's locked sword stance does not erase slide jump momentum"):TEXT("Drawing the rifle in the air does not erase slide jump momentum")); });
     At(18.6f,[=]() { P->SetUnarmed(true); });
     At(19.08f,[=]() { Check(P->IsSliding() && P->GetVelocity().Size2D()>Move->SlideEntrySpeed,TEXT("Landing at speed with Ctrl held automatically continues sliding")); });

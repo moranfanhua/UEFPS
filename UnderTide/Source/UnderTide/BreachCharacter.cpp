@@ -1,6 +1,7 @@
 #include "BreachGame.h"
 #include "BreachMovementComponent.h"
 #include "BreachVisuals.h"
+#include "BreachWeapons.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -81,6 +82,46 @@ ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
     AddPart(TEXT("SightRight"), FVector(5,2.8f,9), FVector(3,1,7), TEXT("M_Metal"));
     AddPart(TEXT("SightTop"), FVector(5,0,12), FVector(3,6,1), TEXT("M_Metal"));
     AddPart(TEXT("SightDot"), FVector(5,0,8), FVector(1,.6f,.6f), TEXT("M_Orange"));
+    AK=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AK"));
+    AK->SetupAttachment(WeaponRoot);AK->SetOnlyOwnerSee(true);
+    AK->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
+    WorldAK=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WorldAK"));
+    WorldAK->SetupAttachment(WorldWeaponRoot);WorldAK->SetOwnerNoSee(true);
+    for(auto* GunPart:{AK.Get(),WorldAK.Get()})
+    {
+        GunPart->SetRelativeLocation(Breach::AKMeshOffset);GunPart->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        GunPart->SetCastShadow(false);GunPart->SetVisibility(false);
+    }
+    M4=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("M4"));
+    M4->SetupAttachment(WeaponRoot);M4->SetOnlyOwnerSee(true);
+    M4->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
+    WorldM4=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WorldM4"));
+    WorldM4->SetupAttachment(WorldWeaponRoot);WorldM4->SetOwnerNoSee(true);
+    for(auto* GunPart:{M4.Get(),WorldM4.Get()})
+    {
+        GunPart->SetRelativeLocation(Breach::M4MeshOffset);GunPart->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        GunPart->SetCastShadow(false);GunPart->SetVisibility(false);
+    }
+    MP5=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MP5"));
+    MP5->SetupAttachment(WeaponRoot);MP5->SetOnlyOwnerSee(true);
+    MP5->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
+    WorldMP5=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WorldMP5"));
+    WorldMP5->SetupAttachment(WorldWeaponRoot);WorldMP5->SetOwnerNoSee(true);
+    for(auto* GunPart:{MP5.Get(),WorldMP5.Get()})
+    {
+        GunPart->SetRelativeLocation(Breach::MP5MeshOffset);GunPart->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        GunPart->SetCastShadow(false);GunPart->SetVisibility(false);
+    }
+    AA12=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AA12"));
+    AA12->SetupAttachment(WeaponRoot);AA12->SetOnlyOwnerSee(true);
+    AA12->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
+    WorldAA12=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WorldAA12"));
+    WorldAA12->SetupAttachment(WorldWeaponRoot);WorldAA12->SetOwnerNoSee(true);
+    for(auto* GunPart:{AA12.Get(),WorldAA12.Get()})
+    {
+        GunPart->SetRelativeLocation(Breach::AA12MeshOffset);GunPart->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        GunPart->SetCastShadow(false);GunPart->SetVisibility(false);
+    }
     MuzzleLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("MuzzleFlash"));
     MuzzleLight->SetupAttachment(WeaponRoot);
     MuzzleLight->SetRelativeLocation(FVector(44,0,1));
@@ -186,7 +227,7 @@ void ABreachCharacter::StartFire() { if(Health>0) { bTrigger=true; Fire(); } }
 void ABreachCharacter::StopFire() { bTrigger=false; }
 void ABreachCharacter::SetAim(bool Value)
 {
-    bAiming=Value && !bUnarmed;
+    bAiming=Value && !bUnarmed && !UsesSword() && Health>0;
     CastChecked<UBreachMovementComponent>(GetCharacterMovement())->SetLocomotionIntent(bUnarmed,bAiming);
 }
 bool ABreachCharacter::CanJumpInternal_Implementation() const
@@ -201,26 +242,41 @@ void ABreachCharacter::Tick(float Dt)
     UpdateSwordAttack(Dt);
     UpdatePunchAttack(Dt);
     bSprint=bUnarmed && !bIsCrouched;
-    Camera->SetFieldOfView(FMath::FInterpTo(Camera->FieldOfView, bAiming ? AimFieldOfView : BaseFieldOfView, Dt, 12));
+    const bool bImportedRifle=UsesAK() || UsesM4() || UsesMP5() || UsesAA12();
+    const auto& AimMotion=Breach::GunAims[bImportedRifle?ConfiguredGunIndex:0];
+    const float AimDuration=bAiming?AimMotion.EnterTime:AimMotion.ExitTime;
+    AimProgress=FMath::Clamp(AimProgress+(bAiming?1.f:-1.f)*FMath::Max(0.f,Dt)/AimDuration,0.f,1.f);
+    const float AimBlend=GetAimBlend();
+    // One reversible timeline keeps the zoom and gun on the same frame,
+    // including a release/re-press partway through the lift.
+    Camera->SetFieldOfView(FMath::Lerp(BaseFieldOfView,AimFieldOfView,AimBlend));
     Camera->SetFirstPersonFieldOfView(Camera->FieldOfView);
     Bob += Dt * (bSprint ? 13.f : 9.f);
     const float Movement = FMath::Clamp(GetVelocity().Size2D()/510.f,0.f,1.f);
-    const FVector Hip(34,10,-5);
-    const FVector Aim(30,0,-6.4f);
-    FVector Target = bAiming ? Aim : Hip;
-    Target.Z += FMath::Sin(Bob)*Movement*(UsesSword()?0.f:(bAiming?.05f:.2f));
+    const FVector Hip=bImportedRifle?Breach::GunHolds[ConfiguredGunIndex].Hip:FVector(34,10,-5);
+    const FVector Aim=bImportedRifle?Breach::GunHolds[ConfiguredGunIndex].Aim:FVector(30,0,-6.4f);
+    const float Lift=4.f*AimBlend*(1.f-AimBlend);
+    FVector Target=FMath::Lerp(Hip,Aim,AimBlend);
+    if(bImportedRifle) Target+=AimMotion.LiftArc*Lift;
+    Target.Z += FMath::Sin(Bob)*Movement*(UsesSword()?0.f:.2f*(1.f-AimBlend));
     Target.X -= Recoil*2.7f;
     if (bReloading)
     {
         ReloadProgress = FMath::Clamp((GetWorld()->GetTimeSeconds()-ReloadStarted)/1.55f,0.f,1.f);
         Target.Z -= FMath::Sin(ReloadProgress*PI)*14.f;
     }
-    WeaponRoot->SetRelativeLocation(FMath::VInterpTo(WeaponRoot->GetRelativeLocation(),Target,Dt,18));
-    WeaponRoot->SetRelativeRotation(FRotator(Recoil*2.f,0,bReloading?FMath::Sin(ReloadProgress*PI)*-25.f:0));
+    WeaponRoot->SetRelativeLocation(Target);
+    const FRotator Cant=bImportedRifle?AimMotion.Cant*Lift:FRotator::ZeroRotator;
+    WeaponRoot->SetRelativeRotation(Cant+FRotator(Recoil*2.f+(bImportedRifle?AimMotion.SightPitch*AimBlend:0.f),0,
+        bReloading?FMath::Sin(ReloadProgress*PI)*-25.f:0));
     WorldWeaponRoot->SetRelativeTransform(WeaponRoot->GetRelativeTransform());
     UpdateOperatorPose(Dt);
-    Recoil = FMath::FInterpTo(Recoil,0,Dt,15);
-    MuzzleLight->SetIntensity(!UsesSword() && Recoil>.55f ? 5000.f : 0.f);
+    Recoil = FMath::FInterpTo(Recoil,0,Dt,UsesAK()?10.f:UsesM4()?14.f:UsesMP5()?16.f:UsesAA12()?9.f:15.f);
+    const float BloomRecovery=UsesAK()?Breach::AKBloomRecovery:UsesM4()?Breach::M4BloomRecovery:
+        UsesMP5()?Breach::MP5BloomRecovery:UsesAA12()?Breach::AA12BloomRecovery:0.f;
+    ShotBloom=FMath::Max(0.f,ShotBloom-Dt*BloomRecovery);
+    MuzzleFlashTime=FMath::Max(0.f,MuzzleFlashTime-Dt);
+    MuzzleLight->SetIntensity(!bUnarmed && !UsesSword() && MuzzleFlashTime>0 ? 5000.f : 0.f);
     HitMarker=FMath::Max(0.f,HitMarker-Dt);
     DamageFlash=FMath::Max(0.f,DamageFlash-Dt);
 }
@@ -252,30 +308,48 @@ void ABreachCharacter::Fire()
     }
     if(Ammo<=0) { Reload(); return; }
     NextShot=Now+FireInterval;
-    --Ammo; ++ShotsFired; Recoil=1;
+    --Ammo; ++ShotsFired;
+    Recoil=UsesAK()?FMath::Min(3.f,Recoil+1.6f):UsesM4()?FMath::Min(2.2f,Recoil+1.05f):
+        UsesMP5()?FMath::Min(1.7f,Recoil+.75f):UsesAA12()?FMath::Min(3.5f,Recoil+1.9f):1.f;
+    MuzzleFlashTime=.045f;
     const FVector Start=Camera->GetComponentLocation();
-    FVector Direction=Camera->GetForwardVector();
-    const float Spread=bAiming?.001f:.004f;
-    Direction=FMath::VRandCone(Direction,Spread);
-    FHitResult Hit;
+    const FVector Forward=Camera->GetForwardVector();
+    const float Spread=GetShotSpread();
+    if(UsesAK()) ShotBloom=FMath::Min(Breach::AKMaxBloom,ShotBloom+Breach::AKBloomPerShot);
+    else if(UsesM4()) ShotBloom=FMath::Min(Breach::M4MaxBloom,ShotBloom+Breach::M4BloomPerShot);
+    else if(UsesMP5()) ShotBloom=FMath::Min(Breach::MP5MaxBloom,ShotBloom+Breach::MP5BloomPerShot);
+    else if(UsesAA12()) ShotBloom=FMath::Min(Breach::AA12MaxBloom,ShotBloom+Breach::AA12BloomPerShot);
     FCollisionQueryParams Params(SCENE_QUERY_STAT(BreachShot),true,this);
-    const FVector End=Start+Direction*15000;
-    const bool bHit=GetWorld()->LineTraceSingleByChannel(Hit,Start,End,ECC_Visibility,Params);
-    const FVector Impact=bHit?Hit.ImpactPoint:End;
-    Breach::Beam(GetWorld(),WeaponRoot->GetComponentTransform().TransformPosition(FVector(42,0,1)),Impact,FLinearColor(.1f,.85f,1),1.5f,.055f);
+    const int32 PelletCount=UsesAA12()?Breach::AA12PelletCount:1;
+    bLastHeadshot=false;
+    for(int32 Pellet=0;Pellet<PelletCount;++Pellet)
+    {
+        const FVector Direction=FMath::VRandCone(Forward,Spread);
+        const FVector End=Start+Direction*15000;
+        FHitResult Hit;
+        const bool bHit=GetWorld()->LineTraceSingleByChannel(Hit,Start,End,ECC_Visibility,Params);
+        const FVector Impact=bHit?Hit.ImpactPoint:End;
+        Breach::Beam(GetWorld(),GunMuzzleLocation(),Impact,FLinearColor(.1f,.85f,1),1.5f,.055f);
+        if(auto* Enemy=Cast<ABreachEnemy>(Hit.GetActor()); Enemy && !Enemy->bDisplayOnly && !Enemy->bDefeated)
+        {
+            ++ShotsHit;
+            const bool Head=Hit.ImpactPoint.Z > Enemy->GetActorLocation().Z+47.f;
+            bLastHeadshot|=Head; HitMarker=.18f;
+            UGameplayStatics::ApplyPointDamage(Enemy,GetShotDamage((Hit.ImpactPoint-Start).Size())*(Head?2.f:1.f),Direction,Hit,Controller,this,UDamageType::StaticClass());
+        }
+        else if(bHit)
+        {
+            const int32 SparkCount=UsesAA12()?1:4;
+            for(int32 i=0;i<SparkCount;++i) Breach::Beam(GetWorld(),Impact,Impact+Hit.ImpactNormal*12+FMath::VRand()*14,FLinearColor(1,.35f,.08f),1,.1f);
+        }
+    }
     if(FireSound) UGameplayStatics::PlaySound2D(this,FireSound,.4f);
-    if(auto* Enemy=Cast<ABreachEnemy>(Hit.GetActor()); Enemy && !Enemy->bDisplayOnly && !Enemy->bDefeated)
-    {
-        ++ShotsHit;
-        const bool Head=Hit.ImpactPoint.Z > Enemy->GetActorLocation().Z+47.f;
-        bLastHeadshot=Head; HitMarker=.18f;
-        UGameplayStatics::ApplyPointDamage(Enemy,ShotDamage*(Head?2.f:1.f),Direction,Hit,Controller,this,UDamageType::StaticClass());
-    }
-    else if(bHit)
-    {
-        for(int32 i=0;i<4;++i) Breach::Beam(GetWorld(),Impact,Impact+Hit.ImpactNormal*12+FMath::VRand()*14,FLinearColor(1,.35f,.08f),1,.1f);
-    }
-    AddControllerPitchInput(-.10f);
+    AddControllerPitchInput(UsesAK()?(bAiming?-.28f:-.38f):UsesM4()?(bAiming?-.18f:-.24f):
+        UsesMP5()?(bAiming?-.13f:-.18f):UsesAA12()?(bAiming?-.38f:-.5f):-.10f);
+    if(UsesAK()) AddControllerYawInput(FMath::FRandRange(-.11f,.11f));
+    else if(UsesM4()) AddControllerYawInput(FMath::FRandRange(-.065f,.065f));
+    else if(UsesMP5()) AddControllerYawInput(FMath::FRandRange(-.045f,.045f));
+    else if(UsesAA12()) AddControllerYawInput(FMath::FRandRange(-.14f,.14f));
 }
 
 void ABreachCharacter::UpdateSwordVisibility()
@@ -584,6 +658,7 @@ void ABreachCharacter::SelectOperator(int32 Index)
         LoadPunchAttackAnimation();
     }
     ConfigureSwordLoadout();
+    ConfigureSelectedGun();
     SetUnarmed(bUnarmed);
     UpdateOperatorPose(0);
     if(auto* GM=GetWorld()->GetAuthGameMode<ABreachGameMode>())
@@ -592,13 +667,18 @@ void ABreachCharacter::SelectOperator(int32 Index)
     }
 }
 
-static FVector OperatorGrip(const ABreachCharacter* Player,int32 Side)
+static FVector OperatorGrip(const ABreachCharacter* Player,int32 Side,bool bOwnerView=true)
 {
     // Ascalon's shorter forearm supports the rear of the handguard.
     FVector Grip=Side?FVector(-18,7,-10):FVector(Player->OperatorIndex==3?-6.f:0.f,-9,-7);
+    if(Player->UsesAK() || Player->UsesM4() || Player->UsesMP5() || Player->UsesAA12())
+    {
+        const auto& Hold=Breach::GunHolds[Player->GetSelectedWeaponIndex()];
+        Grip=Hold.MeshOffset+(Side?Hold.RightWrist:Hold.LeftWrist);
+    }
     if(!Side && Player->bReloading)
         Grip=FMath::Lerp(Grip,FVector(-1,-10,-24),FMath::Sin(Player->ReloadProgress*PI));
-    return Player->WeaponRoot->GetComponentTransform().TransformPosition(Grip);
+    return (bOwnerView?Player->WeaponRoot:Player->WorldWeaponRoot)->GetComponentTransform().TransformPosition(Grip);
 }
 void ABreachCharacter::UpdateOperatorPose(float Dt)
 {
@@ -676,6 +756,46 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     Body->SetRelativeLocation(Body->GetRelativeLocation()+OwnerAdjustment);
     const FTransform ToBody=Body->GetComponentTransform().Inverse();
     const FTransform View=Camera->GetComponentTransform();
+    if(!bUnarmed && ConfiguredGunIndex!=INDEX_NONE)
+    {
+        // Seat the stock against the animated world shoulder. Camera eye
+        // compensation and ADS centering belong only to the owner mesh.
+        const auto& Hold=Breach::GunHolds[ConfiguredGunIndex];
+        const FVector Shoulder=WorldBody->GetComponentTransform().TransformPosition(
+            BodyPose.CS[BodyPose.Bone(EBreachBone::RArm)].GetLocation());
+        // World arms raise the stock into the shoulder without inheriting
+        // the owner's exaggerated camera-space cant or centering.
+        const float AimBlend=GetAimBlend();
+        const FQuat Rotation=View.GetRotation()*FRotator(-4.f*(1.f-AimBlend)+Recoil*2.f,0,
+            bReloading?FMath::Sin(ReloadProgress*PI)*-25.f:0).Quaternion();
+        const float ReloadDrop=bReloading?FMath::Sin(ReloadProgress*PI):0.f;
+        const FVector Seat=Shoulder+View.TransformVectorNoScale(FVector(3.f,-2.f,5.f+AimBlend*2.f-ReloadDrop*10.f));
+        WorldWeaponRoot->SetWorldLocationAndRotation(Seat-Rotation.RotateVector((Hold.MeshOffset+Hold.Stock)*.8f),Rotation);
+        // Bring the owner gun within this rig's actual arm reach, instead of
+        // stretching short forearms or sliding a hand off its authored grip.
+        // Both hands move with the same gun; reload retains its release arc.
+        if(!bReloading)
+        {
+            const FVector Back=ToBody.TransformVectorNoScale(-View.GetUnitAxis(EAxis::X));
+            float Pullback=0.f;
+            for(int32 Side=0;Side<2;++Side)
+            {
+                const FVector Upper=BodyPose.CS[BodyPose.Bone(Side?EBreachBone::RArm:EBreachBone::LArm)].GetLocation();
+                const FVector Elbow=BodyPose.CS[BodyPose.Bone(Side?EBreachBone::RElbow:EBreachBone::LElbow)].GetLocation();
+                const FVector Wrist=BodyPose.CS[BodyPose.Bone(Side?EBreachBone::RHand:EBreachBone::LHand)].GetLocation();
+                const float Reach=(FVector::Distance(Upper,Elbow)+FVector::Distance(Elbow,Wrist))*.97f;
+                const FVector Delta=ToBody.TransformPosition(OperatorGrip(this,Side))-Upper;
+                const float Along=FVector::DotProduct(Delta,Back);
+                const float Discriminant=Along*Along-(Delta.SizeSquared()-Reach*Reach);
+                if(Delta.SizeSquared()>Reach*Reach && Along<0.f && Discriminant>=0.f)
+                    Pullback=FMath::Max(Pullback,float(-Along-FMath::Sqrt(Discriminant)));
+            }
+            // At steep look angles the torso is not camera-aligned. Never
+            // satisfy reach by pulling the gun through or behind the eye.
+            const float AvailablePullback=FMath::Max(0.f,float(WeaponRoot->GetRelativeLocation().X)-20.f);
+            WeaponRoot->AddWorldOffset(-View.GetUnitAxis(EAxis::X)*FMath::Clamp(Pullback*Body->GetComponentScale().X,0.f,AvailablePullback));
+        }
+    }
     const bool bOwnerJumpPose=Move->IsFalling() || LocomotionState==EBreachLocomotion::JumpStart ||
         LocomotionState==EBreachLocomotion::JumpLoop || LocomotionState==EBreachLocomotion::JumpLand;
     const auto PoseArms=[&](FBreachPose& Pose,const FTransform& ToMesh,bool bOwnerView)
@@ -769,14 +889,19 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
         }
         for(int32 Side=0;Side<2 && !bUnarmed;++Side)
         {
-            const FVector Hint=View.TransformPosition(FVector(2,Side?39.f:-39.f,-40));
+            const bool bGun=ConfiguredGunIndex!=INDEX_NONE && !UsesSword();
+            const FTransform Gun=(bOwnerView?WeaponRoot:WorldWeaponRoot)->GetComponentTransform();
+            const FVector Hint=View.TransformPosition(bGun?FVector(8,Side?25.f:-22.f,-43):FVector(2,Side?39.f:-39.f,-40));
             const FVector GripWorld=UsesSword() && Side==1 && LocomotionState==EBreachLocomotion::Sprint?
-                View.TransformPosition(SwordRunGripOffset):OperatorGrip(this,Side);
+                View.TransformPosition(SwordRunGripOffset):OperatorGrip(this,Side,bOwnerView);
             const FVector GripTarget=ToMesh.TransformPosition(GripWorld);
             Pose.SolveArm(Side,GripTarget,ToMesh.TransformPosition(Hint));
-            const FVector Direction=View.TransformVectorNoScale(Side?FVector(1,-.2f,0):FVector(.1f,1,0));
-            const FVector Palm=View.TransformVectorNoScale(Side?FVector(0,-1,0):FVector(0,0,1));
-            Pose.PoseHand(Side,ToMesh.TransformVectorNoScale(Direction),ToMesh.TransformVectorNoScale(Palm),.85f);
+            const auto& Hold=Breach::GunHolds[bGun?ConfiguredGunIndex:0];
+            const FVector Direction=bGun?Gun.TransformVectorNoScale(Side?FVector(1,-.15f,.15f):Hold.LeftFingers):
+                View.TransformVectorNoScale(Side?FVector(1,-.2f,0):FVector(.1f,1,0));
+            const FVector Palm=bGun?Gun.TransformVectorNoScale(Side?FVector(0,-1,0):Hold.LeftPalm):
+                View.TransformVectorNoScale(Side?FVector(0,-1,0):FVector(0,0,1));
+            Pose.PoseHand(Side,ToMesh.TransformVectorNoScale(Direction),ToMesh.TransformVectorNoScale(Palm),bGun && !Side?Hold.LeftCurl:.85f);
         }
         if(UsesSword())
         {
@@ -837,7 +962,7 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     for(const auto& Root:UntiltedRoots) BodyPose.Local[Root.Key]=Root.Value;
     BodyPose.Rebuild();
 }
-float ABreachCharacter::GripError() const
+float ABreachCharacter::GripError(bool bOwnerView) const
 {
     if(!bBodyRigReady) return BIG_NUMBER;
     if(UsesSword())
@@ -847,10 +972,11 @@ float ABreachCharacter::GripError() const
         return FVector::Distance(Sword->GetBoneLocationByName(TEXT("bone_002"),EBoneSpaces::WorldSpace),Body->GetBoneLocationByName(Body->GetBoneName(Hand),EBoneSpaces::WorldSpace));
     }
     float Error=0;
+    auto* GripMesh=bOwnerView?Body.Get():WorldBody.Get();
     for(int32 S=0;S<2;++S)
     {
         const int32 Hand=BodyPose.Bone(S?EBreachBone::RHand:EBreachBone::LHand);
-        Error=FMath::Max(Error,float(FVector::Distance(OperatorGrip(this,S),Body->GetBoneLocationByName(Body->GetBoneName(Hand),EBoneSpaces::WorldSpace))));
+        Error=FMath::Max(Error,float(FVector::Distance(OperatorGrip(this,S,bOwnerView),GripMesh->GetBoneLocationByName(GripMesh->GetBoneName(Hand),EBoneSpaces::WorldSpace))));
     }
     return Error;
 }
