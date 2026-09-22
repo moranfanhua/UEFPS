@@ -129,7 +129,7 @@ public:
     float GripError(bool bOwnerView=true) const;
 private:
     int32 SelectedWeapons[4]={0,INDEX_NONE,0,0};
-    int32 AKAmmo=25,M4Ammo=30,MP5Ammo=40,AA12Ammo=8,PrototypeAmmo=30;
+    int32 AKAmmo=25,M4Ammo=30,MP5Ammo=40,AA12Ammo=8;
     int32 ConfiguredGunIndex=INDEX_NONE;
     float ShotBloom=0.f,MuzzleFlashTime=0.f;
     float AimProgress=0.f;

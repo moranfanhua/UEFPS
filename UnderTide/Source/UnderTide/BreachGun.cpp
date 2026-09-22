@@ -33,10 +33,9 @@ void ABreachCharacter::ConfigureSelectedGun()
         else if(ConfiguredGunIndex==1) M4Ammo=Ammo;
         else if(ConfiguredGunIndex==2) MP5Ammo=Ammo;
         else if(ConfiguredGunIndex==3) AA12Ammo=Ammo;
-        else PrototypeAmmo=Ammo;
         ConfiguredGunIndex=NextConfigured;
         Ammo=ConfiguredGunIndex==0?AKAmmo:ConfiguredGunIndex==1?M4Ammo:ConfiguredGunIndex==2?MP5Ammo:
-            ConfiguredGunIndex==3?AA12Ammo:PrototypeAmmo;
+            ConfiguredGunIndex==3?AA12Ammo:0;
         StopFire();SetAim(false);bReloading=false;ReloadProgress=0;
         GetWorldTimerManager().ClearTimer(ReloadTimer);
         Recoil=0;ShotBloom=0;MuzzleFlashTime=0;MuzzleLight->SetIntensity(0);
@@ -122,6 +121,5 @@ int32 ABreachCharacter::GetTotalGunAmmo() const
 {
     return Reserve+(ConfiguredGunIndex==0?Ammo:AKAmmo)+(ConfiguredGunIndex==1?Ammo:M4Ammo)+
         (ConfiguredGunIndex==2?Ammo:MP5Ammo)+
-        (ConfiguredGunIndex==3?Ammo:AA12Ammo)+
-        (ConfiguredGunIndex==INDEX_NONE?Ammo:PrototypeAmmo);
+        (ConfiguredGunIndex==3?Ammo:AA12Ammo);
 }

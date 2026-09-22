@@ -251,8 +251,8 @@ void ABreachGameMode::RunWeaponTest()
                 FString::Printf(TEXT("Operator %d holds the AK in both representations"),Operator));
         }
         P->SelectOperator(0);P->DrawRifle();Run->Spread=P->GetShotSpread();
-        Check(Run->Spread>.004f*3,TEXT("AK hip spread exceeds prototype spread"));
-        P->SetAim(true);Check(P->GetShotSpread()<Run->Spread && P->GetShotSpread()>.001f*3,TEXT("ADS tightens AK spread while retaining more dispersion than the prototype"));
+        Check(Run->Spread>Breach::AKAimSpread*3,TEXT("AK hip spread leaves room for accurate fire"));
+        P->SetAim(true);Check(P->GetShotSpread()<Run->Spread && P->GetShotSpread()>=Breach::AKAimSpread,TEXT("ADS tightens AK spread while retaining controlled dispersion"));
         P->SetAim(false);Capture(TEXT("AK"),TEXT("Hip"));
     });
     At(.9f,[=]() { P->SetAim(true); });
