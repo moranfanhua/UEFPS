@@ -31,6 +31,7 @@ ABreachEnemy::ABreachEnemy()
 void ABreachEnemy::BeginPlay()
 {
     Super::BeginPlay();
+    Breach::EnableToonStencil(Visual);
     Configure(ModelIndex,1);
     if(bDisplayOnly)
     {

@@ -18,11 +18,16 @@ void ABreachCharacter::SetUnarmed(bool Enabled)
     bSprint=bUnarmed && !bIsCrouched;
     bTrigger=false; bAiming=false; bReloading=false;
     CastChecked<UBreachMovementComponent>(GetCharacterMovement())->SetLocomotionIntent(bUnarmed,bAiming);
-    ReloadProgress=0; Recoil=0;MuzzleFlashTime=0;
+    ReloadProgress=0; Recoil=0;
     GetWorldTimerManager().ClearTimer(ReloadTimer);
     MuzzleLight->SetIntensity(0);
-    UpdateGunVisibility();
+    WeaponRoot->SetVisibility(!bUnarmed,true);
+    WorldWeaponRoot->SetVisibility(!bUnarmed,true);
     UpdateSwordVisibility();
+    TArray<USceneComponent*> Parts;
+    WorldWeaponRoot->GetChildrenComponents(true,Parts);
+    for(auto* Part:Parts)
+        if(auto* WeaponPart=Cast<UStaticMeshComponent>(Part)) WeaponPart->SetCastShadow(!bUnarmed);
     // Blend out of the current held pose when holstering or drawing the rifle.
     LocomotionBlendFrom=BodyPose.Local; LocomotionBlendTime=0;
 }

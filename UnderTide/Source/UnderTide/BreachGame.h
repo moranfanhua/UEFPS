@@ -46,8 +46,6 @@ public:
     UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> Camera;
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> WeaponRoot;
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> WorldWeaponRoot;
-    UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> AK;
-    UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> WorldAK;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Sword;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> WorldSword;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Scabbard;
@@ -98,12 +96,6 @@ public:
     void Reload();
     void FinishReload();
     void SelectOperator(int32 Index);
-    void SelectWeapon(int32 Index);
-    int32 GetSelectedWeaponIndex() const { return UsesSword()?INDEX_NONE:SelectedWeapons[OperatorIndex]; }
-    bool UsesAK() const { return !UsesSword() && bAKConfigured; }
-    float GetShotSpread() const;
-    int32 GetTotalGunAmmo() const { return Reserve+Ammo+(bAKConfigured?PrototypeAmmo:AKAmmo); }
-    FVector GunMuzzleLocation() const;
     bool UsesSword() const { return OperatorIndex==1; }
     bool HasSwordRig() const { return bSwordRigReady; }
     bool IsSwordAttacking() const { return SwordAttackTime>=0.f; }
@@ -117,12 +109,6 @@ public:
     bool HasFirstPersonRig() const { return bBodyRigReady; }
     float GripError() const;
 private:
-    int32 SelectedWeapons[4]={0,INDEX_NONE,0,0};
-    int32 AKAmmo=25,PrototypeAmmo=30;
-    bool bAKConfigured=false;
-    float ShotBloom=0.f,MuzzleFlashTime=0.f;
-    void ConfigureSelectedGun();
-    void UpdateGunVisibility();
     FBreachPose BodyPose;
     FBreachPose SwordPose;
     FBreachCloth BodyCloth;
@@ -241,7 +227,6 @@ public:
     void RunSmokeTest();
     void RunMovementTest();
     void RunModelReview();
-    void RunWeaponTest();
     void TickSelectionTest();
     TFunction<void()> SelectionTestStep;
     UFUNCTION(Exec) void BreachSmokeTest();
@@ -279,22 +264,16 @@ public:
     virtual void NotifyHitBoxEndCursorOver(FName BoxName) override;
     void ToggleSelection();
     void ChooseOperator(int32 Index);
-    void ChooseWeapon(int32 Index);
-    bool IsWeaponSelectionAvailable() const;
-    int32 GetSelectedWeaponIndex() const;
     bool IsSelectionOpen() const { return bSelectionOpen; }
     ABreachSelectionStage* GetSelectionStage() const { return SelectionStage; }
     FVector2D OperatorCardCenter(int32 Index) const;
-    FVector2D WeaponCardCenter(int32 Index) const;
 private:
     UPROPERTY() TObjectPtr<ABreachSelectionStage> SelectionStage;
     TWeakObjectPtr<AActor> PreviousViewTarget;
     bool bSelectionOpen=false,bWasPaused=false,bWasAutoCamera=true,bWasPauseTick=false,bWasClickEvents=false;
     bool bStartupPending=true,bInitialSelection=false;
     int32 HoveredOperator=INDEX_NONE;
-    int32 HoveredWeapon=INDEX_NONE;
     void DrawSelection();
-    void DrawWeaponSelection();
     void EnsureSelectionStage();
     void DrawPlayerVitals(const ABreachCharacter* Player);
     void MenuText(const FString& Value,float X,float Y,float Size,FLinearColor Color,bool Chinese=false);

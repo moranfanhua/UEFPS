@@ -25,6 +25,8 @@
 
 角色使用各自的 Skeleton、材质和纹理。当前第一人称实现使用上表中的完整 `SK_*` 模型；旧角色保留的 `FPArms` 辅助资源不参与运行。黄泉、阿斯卡纶替换了原索引 1、3 的联动优菈和木偶，旧模型和动画移出 Content，原始压缩包保留。
 
+角色、敌人和随身武器在常态下通过 Custom Stencil 1 接入 `/Game/Materials/PP_UnderTideToon_Normal` 风格化后处理。该 Shader 采用偏现代二次元的写实融合方向：保留原贴图、PBR 光照和粗糙度细节，仅在角色范围内轻量压缩明暗、给暗部加入冷色倾向、收束高光，并用低透明度屏幕空间轮廓帮助角色与环境分离；场景本身不做色阶化。主要参数在材质编辑器中集中调节，HLSL 源码位于 `UnderTide/Shaders/Private/UnderTideToonNormal.ush`，需要重建材质时运行 `UnderTide/Scripts/create_toon_shader.py`。`Normal` 后缀明确表示这是常态着色，后续特殊状态使用独立材质和 Shader 名称。
+
 四张手工头像位于 `/Game/Characters/Portraits/T_<Key>_Portrait`，选人页保留用户修改的竖版卡片，战斗 HUD 使用同一套贴图。更换角色资源不会重新生成或覆盖这些头像。
 
 阿斯卡纶当前网格已删除 `MI_Ascalon_5` 中独立绑定左前臂的多余袖箭，保留该材质下的衣摆及已有模型修订。编辑器辅助入口 `RemoveAscalonSleeveBlade` 按材质、连通区域和现有骨骼映射定位，只修改当前网格，不重新导入原 PMX；默认仅检查，应用前需将当前 `SK_Ascalon.uasset` 备份至 `Saved/`。

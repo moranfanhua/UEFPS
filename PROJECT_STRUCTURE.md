@@ -41,6 +41,8 @@ GPT_UE_TEST/
 │  ├─ UnderTide.uproject       UE 项目文件，EngineAssociation 为 5.7
 │  ├─ Config/                   项目、输入、地图和渲染配置
 │  ├─ Content/                  UE 二进制资源（uasset、umap）
+│  ├─ Shaders/                  项目 HLSL；常态角色风格化后处理位于 Private/UnderTideToonNormal.ush
+│  ├─ Scripts/                  构建、验证和编辑器资源生成脚本
 │  └─ Source/
 │     ├─ UnderTide.Target.cs   游戏目标构建配置
 │     ├─ UnderTideEditor.Target.cs 编辑器目标构建配置
@@ -61,7 +63,7 @@ GPT_UE_TEST/
 | `UnderTide/Source/UnderTide/UnderTide.cpp` | C++ 模块的最小启动文件，使用 `IMPLEMENT_PRIMARY_GAME_MODULE` 注册模块。 |
 | `UnderTide/Source/UnderTide/UnderTide.Build.cs` | 声明模块依赖：`Core`、`CoreUObject`、`Engine`、`InputCore`、`AIModule`、`NavigationSystem`、`SlateCore`；编辑器构建时额外使用网格、动画和 JSON 模块。 |
 | `UnderTide/Source/UnderTide/BreachGame.h` | 主要类的统一头文件，声明玩家控制器、玩家角色、敌人、GameMode 和 HUD。虽然类很多，但实现分别放在不同 `.cpp` 文件中。 |
-| `UnderTide/Source/UnderTide/BreachVisuals.h` | `Breach` 命名空间的资源入口：四个角色的 Key/显示名、角色网格加载、材质加载和激光束绘制。 |
+| `UnderTide/Source/UnderTide/BreachVisuals.h` | `Breach` 命名空间的资源入口：四个角色的 Key/显示名、角色网格与材质加载、角色 Toon Stencil、全局风格化后处理和激光束绘制。 |
 | `UnderTide/Source/UnderTide/CharacterRigData.h` | 四个角色的身体和手指骨骼映射表，由骨骼名称生成工具产生。 |
 | `UnderTide/Source/UnderTide/CharacterBones.h` | PMX 模型中肩膀、手臂、腿和脊柱等关键骨骼的兼容名称表。 |
 
@@ -182,7 +184,7 @@ UnderTide/Content/
 │  ├─ Portraits/             用户修改的四张静态头像贴图
 │  └─ SelectionCat/           李织烟选人预览的猫模型、骨架和材质
 ├─ Maps/Arena.umap           编辑器启动地图和游戏默认地图
-├─ Materials/                角色、枪械、竞技场和霓虹灯材质
+├─ Materials/                角色、枪械、竞技场、霓虹灯及 `PP_UnderTideToon_Normal` 常态后处理材质
 └─ Weapons/                  四枪静态网格、材质和贴图；AK 已实装，其余枪械仅预览
 ```
 

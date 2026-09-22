@@ -1,0 +1,59 @@
+// UnderTide normal-state character stylisation pass.
+// Scene texture indices follow ESceneTextureId: PostProcessInput0=14, CustomStencil=25.
+
+float UnderTideToonNormalStencilMask(FMaterialPixelParameters Parameters,float2 UV)
+{
+    return step(0.001,SceneTextureLookup(Parameters,UV,25,false).r);
+}
+
+float3 UnderTideToonNormal(
+    FMaterialPixelParameters Parameters,
+    float3 SceneColor,
+    float ToonStrength,
+    float OutlineWidth,
+    float OutlineOpacity,
+    float ShadowThreshold,
+    float HighlightThreshold,
+    float3 ShadowTint,
+    float3 LightTint,
+    float3 OutlineColor)
+{
+    const float2 UV=GetDefaultSceneTextureUV(Parameters,25);
+    const float2 PixelSize=GetSceneTextureViewSize(25).zw*max(0.5,OutlineWidth);
+    const float Center=UnderTideToonNormalStencilMask(Parameters,UV);
+
+    float Neighbour=0.0;
+    Neighbour=max(Neighbour,UnderTideToonNormalStencilMask(Parameters,UV+float2( PixelSize.x,0)));
+    Neighbour=max(Neighbour,UnderTideToonNormalStencilMask(Parameters,UV+float2(-PixelSize.x,0)));
+    Neighbour=max(Neighbour,UnderTideToonNormalStencilMask(Parameters,UV+float2(0, PixelSize.y)));
+    Neighbour=max(Neighbour,UnderTideToonNormalStencilMask(Parameters,UV+float2(0,-PixelSize.y)));
+    Neighbour=max(Neighbour,UnderTideToonNormalStencilMask(Parameters,UV+float2( PixelSize.x, PixelSize.y)));
+    Neighbour=max(Neighbour,UnderTideToonNormalStencilMask(Parameters,UV+float2(-PixelSize.x, PixelSize.y)));
+    Neighbour=max(Neighbour,UnderTideToonNormalStencilMask(Parameters,UV+float2( PixelSize.x,-PixelSize.y)));
+    Neighbour=max(Neighbour,UnderTideToonNormalStencilMask(Parameters,UV+float2(-PixelSize.x,-PixelSize.y)));
+
+    // A restrained seven-band response keeps the source PBR lighting and
+    // roughness readable. Only a small portion of the quantised result is used;
+    // this is closer to modern hybrid anime rendering than hard cel shading.
+    const float Luminance=max(0.0001,dot(max(SceneColor,0.0),float3(0.2126,0.7152,0.0722)));
+    const float Quantised=floor(saturate(Luminance)*7.0+0.5)/7.0;
+    const float SoftLuminance=lerp(Luminance,Quantised,0.22);
+    const float ToneRatio=clamp(SoftLuminance/Luminance,0.90,1.08);
+    float3 Stylised=SceneColor*ToneRatio;
+
+    const float ShadowBand=1.0-smoothstep(ShadowThreshold-0.08,ShadowThreshold+0.08,Luminance);
+    const float HighlightBand=smoothstep(HighlightThreshold-0.1,HighlightThreshold+0.1,Luminance);
+    Stylised=lerp(Stylised,Stylised*ShadowTint,ShadowBand*0.30);
+    Stylised=lerp(Stylised,Stylised*LightTint,HighlightBand*0.20);
+
+    // Tight highlight islands mimic the controlled hair/metal accents used by
+    // modern anime rendering without flattening face textures.
+    const float Highlight=max(SceneColor.r,max(SceneColor.g,SceneColor.b));
+    Stylised+=LightTint*smoothstep(HighlightThreshold,1.0,Highlight)*0.018;
+    float3 Result=lerp(SceneColor,Stylised,saturate(ToonStrength)*Center);
+
+    // Draw outside the marked mesh so the original UV seams and masked hair
+    // remain untouched. Custom depth therefore acts as both scope and silhouette.
+    const float Outline=(1.0-Center)*Neighbour*saturate(OutlineOpacity);
+    return lerp(Result,OutlineColor,Outline);
+}

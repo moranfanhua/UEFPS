@@ -215,7 +215,7 @@ void ABreachGameMode::RunMovementTest()
     {
         if(Sword)
         {
-            Check(Results->SwordTarget.IsValid() && Results->SwordTarget->bDefeated && P->SwordDamage>=180.f && P->SwordDamage>P->ShotDamage && P->ShotsHit>0,TEXT("Acheron slash lands at melee range with at least 180 damage"));
+            Check(Results->SwordTarget.IsValid() && Results->SwordTarget->bDefeated && P->SwordDamage>P->ShotDamage*5.f && P->ShotsHit>0,TEXT("Acheron slash lands at melee range with far higher damage than a bullet"));
             if(Results->SwordTarget.IsValid()) Results->SwordTarget->Destroy();
         }
         else

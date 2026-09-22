@@ -58,7 +58,7 @@ void ABreachHUD::DrawHUD()
     }
     DrawPlayerVitals(P);
     Box(W-318,H-150,290,98,Panel); Box(W-31,H-150,3,98,Cyan);
-    Text(P->UsesSword()?TEXT("NODACHI   /   MELEE"):P->bUnarmed?TEXT("FISTS   /   MELEE"):P->UsesAK()?TEXT("AK   /   ASSAULT RIFLE"):TEXT("VX-30   /   PULSE RIFLE"),W-298,H-138,12,Muted);
+    Text(P->UsesSword()?TEXT("NODACHI   /   MELEE"):P->bUnarmed?TEXT("FISTS   /   MELEE"):TEXT("VX-30   /   PULSE RIFLE"),W-298,H-138,12,Muted);
     if(P->UsesSword())
     {
         Text(P->IsSwordAttacking()?TEXT("SLASH"):P->IsSliding()?TEXT("SLIDE"):(P->bIsCrouched?TEXT("CROUCH"):TEXT("BLADE READY")),W-298,H-118,27,White);
@@ -73,7 +73,7 @@ void ABreachHUD::DrawHUD()
     {
         Text(FString::Printf(TEXT("%02d"),P->Ammo),W-299,H-121,45,P->Ammo<=5?Orange:White);
         Text(FString::Printf(TEXT("/ %03d"),P->Reserve),W-225,H-101,20,Muted);
-        Text(P->bReloading?TEXT("RELOADING"):P->Ammo==0?TEXT("R  /  RELOAD"):P->UsesAK()?TEXT("AUTO    /    25 ROUND MAG"):TEXT("AUTO    /    5.56 ENERGY"),W-298,H-74,12,P->bReloading?Orange:Cyan);
+        Text(P->bReloading?TEXT("RELOADING"):P->Ammo==0?TEXT("R  /  RELOAD"):TEXT("AUTO    /    5.56 ENERGY"),W-298,H-74,12,P->bReloading?Orange:Cyan);
     }
     if(P->bReloading)
     {

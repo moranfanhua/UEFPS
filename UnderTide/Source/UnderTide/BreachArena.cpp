@@ -1,6 +1,7 @@
 #include "BreachGame.h"
 #include "BreachVisuals.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/PointLightComponent.h"
@@ -149,6 +150,27 @@ namespace Breach
     UMaterialInterface* Material(const TCHAR* Name)
     {
         return LoadObject<UMaterialInterface>(nullptr,*FString::Printf(TEXT("/Game/Materials/%s.%s"),Name,Name));
+    }
+    void EnableToonStencil(UPrimitiveComponent* Primitive,uint8 StencilValue)
+    {
+        if(!Primitive) return;
+        Primitive->SetRenderCustomDepth(true);
+        Primitive->SetCustomDepthStencilValue(StencilValue);
+        Primitive->SetCustomDepthStencilWriteMask(ERendererStencilMask::ERSM_Default);
+    }
+    void InstallToonPostProcess(UWorld* World)
+    {
+        auto* Toon=Material(TEXT("PP_UnderTideToon_Normal"));
+        if(!World || !Toon) return;
+        for(TActorIterator<APostProcessVolume> It(World);It;++It)
+        {
+            if(!It->bUnbound) continue;
+            It->AddOrUpdateBlendable(Toon,1.f);
+            return;
+        }
+        auto* Volume=World->SpawnActor<APostProcessVolume>();
+        Volume->bUnbound=true;
+        Volume->AddOrUpdateBlendable(Toon,1.f);
     }
     void Beam(UWorld* World,const FVector& From,const FVector& To,const FLinearColor& Color,float Width,float Life)
     {

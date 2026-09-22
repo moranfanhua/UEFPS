@@ -34,6 +34,7 @@ void ABreachGameMode::BeginPlay()
     Super::BeginPlay();
     if(FParse::Param(FCommandLine::Get(),TEXT("BreachModelReview"))) { RunModelReview(); return; }
     BuildArena();
+    Breach::InstallToonPostProcess(GetWorld());
     for(int32 i=0;i<4;++i)
     {
         const FTransform T(FRotator(0,0,0),FVector(-1900,-660+i*440,119));
@@ -132,12 +133,6 @@ void ABreachGameMode::BeginPlay()
     {
         FTimerHandle TestTimer;
         GetWorldTimerManager().SetTimer(TestTimer,this,&ABreachGameMode::RunSmokeTest,3.f,false);
-    }
-    if(FParse::Param(FCommandLine::Get(),TEXT("BreachWeaponTest")))
-    {
-        bGallery=true;
-        FTimerHandle WeaponTimer;
-        GetWorldTimerManager().SetTimer(WeaponTimer,this,&ABreachGameMode::RunWeaponTest,.6f,false);
     }
     if(FParse::Param(FCommandLine::Get(),TEXT("BreachMovementTest")))
     {
@@ -268,10 +263,14 @@ void ABreachGameMode::RunSmokeTest()
     };
     auto* P=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0));
     Check(P!=nullptr,TEXT("FPS player spawned"));
+    Check(Breach::Material(TEXT("PP_UnderTideToon_Normal"))!=nullptr,TEXT("Normal-state toon post-process material loaded"));
     for(int32 i=0;i<4;++i) Check(Breach::CharacterMesh(i)!=nullptr,*FString::Printf(TEXT("Character %s loaded"),Breach::Keys[i]));
     Check(Displays.Num()==4,TEXT("All four gallery characters spawned"));
     if(P)
     {
+        Check(P->Body->bRenderCustomDepth && P->WorldBody->bRenderCustomDepth &&
+            P->Body->CustomDepthStencilValue==1 && P->WorldBody->CustomDepthStencilValue==1,
+            TEXT("First-person and world character meshes feed the toon stencil"));
         Check(P->GetActorLocation().Z>85 && P->GetActorLocation().Z<140,TEXT("Player supported by arena floor"));
         const auto CheckSwordShadows=[&]()
         {
@@ -296,7 +295,7 @@ void ABreachGameMode::RunSmokeTest()
             {
                 const auto* Move=CastChecked<UBreachMovementComponent>(P->GetCharacterMovement());
                 Check(P->bUnarmed && P->HasSwordRig() && P->Sword->IsVisible() && P->WorldSword->IsVisible() && P->Scabbard->IsVisible() && P->WorldScabbard->IsVisible() && !P->WeaponRoot->IsVisible(),TEXT("Acheron uses the supplied sword and scabbard and has no rifle"));
-                Check(P->SwordDamage>=180.f && P->SwordDamage>P->ShotDamage && Move->GetTargetMoveSpeed()==Move->SwordSpeed && Move->SwordSpeed>Move->UnarmedSpeed,TEXT("Acheron has high sword damage and enhanced movement speed"));
+                Check(P->SwordDamage>P->ShotDamage*5.f && Move->GetTargetMoveSpeed()==Move->SwordSpeed && Move->SwordSpeed>Move->UnarmedSpeed,TEXT("Acheron has high sword damage and enhanced movement speed"));
             }
             FBreachPose Rig; Rig.Init(Breach::CharacterMesh(I),I);
             const FName Head=P->WorldBody->GetBoneName(Rig.Bone(EBreachBone::Head));

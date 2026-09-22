@@ -1,7 +1,6 @@
 #include "BreachGame.h"
 #include "BreachSelectionStage.h"
 #include "BreachVisuals.h"
-#include "BreachWeapons.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
@@ -42,7 +41,7 @@ void ABreachHUD::Tick(float DeltaSeconds)
     if(!bStartupPending || !GetOwningPawn() || !GetOwningPawn()->HasActorBegunPlay()) return;
     bStartupPending=false;
     // Existing arena diagnostics run directly in gameplay. Selection tests use the normal opening flow.
-    for(const TCHAR* Flag:{TEXT("BreachTest"),TEXT("BreachWeaponTest"),TEXT("BreachMovementTest"),TEXT("BreachViewTest"),TEXT("BreachGallery"),TEXT("BreachAutoPlay"),TEXT("BreachDeathPreview"),TEXT("BreachCapture"),TEXT("BreachModelReview")})
+    for(const TCHAR* Flag:{TEXT("BreachTest"),TEXT("BreachMovementTest"),TEXT("BreachViewTest"),TEXT("BreachGallery"),TEXT("BreachAutoPlay"),TEXT("BreachDeathPreview"),TEXT("BreachCapture"),TEXT("BreachModelReview")})
         if(FParse::Param(FCommandLine::Get(),Flag)) return;
     int32 InspectIndex=INDEX_NONE;
     if(FParse::Value(FCommandLine::Get(),TEXT("BreachInspect="),InspectIndex)) return;
@@ -68,7 +67,7 @@ void ABreachHUD::ToggleSelection()
         bWasPaused=UGameplayStatics::IsGamePaused(this);
         bWasAutoCamera=PC->bAutoManageActiveCameraTarget;bWasPauseTick=PC->SetSelectionPauseTick(true);bWasClickEvents=PC->bEnableClickEvents;
         PreviousViewTarget=PC->GetViewTarget();
-        bSelectionOpen=true;HoveredOperator=HoveredWeapon=INDEX_NONE;
+        bSelectionOpen=true;HoveredOperator=INDEX_NONE;
         SelectionStage->SetOpen(true);SelectionStage->Select(Player->OperatorIndex);
         PC->SetIgnoreMoveInput(true);PC->SetIgnoreLookInput(true);
         Player->GetCharacterMovement()->StopMovementImmediately();
@@ -80,7 +79,7 @@ void ABreachHUD::ToggleSelection()
     }
     else
     {
-        bSelectionOpen=false;bInitialSelection=false;HoveredOperator=HoveredWeapon=INDEX_NONE;
+        bSelectionOpen=false;bInitialSelection=false;HoveredOperator=INDEX_NONE;
         SelectionStage->SetOpen(false);
         PC->SetViewTarget(PreviousViewTarget.IsValid()?PreviousViewTarget.Get():Player);
         PC->bAutoManageActiveCameraTarget=bWasAutoCamera;PC->SetSelectionPauseTick(bWasPauseTick);
@@ -93,35 +92,13 @@ void ABreachHUD::ChooseOperator(int32 Index)
 {
     if(!bSelectionOpen || !SelectionStage || Index<0 || Index>3) return;
     if(auto* Player=Cast<ABreachCharacter>(GetOwningPawn())) Player->SelectOperator(Index);
-    HoveredWeapon=INDEX_NONE;
     SelectionStage->Select(Index);
-}
-bool ABreachHUD::IsWeaponSelectionAvailable() const
-{
-    return bSelectionOpen && SelectionStage && SelectionStage->SelectedIndex!=1;
-}
-int32 ABreachHUD::GetSelectedWeaponIndex() const
-{
-    const auto* Player=Cast<ABreachCharacter>(GetOwningPawn());
-    return Player?Player->GetSelectedWeaponIndex():INDEX_NONE;
-}
-void ABreachHUD::ChooseWeapon(int32 Index)
-{
-    if(!IsWeaponSelectionAvailable() || Index<0 || Index>=Breach::WeaponCount || !SelectionStage->HasWeaponPreview(Index)) return;
-    if(auto* Player=Cast<ABreachCharacter>(GetOwningPawn())) Player->SelectWeapon(Index);
 }
 FVector2D ABreachHUD::OperatorCardCenter(int32 Index) const
 {
     int32 Width=1600,Height=900;if(auto* PC=GetOwningPlayerController()) PC->GetViewportSize(Width,Height);
     const float Scale=FMath::Max(Height,1)/900.f,VirtualWidth=Width/Scale;
     return FVector2D((VirtualWidth*.5f-349+Index*138+62)*Scale,760*Scale);
-}
-FVector2D ABreachHUD::WeaponCardCenter(int32 Index) const
-{
-    int32 Width=1600,Height=900;if(auto* PC=GetOwningPlayerController()) PC->GetViewportSize(Width,Height);
-    const float Scale=FMath::Max(Height,1)/900.f,VirtualWidth=Width/Scale;
-    const float PanelWidth=FMath::Min(330.f,VirtualWidth*.27f);
-    return FVector2D((VirtualWidth-52-PanelWidth*.5f)*Scale,(230+Index*108+48)*Scale);
 }
 void ABreachHUD::MenuText(const FString& Value,float X,float Y,float Size,FLinearColor Color,bool Chinese)
 {
@@ -138,7 +115,7 @@ void ABreachHUD::DrawSelection()
     if(!SelectionStage) return;
     const float Scale=Canvas->SizeY/900.f,W=Canvas->SizeX/Scale;
     const FLinearColor Cyan(.24f,.86f,1),White(.94f,.97f,1),Muted(.45f,.58f,.65f),Dark(.006f,.014f,.023f,.94f);
-    // Weapon cards occupy the space to the right of the character preview.
+    // Keep the right-hand area available for a later character details panel.
     Gradient(Canvas,0,0,W,160,FLinearColor(.004f,.012f,.025f,.62f),FLinearColor(.004f,.012f,.025f,0));
     Gradient(Canvas,W*.73f,160,W*.27f,530,FLinearColor(.004f,.01f,.019f,0),FLinearColor(.004f,.01f,.019f,.32f),true);
     Box(54,47,3,79,Cyan);
@@ -162,7 +139,6 @@ void ABreachHUD::DrawSelection()
     MenuText(Titles[Selected],60,305,40,White);
     MenuText(ChineseNames[Selected],65,373,22,FLinearColor(.66f,.81f,.88f),true);
     Box(65,420,48,2,Cyan);Box(117,420,162,1,FLinearColor(.22f,.4f,.49f,.45f));
-    DrawWeaponSelection();
     Gradient(Canvas,0,676,W,48,FLinearColor(.004f,.01f,.018f,0),FLinearColor(.004f,.01f,.018f,.95f));
     Box(0,724,W,176,Dark);Box(52,700,W-104,1,FLinearColor(.2f,.45f,.55f,.28f));
     const float Start=W*.5f-349;
@@ -187,48 +163,19 @@ void ABreachHUD::DrawSelection()
     //MenuText(TEXT("点击头像选择角色 · 再次点击重播动作"),54,869,12,Muted,true);
     //MenuText(bInitialSelection?TEXT("ENTER / H / ESC  开始游戏"):TEXT("H / ESC  返回作战"),bInitialSelection?W-284:W-208,869,12,Muted,true);
 }
-void ABreachHUD::DrawWeaponSelection()
-{
-    if(!IsWeaponSelectionAvailable()) return;
-    const float Scale=Canvas->SizeY/900.f,W=Canvas->SizeX/Scale;
-    const float Width=FMath::Min(330.f,W*.27f),X=W-52-Width;
-    const FLinearColor Cyan(.24f,.86f,1),White(.94f,.97f,1),Muted(.45f,.58f,.65f);
-    MenuText(TEXT("武器选择"),X,159,23,White,true);
-    MenuText(TEXT("WEAPON ARCHIVE  /  04"),X,198,10,Muted);
-    for(int32 I=0;I<Breach::WeaponCount;++I)
-    {
-        const float Y=230+I*108;
-        const bool Ready=SelectionStage->HasWeaponPreview(I);
-        const bool Active=Ready && I==GetSelectedWeaponIndex(),Hover=Ready && I==HoveredWeapon;
-        const FLinearColor Border=Active?Cyan:Hover?FLinearColor(.7f,.88f,1):FLinearColor(.13f,.23f,.29f);
-        Box(X-1,Y-1,Width+2,98,Border);Box(X,Y,Width,96,FLinearColor(.006f,.014f,.023f,.94f));
-        if(Ready)
-            if(auto* Texture=SelectionStage->WeaponPortrait(I))
-                DrawTexture(Texture,(X+Width*.26f)*Scale,(Y+21)*Scale,(Width*.72f)*Scale,72*Scale,0,0,1,1,FLinearColor::White,BLEND_Opaque);
-        Box(X,Y,3,96,Border);
-        MenuText(Breach::WeaponNames[I],X+13,Y+12,21,Active?Cyan:White);
-        MenuText(Ready?Breach::WeaponTypes[I]:TEXT("资源缺失"),X+13,Y+46,10,Muted,true);
-        if(Ready) MenuText(I==0?TEXT("25 发 / 38 伤害"):TEXT("仅预览"),X+13,Y+74,9,Muted,true);
-        if(Active) MenuText(TEXT("已选择"),X+Width-57,Y+10,10,Cyan,true);
-        if(Ready) AddHitBox(FVector2D(X*Scale,Y*Scale),FVector2D(Width*Scale,96*Scale),FName(*FString::Printf(TEXT("Weapon_%d"),I)),true,6);
-    }
-}
 void ABreachHUD::NotifyHitBoxClick(FName BoxName)
 {
     Super::NotifyHitBoxClick(BoxName);if(!bSelectionOpen) return;
     if(BoxName==TEXT("SelectionClose")) { ToggleSelection(); return; }
     const FString Name=BoxName.ToString();if(Name.StartsWith(TEXT("Operator_"))) ChooseOperator(FCString::Atoi(*Name.RightChop(9)));
-    if(Name.StartsWith(TEXT("Weapon_"))) ChooseWeapon(FCString::Atoi(*Name.RightChop(7)));
 }
 void ABreachHUD::NotifyHitBoxBeginCursorOver(FName BoxName)
 {
     Super::NotifyHitBoxBeginCursorOver(BoxName);
     const FString Name=BoxName.ToString();if(Name.StartsWith(TEXT("Operator_"))) HoveredOperator=FCString::Atoi(*Name.RightChop(9));
-    if(IsWeaponSelectionAvailable() && Name.StartsWith(TEXT("Weapon_"))) HoveredWeapon=FCString::Atoi(*Name.RightChop(7));
 }
 void ABreachHUD::NotifyHitBoxEndCursorOver(FName BoxName)
 {
     Super::NotifyHitBoxEndCursorOver(BoxName);
     const FString Name=BoxName.ToString();if(Name.StartsWith(TEXT("Operator_")) && HoveredOperator==FCString::Atoi(*Name.RightChop(9))) HoveredOperator=INDEX_NONE;
-    if(Name.StartsWith(TEXT("Weapon_")) && HoveredWeapon==FCString::Atoi(*Name.RightChop(7))) HoveredWeapon=INDEX_NONE;
 }
