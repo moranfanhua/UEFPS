@@ -224,4 +224,3 @@ void ABreachEnemy::UpdateDeathPose(float Dt)
     for(FTransform& Transform:Pose.CS) Transform.AddToTranslation(FVector(0,0,Lift));
     Cloth.Update(Pose,Visual->GetComponentTransform(),Dt,GetWorld(),this);Pose.Apply(Visual);
 }
-

@@ -1,4 +1,4 @@
-# AGENTS.md — Neon Breach
+# AGENTS.md — UnderTide
 
 ## 作用范围与工作原则
 
@@ -14,17 +14,17 @@
 ## 项目与环境
 
 - 项目：Unreal Engine 5.7 的 C++ FPS 竞技场原型；当前主要运行与验证平台为 Windows / Win64。
-- 工程：`NeonBreach/NeonBreach.uproject`；运行地图：`/Game/Maps/Arena`。
-- C++ 模块：`NeonBreach/Source/NeonBreach/`；配置：`NeonBreach/Config/`；导入资源：`NeonBreach/Content/`。
+- 工程：`UnderTide/UnderTide.uproject`；运行地图：`/Game/Maps/Arena`。
+- C++ 模块：`UnderTide/Source/UnderTide/`；配置：`UnderTide/Config/`；导入资源：`UnderTide/Content/`。
 - 本机默认引擎目录：`D:\UE\UE_5.7`。这是可替换的本地默认值，不要把本机用户目录写成项目必需条件。
-- C++ 构建需要兼容 UE 5.7 的 MSVC 工具链和 Windows SDK。模块依赖以 `NeonBreach.Build.cs` 为准，插件以 `.uproject` 为准。
+- C++ 构建需要兼容 UE 5.7 的 MSVC 工具链和 Windows SDK。模块依赖以 `UnderTide.Build.cs` 为准，插件以 `.uproject` 为准。
 - `Content/` 使用 Git LFS。新克隆若只含 LFS 指针，应先获取对应的大文件资源；指针文本不能作为有效 `.uasset` 使用，不要靠重新生成全部资源掩盖缺失。
 - 优先阅读 `README.md` 的资源、授权和操作说明；若存在 `PROJECT_STRUCTURE.md`，用它了解模块职责。文档与代码不一致时，核对源码并说明差异。
 - `Tools/`、`Scripts/*.py`、`Scripts/*.ps1`、部分源模型和转换中间文件被 `.gitignore` 忽略，可能只在本机存在。先检查文件是否存在，不要假设另一份克隆具备所有辅助工具。
 
 ## 代码导航
 
-下表文件名相对于 `NeonBreach/Source/NeonBreach/`。
+下表文件名相对于 `UnderTide/Source/UnderTide/`。
 
 | 文件 | 职责 |
 | --- | --- |
@@ -50,21 +50,21 @@
 以下命令均在仓库根目录的 PowerShell 中执行。每一步检查退出码与日志，构建成功后再运行相关验证。
 
 ```powershell
-# 默认构建编辑器目标 NeonBreachEditor Win64 Development
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\NeonBreach\Scripts\Build.ps1
+# 默认构建编辑器目标 UnderTideEditor Win64 Development
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\UnderTide\Scripts\Build.ps1
 
 # 引擎位于其他目录时，传入实际路径
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\NeonBreach\Scripts\Build.ps1 -EngineRoot 'E:\Unreal\UE_5.7'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\UnderTide\Scripts\Build.ps1 -EngineRoot 'E:\Unreal\UE_5.7'
 ```
 
-`Build.ps1 -GameTarget` 构建 `NeonBreach Win64 Development`；它和默认编辑器构建都不等于 Cook 或打包发布。自动化优先使用脚本，不使用失败后可能等待按键的快捷批处理。
+`Build.ps1 -GameTarget` 构建 `UnderTide Win64 Development`；它和默认编辑器构建都不等于 Cook 或打包发布。自动化优先使用脚本，不使用失败后可能等待按键的快捷批处理。
 
 辅助脚本缺失时，可直接调用引擎构建工具。以下两段在同一个 PowerShell 会话执行；按本机情况修改 `$breachEngineRoot`：
 
 ```powershell
 $breachEngineRoot = 'D:\UE\UE_5.7'
-$breachProjectFile = (Resolve-Path '.\NeonBreach\NeonBreach.uproject').Path
-& "$breachEngineRoot\Engine\Build\BatchFiles\Build.bat" NeonBreachEditor Win64 Development "-Project=$breachProjectFile" -WaitMutex -NoHotReloadFromIDE
+$breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
+& "$breachEngineRoot\Engine\Build\BatchFiles\Build.bat" UnderTideEditor Win64 Development "-Project=$breachProjectFile" -WaitMutex -NoHotReloadFromIDE
 ```
 
 ```powershell
@@ -80,21 +80,21 @@ $breachProjectFile = (Resolve-Path '.\NeonBreach\NeonBreach.uproject').Path
 
 ```powershell
 # 基础资源、死亡动作、VMD 表情及衣物约束；使用 null RHI
-& .\NeonBreach\Scripts\Verify.ps1
+& .\UnderTide\Scripts\Verify.ps1
 
 # 启动选人、切换、入场、定格、返回游戏及表情对照截图
-& .\NeonBreach\Scripts\VerifySelection.ps1
+& .\UnderTide\Scripts\VerifySelection.ps1
 
 # 四个角色的移动逻辑；默认无渲染
-& .\NeonBreach\Scripts\VerifyMovement.ps1 -Operators @(0,1,2,3)
+& .\UnderTide\Scripts\VerifyMovement.ps1 -Operators @(0,1,2,3)
 
 # 世界视角和第一人称低头画面
-& .\NeonBreach\Scripts\VerifyMovement.ps1 -Operators @(0,1,2,3) -Render
-& .\NeonBreach\Scripts\VerifyMovement.ps1 -Operators @(0,1,2,3) -Render -FirstPerson -LookPitch -80
+& .\UnderTide\Scripts\VerifyMovement.ps1 -Operators @(0,1,2,3) -Render
+& .\UnderTide\Scripts\VerifyMovement.ps1 -Operators @(0,1,2,3) -Render -FirstPerson -LookPitch -80
 
 # 有模型修改时，检查模型与头部
-& .\NeonBreach\Scripts\VerifyModelReview.ps1
-& .\NeonBreach\Scripts\VerifyModelReview.ps1 -Head
+& .\UnderTide\Scripts\VerifyModelReview.ps1
+& .\UnderTide\Scripts\VerifyModelReview.ps1 -Head
 ```
 
 `VerifyModelReview.ps1` 默认检查阿斯卡纶；其他模型先检查该脚本的 `-Mesh` 参数及对应审查代码，不要把默认检查误当成四角色验证。
@@ -109,7 +109,7 @@ $breachProjectFile = (Resolve-Path '.\NeonBreach\NeonBreach.uproject').Path
 | 选人、入场、表情或 HUD | 增加选人/画面验证，核对暂停状态、定格和输入恢复。 |
 | 文档 | 核对路径、命令、当前行为和 Markdown，无需编译。 |
 
-- 输出在 `NeonBreach/Saved/`，日志在 `NeonBreach/Saved/Logs/`。确认报告和截图的修改时间属于本次运行。
+- 输出在 `UnderTide/Saved/`，日志在 `UnderTide/Saved/Logs/`。确认报告和截图的修改时间属于本次运行。
 - 检查进程退出码、报告中的 `FAILURES=0` 和日志错误；不能只看到旧报告或一条成功日志就宣布通过。
 - `-nullrhi` 无法证明渲染正确。修改画面后必须查看实际截图，特别是表情 GPU 权重、隐藏头部、手部 IK、衣物穿插和脚部朝向。
 - 图形环境不可用或验证脚本缺失时，明确报告限制。不要声称已经完成目视检查。
@@ -137,6 +137,7 @@ $breachProjectFile = (Resolve-Path '.\NeonBreach\NeonBreach.uproject').Path
 - 四名角色共用 110° 常规第一人称视野和 76° 瞄准视野；普通角色连续挥拳时左右拳逐拳交替，当前拳从画面下方推进到准心对应一侧，另一只手留在下方防守，保证主视角可见完整拳路；拳击时四指按实际骨长收向掌心、拇指横压拳面，不能保留张手或爪状手型；起跳、滞空和落地时第一人称双手固定在镜头下缘，并停止复制世界模型的动态布料偏转，主动攻击优先于该固定姿势；黄泉跑动时锁定持刀右手的位置并把握点收在第一人称画面下缘，避免手掌孤立露出，未攻击时本地带鞘刀不叠加步伐摆动；主视角只允许正确映射到右手的世界刀实例投射隐藏刀影，刀鞘复合网格不得重复投射隐藏刀片，世界模型保留完整跳跃、布料和攻击动作。
 - `EBreachLocomotion` 枚举顺序必须与 `LoadLocomotionAnimations()` 的资源数组一致。根位移、动画采样和移动组件的位移职责不能重复。
 - 选人入场当前统一 3.5 秒，以上半身为画面主体，结束后保持最后姿态、表情和衣物状态，不恢复普通站姿。
+- 选人页普通角色右侧可预览并选择 AK、M4、MP5、AA12，按角色保存本局选择；黄泉不显示面板且拒绝武器选择。AK 已实装并作为默认枪械：25 发弹匣、38 点身体伤害，较大的散射和可累积枪身后坐。其余三枪仍标注“仅预览”，实战暂用旧原型步枪。参数和资源入口在 `BreachWeapons.h`，枪械状态、弹匣缓存及显隐集中于 `BreachGun.cpp`；切枪不补弹，不重播角色入场，换弹中途切枪须取消旧计时器。第一人称和世界 AK 使用同一偏移，隐藏的旧零件与 AK 同时关闭普通及隐藏投影。
 - 表情权重必须按网格完整 Morph Target 数组长度和索引传给渲染器；切换动作清除旧权重，不能仅提交非零权重的紧凑数组。
 - 当前 VMD 表情资源接入优菈；`BreachExpressions.cpp` 的入场资源路径仍针对 Eula。扩展到其他角色时需修改导入映射，不能假设该入口已经通用化。
 - 布料是 `FBreachCloth` 的骨骼链模拟，不是完整 MMD/Bullet 或 Chaos 网格布料，没有布料自碰撞。玩家只计算世界模型衣物物理，再复用局部旋转到拥有者身体；瞬移、换角色和长帧须安全重置。

@@ -308,4 +308,3 @@ void ABreachGameMode::BuildArena()
     PP->Settings.bOverride_VignetteIntensity=true; PP->Settings.VignetteIntensity=.22f;
     OrganizeArenaOutliner(this);
 }
-

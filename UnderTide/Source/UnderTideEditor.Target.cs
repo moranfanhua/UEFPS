@@ -1,12 +1,12 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
-public class NeonBreachEditorTarget : TargetRules
+public class UnderTideEditorTarget : TargetRules
 {
-    public NeonBreachEditorTarget(TargetInfo Target) : base(Target)
+    public UnderTideEditorTarget(TargetInfo Target) : base(Target)
     {
         Type = TargetType.Editor;
         DefaultBuildSettings = BuildSettingsVersion.V6;
         IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
-        ExtraModuleNames.Add("NeonBreach");
+        ExtraModuleNames.Add("UnderTide");
     }
 }

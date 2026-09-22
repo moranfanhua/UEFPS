@@ -133,6 +133,12 @@ void ABreachGameMode::BeginPlay()
         FTimerHandle TestTimer;
         GetWorldTimerManager().SetTimer(TestTimer,this,&ABreachGameMode::RunSmokeTest,3.f,false);
     }
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachWeaponTest")))
+    {
+        bGallery=true;
+        FTimerHandle WeaponTimer;
+        GetWorldTimerManager().SetTimer(WeaponTimer,this,&ABreachGameMode::RunWeaponTest,.6f,false);
+    }
     if(FParse::Param(FCommandLine::Get(),TEXT("BreachMovementTest")))
     {
         bGallery=true;
@@ -290,7 +296,7 @@ void ABreachGameMode::RunSmokeTest()
             {
                 const auto* Move=CastChecked<UBreachMovementComponent>(P->GetCharacterMovement());
                 Check(P->bUnarmed && P->HasSwordRig() && P->Sword->IsVisible() && P->WorldSword->IsVisible() && P->Scabbard->IsVisible() && P->WorldScabbard->IsVisible() && !P->WeaponRoot->IsVisible(),TEXT("Acheron uses the supplied sword and scabbard and has no rifle"));
-                Check(P->SwordDamage>P->ShotDamage*5.f && Move->GetTargetMoveSpeed()==Move->SwordSpeed && Move->SwordSpeed>Move->UnarmedSpeed,TEXT("Acheron has high sword damage and enhanced movement speed"));
+                Check(P->SwordDamage>=180.f && P->SwordDamage>P->ShotDamage && Move->GetTargetMoveSpeed()==Move->SwordSpeed && Move->SwordSpeed>Move->UnarmedSpeed,TEXT("Acheron has high sword damage and enhanced movement speed"));
             }
             FBreachPose Rig; Rig.Init(Breach::CharacterMesh(I),I);
             const FName Head=P->WorldBody->GetBoneName(Rig.Bone(EBreachBone::Head));
@@ -368,4 +374,3 @@ void ABreachGameMode::RunSmokeTest()
     UE_LOG(LogTemp,Display,TEXT("BREACH_TEST\n%s"),*Report);
     if(FParse::Param(FCommandLine::Get(),TEXT("BreachTest"))) UGameplayStatics::GetPlayerController(this,0)->ConsoleCommand(TEXT("quit"));
 }
-

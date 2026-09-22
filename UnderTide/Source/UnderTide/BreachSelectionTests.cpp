@@ -1,6 +1,7 @@
 #include "BreachGame.h"
 #include "BreachSelectionStage.h"
 #include "BreachVisuals.h"
+#include "BreachWeapons.h"
 #include "Camera/CameraComponent.h"
 #include "Animation/AnimSequence.h"
 #include "Components/PoseableMeshComponent.h"
@@ -77,7 +78,7 @@ void ABreachGameMode::TickSelectionTest()
             }
         }
     };
-    Add(2,[=]() { Run->Ammo=Player()->Ammo;Run->Health=Player()->Health; });
+    Add(2,[=]() { Run->Ammo=Player()->GetTotalGunAmmo();Run->Health=Player()->Health; });
     Add(1,[=,this]()
     {
         Check(HUD()->IsSelectionOpen(),TEXT("Game starts in character selection without any key press"));
@@ -101,6 +102,9 @@ void ABreachGameMode::TickSelectionTest()
                     FString::Printf(TEXT("Cat appears only for Lizhiyan, selected operator %d"),I));
                 Check(Stage->Sword && Stage->Scabbard && Stage->Sword->IsVisible()==(I==1) && Stage->Scabbard->IsVisible()==(I==1) && Stage->HasSwordEntrance()==(I==1),
                     FString::Printf(TEXT("Supplied blade and sheath appear only for Acheron, selected operator %d"),I));
+                Check(HUD()->IsWeaponSelectionAvailable()==(I!=1),FString::Printf(TEXT("Gun selection is available only for ordinary operators (%d)"),I));
+                for(int32 Weapon=0;Weapon<Breach::WeaponCount;++Weapon)
+                    Check(Stage->HasWeaponPreview(Weapon) && Stage->WeaponPortrait(Weapon),FString::Printf(TEXT("Gun %d has a mesh and preview target"),Weapon));
                 FBreachPose Rig;Rig.Init(Breach::CharacterMesh(I),I);
                 Check(Stage->Preview->GetBoneTransformByName(Stage->Preview->GetBoneName(Rig.Bone(EBreachBone::Head)),EBoneSpaces::ComponentSpace).GetScale3D().GetMin()>.5f,TEXT("Preview retains the full head"));
             }
@@ -174,10 +178,45 @@ void ABreachGameMode::TickSelectionTest()
             Add(.25f,[=]() { FScreenshotRequest::RequestScreenshot(FPaths::ProjectDir()/FString::Printf(TEXT("Saved/Expression_%d.png"),Expression),true,false); });
         }
     }
+    // Click every gun card through the real mouse path, including on Acheron's empty panel.
+    for(int32 Operator=0;Operator<4;++Operator)
+    {
+        Add(.2f,[=]() { HUD()->ChooseOperator(Operator); });
+        for(int32 Weapon=0;Weapon<Breach::WeaponCount;++Weapon)
+        {
+            Add(.2f,[=]() { const auto Center=HUD()->WeaponCardCenter(Weapon);PC()->SetMouseLocation(Center.X,Center.Y); });
+            Add(.15f,[=]() { Key(EKeys::LeftMouseButton,IE_Pressed); });
+            Add(.15f,[=]() { Key(EKeys::LeftMouseButton,IE_Released); });
+            Add(.15f,[=]()
+            {
+                Check(HUD()->GetSelectedWeaponIndex()==(Operator==1?INDEX_NONE:Weapon),
+                    FString::Printf(TEXT("Gun card %d selects only for a supported operator (%d)"),Weapon,Operator));
+                Check(Player()->UsesAK()==(Operator!=1 && Weapon==0),TEXT("Only the AK card equips an adapted gun; Acheron keeps its sword"));
+                Check((HUD()->GetHitBoxWithName(FName(*FString::Printf(TEXT("Weapon_%d"),Weapon)))!=nullptr)==(Operator!=1),
+                    TEXT("Acheron has no invisible gun hitboxes"));
+                Check(HUD()->IsSelectionOpen() && PC()->GetViewTarget()==HUD()->GetSelectionStage(),TEXT("Gun clicks preserve selection camera and menu"));
+            });
+        }
+        Add(.2f,[=]()
+        {
+            HUD()->ChooseWeapon(Operator); // Different final preference for each supported character.
+            HUD()->ChooseWeapon(-1);HUD()->ChooseWeapon(Breach::WeaponCount);
+            Check(HUD()->GetSelectedWeaponIndex()==(Operator==1?INDEX_NONE:Operator),TEXT("Invalid gun indices do not change the preference"));
+        });
+        Add(.3f,[=]() { FScreenshotRequest::RequestScreenshot(FPaths::ProjectDir()/FString::Printf(TEXT("Saved/Selection_%d_Weapons.png"),Operator),true,false); });
+    }
+    Add(.3f,[=]()
+    {
+        for(int32 Operator=0;Operator<4;++Operator)
+        {
+            HUD()->ChooseOperator(Operator);
+            Check(HUD()->GetSelectedWeaponIndex()==(Operator==1?INDEX_NONE:Operator),FString::Printf(TEXT("Operator %d remembers its own gun after switching through Acheron"),Operator));
+        }
+    });
     Add(.3f,[=,this]()
     {
         Check(FMath::IsNearlyEqual(GetWorld()->GetTimeSeconds(),Run->WorldTime),TEXT("World time remains paused while the menu animates"));
-        Check(Player()->Health==Run->Health && Player()->Ammo==Run->Ammo,TEXT("Selection and clicks preserve health and ammo"));
+        Check(Player()->Health==Run->Health && Player()->GetTotalGunAmmo()==Run->Ammo,TEXT("Selection and clicks preserve health and total gun ammo"));
         Key(EKeys::Enter,IE_Pressed);
     });
     Add(.2f,[=]() { Key(EKeys::Enter,IE_Released); });
@@ -185,6 +224,9 @@ void ABreachGameMode::TickSelectionTest()
     {
         Check(!HUD()->IsSelectionOpen() && !UGameplayStatics::IsGamePaused(this),TEXT("Enter starts gameplay from the opening selection"));
         Check(Player()->OperatorIndex==3,TEXT("Starting gameplay keeps the chosen character"));
+        Check(HUD()->GetSelectedWeaponIndex()==3,TEXT("Closing selection retains the chosen gun preference"));
+        HUD()->ChooseWeapon(0);
+        Check(HUD()->GetSelectedWeaponIndex()==3,TEXT("Gun selection is ignored outside the menu"));
         Check(PC()->GetViewTarget()==Player() && !PC()->bShowMouseCursor && !PC()->IsMoveInputIgnored() && !PC()->IsLookInputIgnored(),TEXT("FPS camera and controls restored"));
         Check(!HUD()->GetSelectionStage()->Sword->IsVisible() && !HUD()->GetSelectionStage()->Scabbard->IsVisible(),TEXT("Selection weapons stay hidden during gameplay"));
         Key(EKeys::LeftMouseButton,IE_Pressed);
@@ -203,6 +245,7 @@ void ABreachGameMode::TickSelectionTest()
     Add(.3f,[=]()
     {
         Check(HUD()->IsSelectionOpen(),TEXT("H reopens selection during gameplay"));
+        Check(HUD()->GetSelectedWeaponIndex()==0,TEXT("Reopening restores Eula's own gun preference"));
         const auto* Stage=HUD()->GetSelectionStage();
         Check(Stage && !Stage->IsHoldingEntrance() && Stage->AnimationTime<1.f,TEXT("Reopening selection restarts the entrance from the held pose"));
         HUD()->ChooseOperator(2);
@@ -220,7 +263,7 @@ void ABreachGameMode::TickSelectionTest()
         const auto* Stage=HUD()->GetSelectionStage();
         Check(Stage && !Stage->Cat->IsVisible(),TEXT("Closing Lizhiyan selection hides the cat in gameplay"));
     });
-    Add(.3f,[=]() { Check(Player()->Ammo<Run->Ammo,TEXT("Rifle fires after returning from selection"));Key(EKeys::Escape,IE_Pressed); });
+    Add(.3f,[=]() { Check(Player()->GetTotalGunAmmo()<Run->Ammo,TEXT("Rifle fires after returning from selection"));Key(EKeys::Escape,IE_Pressed); });
     Add(.2f,[=]() { Key(EKeys::Escape,IE_Released);Key(EKeys::H,IE_Pressed); });
     Add(.2f,[=]() { Key(EKeys::H,IE_Released); });
     Add(.4f,[=]() { Check(HUD()->IsSelectionOpen(),TEXT("H also opens selection from paused game"));Key(EKeys::Escape,IE_Pressed); });

@@ -4,7 +4,7 @@
 #include "BreachMovementComponent.generated.h"
 
 UCLASS()
-class NEONBREACH_API UBreachMovementComponent : public UCharacterMovementComponent
+class UNDERTIDE_API UBreachMovementComponent : public UCharacterMovementComponent
 {
     GENERATED_BODY()
 public:

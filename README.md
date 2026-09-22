@@ -1,4 +1,4 @@
-# Neon Breach
+# UnderTide
 
 正在试图学习UE，明年能找到实习吗...
 
@@ -28,6 +28,31 @@
 四张手工头像位于 `/Game/Characters/Portraits/T_<Key>_Portrait`，选人页保留用户修改的竖版卡片，战斗 HUD 使用同一套贴图。更换角色资源不会重新生成或覆盖这些头像。
 
 阿斯卡纶当前网格已删除 `MI_Ascalon_5` 中独立绑定左前臂的多余袖箭，保留该材质下的衣摆及已有模型修订。编辑器辅助入口 `RemoveAscalonSleeveBlade` 按材质、连通区域和现有骨骼映射定位，只修改当前网格，不重新导入原 PMX；默认仅检查，应用前需将当前 `SK_Ascalon.uasset` 备份至 `Saved/`。
+
+### 枪械模型与选人页武器选择
+
+`model/gun/` 中用户提供的四个压缩包已分别导入为静态网格，各目录包含独立材质和贴图。选人页右侧提供 AK、M4、MP5、AA12 的模型预览卡片，点击后显示“已选择”，分别记住优菈、李织烟、阿斯卡纶在本局中的选择；切换角色或关闭后重开选人页不会丢失选择。黄泉不显示武器面板，也没有对应点击区域，仍固定持刀。重开整局会重置为默认 AK。
+
+AK 已接入实战：三名普通角色默认装备 AK，选人页选中 AK 后使用导入模型、对应枪口、双手握持和战斗参数。M4、MP5、AA12 卡片标注“仅预览”，选中它们暂时使用旧 VX-30 原型步枪，不冒充已完成枪械适配。黄泉保持固定持刀。预览使用独立场景中的模型捕获，不覆盖手工角色头像，也不重播或改变角色入场动作。`/Game/Weapons` 已加入始终烘焙目录。
+
+AK 的弹匣容量为 **25 发**，单发身体伤害 **38**（原型为 34），爆头 76；射击间隔仍为 0.105 秒，换弹仍为 1.55 秒。静止时腰射散射半角约 1.03°、瞄准约 0.29°，分别为原型的 4.5 和 5 倍；连射额外散射最高约 0.80°，瞄准仅叠加该扩散的 45%，停止射击后逐渐恢复。AK 的视角垂直后坐输入是原型的 3.8 倍（瞄准 2.8 倍），另有小幅随机水平后坐；枪身后坐可累积且恢复更慢。
+
+AK 与原型步枪分别记住弹匣剩余弹数，共享备用弹药；切换武器、角色、黄泉往返或收枪不会补弹。换弹中途切换枪械会取消未完成的换弹。按 `3` 收枪、`1` 重新持枪仍有效；隐藏的 AK 和原型零件同时关闭普通及隐藏投影，避免重复枪影。当前换弹沿用程序化压枪、左手动作与计时，静态网格没有独立弹匣拆装动画；武器状态尚未完成联机同步。
+
+本地专项验证可运行 `UnderTide/Scripts/VerifyWeapon.ps1 -Render`，或通过 `-BreachWeaponTest -BreachWeaponCapture` 启动游戏；报告为 `Saved/weapon_test.txt`，截图为 `Saved/AK_Hip.png`、`AK_Aim.png`、`AK_Recoil.png`、`AK_Reload.png`。实现与参数分别位于 `BreachGun.cpp`、`BreachWeapons.h`，射击沿用 `BreachCharacter.cpp`。
+
+| 枪型 | UE Static Mesh | 原始压缩包 | 当前材质 |
+| --- | --- | --- | --- |
+| AK（源模型名 AKM） | `/Game/Weapons/AK/SM_AK` | `T_Weap_AKM_201_by_优姬在睡觉_*.zip` | 原包两张主体贴图 |
+| M4（M4A1，靛蓝逐罪） | `/Game/Weapons/M4/SM_M4` | `S201靛蓝逐罪_by_桃乐丝啊_*.zip` | 原皮配色、法线及 RMO 贴图 |
+| MP5（圆舞曲） | `/Game/Weapons/MP5/SM_MP5` | `圆舞曲_by_慕Qes_*.zip` | Blender 内嵌贴图及材质通道 |
+| AA12（鸣火） | `/Game/Weapons/AA12/SM_AA12` | `S000 AA12-鸣火_by_优姬在睡觉_*.zip` | 枪身、弹匣及附属件原包贴图 |
+
+M4 原包的 OBJ 引用了未提供的 MTL，导入时按材质槽匹配原皮贴图并重建基础材质，未还原原游戏的晶体、变色等特殊着色效果；粉皮贴图和 PSK 附件保留在原始包中。AK、AA12 的 PMX 骨架及蒙皮也保留在原始包中，静态网格不包含可驱动的骨骼或动画。MP5、M4 保留源文件尺寸，AK、AA12 按每 PMX 单位 8 cm 转换；AK 实战使用武器根节点的 0.8 倍缩放与独立握持偏移，其余枪械尚未适配握持。
+
+来源与使用条件：四个包均由用户提供；AK、AA12 包内注明模型来自《卡拉彼丘》、版权属于 Day1 工作室、配布者为“优姬在睡觉”，并限制商业使用、二次配布以及原说明列出的其他用途。M4、MP5 的包名分别标注“桃乐丝啊”和“慕Qes”，包内未找到明确的再分发许可。上述模型均不属于 Quaternius 的 CC0 动作授权范围，原始包和使用说明保留。
+
+本地转换、导入和独立双侧预览脚本分别为 `Tools/prepare_guns.py`、`UnderTide/Scripts/import_guns.py`、`UnderTide/Scripts/review_guns.py`，沿用本地工具忽略规则。中间文件位于 `SourceAssets/Converted/Guns/`，检查报告与截图位于 `UnderTide/Saved/GunImport/`；运行游戏不依赖这些工具或源文件。
 
 ### 动画来源
 
@@ -90,7 +115,7 @@
 | 李织烟 | 以 `Female_Idle` 为基础，播放专属抱猫、低头轻靠动作 | 人物与猫一起保持抱持姿势 |
 | 阿斯卡纶 | 用户提供的 Mixamo `Catwalk Sequence 03`，截取 3.5–7 秒的走近、转身和展示 | 保持扶腰姿势，不播放离场段 |
 
-四个入场展示统一为 **3.5 秒**，平滑结束后定格，不再切回站立待机；再次点击角色卡片或重新打开选人页会重播。镜头以腰部以上为主，随动作调整构图，为头饰、抬手动作和下方角色卡片留出空间，右侧继续空置。选人动作不改动战斗中的模型、跳跃动作或头像采样。
+四个入场展示统一为 **3.5 秒**，平滑结束后定格，不再切回站立待机；再次点击角色卡片或重新打开选人页会重播。镜头以腰部以上为主，随动作调整构图，为头饰、抬手动作和下方角色卡片留出空间；普通角色右侧显示武器选择，黄泉右侧保持空置。选人动作不改动战斗中的模型、跳跃动作或头像采样。
 
 新入场资源与来源：
 
@@ -99,7 +124,7 @@
 - 阿斯卡纶：用户提供 `pose/Catwalk Sequence 03.fbx`，[Mixamo](https://www.mixamo.com/) 动作，遵循 Adobe Mixamo 条款，不是 CC0；资源为 `/Game/Animations/Entrance/Ascalon/A_Ascalon_Catwalk_Sequence_03`。
 - 黄泉人物和配刀来自用户提供的模型压缩包，原文件注明 miHoYo 版权、流云景编辑，并限制商业使用及二次配布；阿斯卡纶沿用用户提供素材的原作者条件。此项不改变 Quaternius 动作包的独立 CC0 授权。
 
-本地处理入口为 `Tools/inspect_roster_refresh.py`、`prepare_roster_refresh.py`、`prepare_eula_entrance.py` 和 `NeonBreach/Scripts/import_roster_refresh.py`。只导入新角色及新入场，保留现有优菈、李织烟材质和手工头像。
+本地处理入口为 `Tools/inspect_roster_refresh.py`、`prepare_roster_refresh.py`、`prepare_eula_entrance.py` 和 `UnderTide/Scripts/import_roster_refresh.py`。只导入新角色及新入场，保留现有优菈、李织烟材质和手工头像。
 
 李织烟抱猫展示参考用户提供视频的前四秒：<https://www.bilibili.com/video/BV1VtNH6wEXL/>。视频只作为动作参考，没有从中提取模型或骨骼动画。`BreachSelectionCat.cpp` 编排抬抱、低头轻靠和收稳三个阶段，猫朝向角色，前爪靠近肩膀；双手 IK 始终跟随猫的两个支撑点。猫的头、四肢、耳朵和尾巴使用自己的骨架，3.5 秒结束后与人物一起定格。猫仅在李织烟的选人预览中显示，切换角色或关闭页面时隐藏，不是战斗宠物或联机复制实体。
 
@@ -107,7 +132,7 @@
 
 - 猫网格：`/Game/Characters/SelectionCat/SK_SelectionCat`，骨架：`/Game/Characters/SelectionCat/SK_SelectionCat_Skeleton`。
 - 材质：`/Game/Characters/SelectionCat/M_CatFur`、`M_CatEye`、`M_CatPink`、`M_CatCollar`。
-- 本地重建：`Tools/prepare_selection_cat.cpp`、`Tools/BuildSelectionCatTool.bat`、`NeonBreach/Scripts/import_selection_cat.py`。猫的抱持动作由选人舞台编排，不加载源文件里的奔跑动画。
+- 本地重建：`Tools/prepare_selection_cat.cpp`、`Tools/BuildSelectionCatTool.bat`、`UnderTide/Scripts/import_selection_cat.py`。猫的抱持动作由选人舞台编排，不加载源文件里的奔跑动画。
 
 #### 滑铲动作
 
@@ -115,7 +140,7 @@
 
 四个角色分别使用 `/Game/Animations/Locomotion/<Key>/A_<Key>_Running_Slide`，`<Key>` 为 `Eula`、`Acheron`、`Lizhiyan`、`Ascalon`。转换保留腿部和上身动作，去除水平根位移，并按各模型蒙皮后的鞋底、下腿和手部轮廓计算贴地高度；滑行速度与碰撞继续由移动组件控制。播放时加快滑入，并把贴地段延长到实际滑铲时长；结束后混合到当前下蹲或站姿，低矮空间内不会播放强制起身。
 
-本地重建工具：`Tools/sample_mixamo_slide.cpp`、`Tools/BuildMixamoAnimationTool.bat`、`NeonBreach/Scripts/retarget_mixamo_slide.py`；中间采样位于 `SourceAssets/Animations/MixamoSlide/Running_Slide.json`。工具和中间文件沿用项目的本地忽略规则。
+本地重建工具：`Tools/sample_mixamo_slide.cpp`、`Tools/BuildMixamoAnimationTool.bat`、`UnderTide/Scripts/retarget_mixamo_slide.py`；中间采样位于 `SourceAssets/Animations/MixamoSlide/Running_Slide.json`。工具和中间文件沿用项目的本地忽略规则。
 
 #### 惯性滑铲和速度过渡
 
@@ -140,7 +165,7 @@
 - 下蹲碰撞体缩放、镜头高度平滑和墙体防穿透。
 - 移动时的轻微武器摆动；角色镜头不会跟随动画产生大幅晃动。跳跃时第一人称双手固定在镜头下缘，且不复制世界模型的动态布料偏转；世界视角仍保留完整跳跃与布料动作。黄泉跑动时锁定持刀右手的位置，并将握点收在第一人称画面下缘，避免手掌脱离前臂单独露出；未攻击时本地带鞘刀不叠加步伐摆动，主动挥刀优先于跑动锁手和武器缓动，双手与刀柄同步；第一人称挥刀期间让左袖两条长布片垂向握点下方，并限制额外布料偏转，减少袖口遮挡刀路，世界模型保留布料物理、完整身体动作与双手斜劈轨迹。
 
-黄泉是专属近战角色，不生成步枪状态。选择黄泉后会强制右手持带鞘的刀；左键播放约 0.72 秒的双手右上至左下斜劈，命中发生在动作约 42% 的落刀阶段，并以约 260 cm 的近战扫掠造成 180 点伤害，该伤害超过普通子弹 34 点伤害的五倍。挥刀不额外绘制轨迹特效，按住左键可按攻击间隔连续攻击。主视角由正确映射到右手的世界刀实例提供刀影；复用同一复合网格的刀鞘实例不重复投射隐藏刀片，避免生成与人物分离的幽灵刀影。离开黄泉时同时关闭刀和刀鞘的可见性、普通投影及隐藏投影，其他角色持枪或空手时均不会残留刀影；重新选择黄泉后恢复有效武器的显示和投影。黄泉不能瞄准、换弹、收刀或切回步枪，离开黄泉时恢复进入黄泉前的其他角色武器状态。
+黄泉是专属近战角色，不生成步枪状态。选择黄泉后会强制右手持带鞘的刀；左键播放约 0.72 秒的双手右上至左下斜劈，命中发生在动作约 42% 的落刀阶段，并以约 260 cm 的近战扫掠造成 180 点伤害。挥刀不额外绘制轨迹特效，按住左键可按攻击间隔连续攻击。主视角由正确映射到右手的世界刀实例提供刀影；复用同一复合网格的刀鞘实例不重复投射隐藏刀片，避免生成与人物分离的幽灵刀影。离开黄泉时同时关闭刀和刀鞘的可见性、普通投影及隐藏投影，其他角色持枪或空手时均不会残留刀影；重新选择黄泉后恢复有效武器的显示和投影。黄泉不能瞄准、换弹、收刀或切回步枪，离开黄泉时恢复进入黄泉前的其他角色武器状态。
 
 优菈、李织烟和阿斯卡纶按 `3` 收枪后进入拳击近战状态，左键以约 145 cm 的近战扫掠挥拳并造成 70 点伤害，不消耗弹药。连续点击或按住左键时，右拳和左拳会逐拳交替；当前出拳从画面下方推进到准心对应一侧后收回，另一只手留在下方防守，确保主视角能清楚看到两侧拳路。两只手会按各角色实际掌宽与指骨长度收拢成拳，拇指横压拳面，避免长指甲或末节手指保持伸直。优菈和李织烟复用各自骨架的 `Female_Punch` 身体动作，并在手臂层镜像左右直拳；阿斯卡纶使用适配其骨架的同节奏程序化直拳。按 `1` 可恢复步枪。
 

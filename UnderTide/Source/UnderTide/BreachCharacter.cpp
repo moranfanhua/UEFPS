@@ -1,6 +1,7 @@
 #include "BreachGame.h"
 #include "BreachMovementComponent.h"
 #include "BreachVisuals.h"
+#include "BreachWeapons.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -80,6 +81,16 @@ ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
     AddPart(TEXT("SightRight"), FVector(5,2.8f,9), FVector(3,1,7), TEXT("M_Metal"));
     AddPart(TEXT("SightTop"), FVector(5,0,12), FVector(3,6,1), TEXT("M_Metal"));
     AddPart(TEXT("SightDot"), FVector(5,0,8), FVector(1,.6f,.6f), TEXT("M_Orange"));
+    AK=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("AK"));
+    AK->SetupAttachment(WeaponRoot);AK->SetOnlyOwnerSee(true);
+    AK->SetFirstPersonPrimitiveType(EFirstPersonPrimitiveType::FirstPerson);
+    WorldAK=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WorldAK"));
+    WorldAK->SetupAttachment(WorldWeaponRoot);WorldAK->SetOwnerNoSee(true);
+    for(auto* GunPart:{AK.Get(),WorldAK.Get()})
+    {
+        GunPart->SetRelativeLocation(Breach::AKMeshOffset);GunPart->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        GunPart->SetCastShadow(false);GunPart->SetVisibility(false);
+    }
     MuzzleLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("MuzzleFlash"));
     MuzzleLight->SetupAttachment(WeaponRoot);
     MuzzleLight->SetRelativeLocation(FVector(44,0,1));
@@ -202,8 +213,8 @@ void ABreachCharacter::Tick(float Dt)
     Camera->SetFirstPersonFieldOfView(Camera->FieldOfView);
     Bob += Dt * (bSprint ? 13.f : 9.f);
     const float Movement = FMath::Clamp(GetVelocity().Size2D()/510.f,0.f,1.f);
-    const FVector Hip(34,10,-5);
-    const FVector Aim(30,0,-6.4f);
+    const FVector Hip=UsesAK()?FVector(34,12,-10):FVector(34,10,-5);
+    const FVector Aim=UsesAK()?FVector(30,0,-8.4f):FVector(30,0,-6.4f);
     FVector Target = bAiming ? Aim : Hip;
     Target.Z += FMath::Sin(Bob)*Movement*(UsesSword()?0.f:(bAiming?.05f:.2f));
     Target.X -= Recoil*2.7f;
@@ -216,8 +227,10 @@ void ABreachCharacter::Tick(float Dt)
     WeaponRoot->SetRelativeRotation(FRotator(Recoil*2.f,0,bReloading?FMath::Sin(ReloadProgress*PI)*-25.f:0));
     WorldWeaponRoot->SetRelativeTransform(WeaponRoot->GetRelativeTransform());
     UpdateOperatorPose(Dt);
-    Recoil = FMath::FInterpTo(Recoil,0,Dt,15);
-    MuzzleLight->SetIntensity(!UsesSword() && Recoil>.55f ? 5000.f : 0.f);
+    Recoil = FMath::FInterpTo(Recoil,0,Dt,UsesAK()?10.f:15.f);
+    ShotBloom=FMath::Max(0.f,ShotBloom-Dt*Breach::AKBloomRecovery);
+    MuzzleFlashTime=FMath::Max(0.f,MuzzleFlashTime-Dt);
+    MuzzleLight->SetIntensity(!bUnarmed && !UsesSword() && MuzzleFlashTime>0 ? 5000.f : 0.f);
     HitMarker=FMath::Max(0.f,HitMarker-Dt);
     DamageFlash=FMath::Max(0.f,DamageFlash-Dt);
 }
@@ -249,17 +262,20 @@ void ABreachCharacter::Fire()
     }
     if(Ammo<=0) { Reload(); return; }
     NextShot=Now+FireInterval;
-    --Ammo; ++ShotsFired; Recoil=1;
+    --Ammo; ++ShotsFired;
+    Recoil=UsesAK()?FMath::Min(3.f,Recoil+1.6f):1.f;
+    MuzzleFlashTime=.045f;
     const FVector Start=Camera->GetComponentLocation();
     FVector Direction=Camera->GetForwardVector();
-    const float Spread=bAiming?.001f:.004f;
+    const float Spread=GetShotSpread();
     Direction=FMath::VRandCone(Direction,Spread);
+    if(UsesAK()) ShotBloom=FMath::Min(Breach::AKMaxBloom,ShotBloom+Breach::AKBloomPerShot);
     FHitResult Hit;
     FCollisionQueryParams Params(SCENE_QUERY_STAT(BreachShot),true,this);
     const FVector End=Start+Direction*15000;
     const bool bHit=GetWorld()->LineTraceSingleByChannel(Hit,Start,End,ECC_Visibility,Params);
     const FVector Impact=bHit?Hit.ImpactPoint:End;
-    Breach::Beam(GetWorld(),WeaponRoot->GetComponentTransform().TransformPosition(FVector(42,0,1)),Impact,FLinearColor(.1f,.85f,1),1.5f,.055f);
+    Breach::Beam(GetWorld(),GunMuzzleLocation(),Impact,FLinearColor(.1f,.85f,1),1.5f,.055f);
     if(FireSound) UGameplayStatics::PlaySound2D(this,FireSound,.4f);
     if(auto* Enemy=Cast<ABreachEnemy>(Hit.GetActor()); Enemy && !Enemy->bDisplayOnly && !Enemy->bDefeated)
     {
@@ -272,7 +288,8 @@ void ABreachCharacter::Fire()
     {
         for(int32 i=0;i<4;++i) Breach::Beam(GetWorld(),Impact,Impact+Hit.ImpactNormal*12+FMath::VRand()*14,FLinearColor(1,.35f,.08f),1,.1f);
     }
-    AddControllerPitchInput(-.10f);
+    AddControllerPitchInput(UsesAK()?(bAiming?-.28f:-.38f):-.10f);
+    if(UsesAK()) AddControllerYawInput(FMath::FRandRange(-.11f,.11f));
 }
 
 void ABreachCharacter::UpdateSwordVisibility()
@@ -581,6 +598,7 @@ void ABreachCharacter::SelectOperator(int32 Index)
         LoadPunchAttackAnimation();
     }
     ConfigureSwordLoadout();
+    ConfigureSelectedGun();
     SetUnarmed(bUnarmed);
     UpdateOperatorPose(0);
     if(auto* GM=GetWorld()->GetAuthGameMode<ABreachGameMode>())
@@ -593,6 +611,7 @@ static FVector OperatorGrip(const ABreachCharacter* Player,int32 Side)
 {
     // Ascalon's shorter forearm supports the rear of the handguard.
     FVector Grip=Side?FVector(-18,7,-10):FVector(Player->OperatorIndex==3?-6.f:0.f,-9,-7);
+    if(Player->UsesAK()) Grip=Side?FVector(-18,5,-9):FVector(Player->OperatorIndex==3?-4.f:2.f,-5,-4);
     if(!Side && Player->bReloading)
         Grip=FMath::Lerp(Grip,FVector(-1,-10,-24),FMath::Sin(Player->ReloadProgress*PI));
     return Player->WeaponRoot->GetComponentTransform().TransformPosition(Grip);
@@ -873,4 +892,3 @@ void ABreachCharacter::ToggleSelection()
     if(auto* PC=Cast<APlayerController>(Controller))
         if(auto* HUD=Cast<ABreachHUD>(PC->GetHUD())) HUD->ToggleSelection();
 }
-

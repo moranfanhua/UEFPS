@@ -42,16 +42,16 @@ crashinfo-*
 
 # 可选的项目资源处理和验证工具
 /Tools/
-/NeonBreach/Scripts/*.py
-/NeonBreach/Scripts/*.ps1
+/UnderTide/Scripts/*.py
+/UnderTide/Scripts/*.ps1
 
 # 可选的本地启动和编译快捷方式。没有这些文件也可以直接用 Unreal Editor
 # 打开、编译和运行项目。
 /启动FPS.bat
 /打开UE项目.bat
-/NeonBreach/Build.bat
-/NeonBreach/Play.bat
-/NeonBreach/OpenEditor.bat
+/UnderTide/Build.bat
+/UnderTide/Play.bat
+/UnderTide/OpenEditor.bat
 
 # 原始下载模型压缩包（导入后的 UE 资源位于 Content）
 *.zip
@@ -62,11 +62,11 @@ crashinfo-*
 /SourceAssets/*_download_page.html
 
 # 下载的动画源文件和重定向中间文件。
-# 可运行的 UE 动画资源保留在 NeonBreach/Content/Animations/ 中。
+# 可运行的 UE 动画资源保留在 UnderTide/Content/Animations/ 中。
 /SourceAssets/Animations/
 
 # 原始模型源文件和导入用音频保留在仓库外。
-# 可运行的 UE 资源已经存放在 NeonBreach/Content 中。
+# 可运行的 UE 资源已经存放在 UnderTide/Content 中。
 # 只有在拥有再分发许可并希望 GitHub 用户重复资源导入流程时，
 # 才需要删除下面这些源文件夹规则。
 /SourceAssets/Eula/

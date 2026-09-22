@@ -1,5 +1,6 @@
 #include "BreachSelectionStage.h"
 #include "BreachVisuals.h"
+#include "BreachWeapons.h"
 #include "Camera/CameraComponent.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -110,6 +111,28 @@ void ABreachSelectionStage::BeginPlay()
         Capture->ShowOnlyComponent(Avatar);Capture->PostProcessSettings=Camera->PostProcessSettings;
         Capture->RegisterComponent();PortraitCameras.Add(Capture);
     }
+    for(int32 I=0;I<Breach::WeaponCount;++I)
+    {
+        const FVector Origin(0,5000+I*450,0);
+        auto* Mesh=NewObject<UStaticMeshComponent>(this);Mesh->SetupAttachment(RootComponent);
+        auto* Asset=Breach::WeaponMesh(I);Mesh->SetStaticMesh(Asset);
+        Mesh->SetRelativeLocation(Origin-(Asset?Asset->GetBounds().Origin:FVector::ZeroVector));
+        Mesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);Mesh->SetCastShadow(false);
+        Mesh->SetVisibleInSceneCaptureOnly(true);Mesh->RegisterComponent();WeaponModels.Add(Mesh);
+        Light(Origin+FVector(20,-70,85),FLinearColor(1,.95f,.9f),4500,300);
+        Light(Origin+FVector(-40,70,40),FLinearColor(.55f,.75f,1),3000,250);
+        auto* Target=NewObject<UTextureRenderTarget2D>(this);
+        Target->ClearColor=FLinearColor::Black;Target->InitCustomFormat(600,220,PF_B8G8R8A8,false);
+        Target->UpdateResourceImmediate(true);WeaponTargets.Add(Target);
+        auto* Capture=NewObject<USceneCaptureComponent2D>(this);Capture->SetupAttachment(RootComponent);
+        const FVector Eye=Origin+FVector(15,-150,28);
+        Capture->SetRelativeLocation(Eye);Capture->SetRelativeRotation((Origin-Eye).Rotation());Capture->FOVAngle=38;
+        Capture->TextureTarget=Target;Capture->CaptureSource=ESceneCaptureSource::SCS_FinalColorLDR;
+        Capture->bCaptureEveryFrame=false;Capture->bCaptureOnMovement=false;
+        Capture->PrimitiveRenderMode=ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+        Capture->ShowOnlyComponent(Mesh);Capture->PostProcessSettings=Camera->PostProcessSettings;
+        Capture->RegisterComponent();WeaponCameras.Add(Capture);
+    }
     SetupCat();SetupSword();Select(0);
 }
 void ABreachSelectionStage::Select(int32 Index)
@@ -213,10 +236,21 @@ void ABreachSelectionStage::Tick(float DeltaSeconds)
             Rig.Apply(PortraitBodies[I]);PortraitBodies[I]->RefreshBoneTransforms();
         }
     if(WarmupFrames==8 || WarmupFrames==24)
+    {
         for(const auto& Capture:PortraitCameras) Capture->CaptureScene();
+        for(const auto& Capture:WeaponCameras) Capture->CaptureScene();
+    }
     if(WarmupFrames==24 && !bOpen) SetActorTickEnabled(false);
 }
 UTextureRenderTarget2D* ABreachSelectionStage::Portrait(int32 Index) const
 {
     return PortraitTargets.IsValidIndex(Index)?PortraitTargets[Index].Get():nullptr;
+}
+UTextureRenderTarget2D* ABreachSelectionStage::WeaponPortrait(int32 Index) const
+{
+    return WeaponTargets.IsValidIndex(Index)?WeaponTargets[Index].Get():nullptr;
+}
+bool ABreachSelectionStage::HasWeaponPreview(int32 Index) const
+{
+    return WeaponModels.IsValidIndex(Index) && WeaponModels[Index] && WeaponModels[Index]->GetStaticMesh();
 }

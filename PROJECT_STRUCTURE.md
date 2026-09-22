@@ -1,4 +1,4 @@
-# Neon Breach 项目结构说明
+# UnderTide 项目结构说明
 
 这份文档说明项目中每个目录的作用、游戏启动后的调用关系，以及修改功能时应该从哪里入手。项目是 Unreal Engine 5.7 的 C++ 第一人称竞技场原型，核心玩法是枪械、挥拳或黄泉挥刀近战、快速移动、击杀敌人、波次刷新和角色选择。
 
@@ -9,7 +9,7 @@
 启动入口可以按下面的顺序理解：
 
 ```text
-NeonBreach.uproject
+UnderTide.uproject
         |
         v
 Config/DefaultEngine.ini  -- 指定 Arena 地图和 BreachGameMode
@@ -37,20 +37,20 @@ ABreachGameMode::BeginPlay()
 
 ```text
 GPT_UE_TEST/
-├─ NeonBreach/
-│  ├─ NeonBreach.uproject       UE 项目文件，EngineAssociation 为 5.7
+├─ UnderTide/
+│  ├─ UnderTide.uproject       UE 项目文件，EngineAssociation 为 5.7
 │  ├─ Config/                   项目、输入、地图和渲染配置
 │  ├─ Content/                  UE 二进制资源（uasset、umap）
 │  └─ Source/
-│     ├─ NeonBreach.Target.cs   游戏目标构建配置
-│     ├─ NeonBreachEditor.Target.cs 编辑器目标构建配置
-│     └─ NeonBreach/            C++ 游戏模块
+│     ├─ UnderTide.Target.cs   游戏目标构建配置
+│     ├─ UnderTideEditor.Target.cs 编辑器目标构建配置
+│     └─ UnderTide/            C++ 游戏模块
 ├─ SourceAssets/                原始模型转换和骨骼审计产生的 JSON
 ├─ README.md                    项目简介和模型/动作清单
 └─ PROJECT_STRUCTURE.md         本文档
 ```
 
-`Binaries/`、`Intermediate/`、`Saved/` 等目录属于 UE 的构建或运行产物，通常由 `.gitignore` 忽略。测试截图和文本报告也会写到 `NeonBreach/Saved/`，它们不是游戏运行所必需的资源。
+`Binaries/`、`Intermediate/`、`Saved/` 等目录属于 UE 的构建或运行产物，通常由 `.gitignore` 忽略。测试截图和文本报告也会写到 `UnderTide/Saved/`，它们不是游戏运行所必需的资源。
 
 ## 3. Source 目录：C++ 代码
 
@@ -58,12 +58,12 @@ GPT_UE_TEST/
 
 | 文件 | 作用 |
 | --- | --- |
-| `NeonBreach/Source/NeonBreach/NeonBreach.cpp` | C++ 模块的最小启动文件，使用 `IMPLEMENT_PRIMARY_GAME_MODULE` 注册模块。 |
-| `NeonBreach/Source/NeonBreach/NeonBreach.Build.cs` | 声明模块依赖：`Core`、`CoreUObject`、`Engine`、`InputCore`、`AIModule`、`NavigationSystem`、`SlateCore`；编辑器构建时额外使用网格、动画和 JSON 模块。 |
-| `NeonBreach/Source/NeonBreach/BreachGame.h` | 主要类的统一头文件，声明玩家控制器、玩家角色、敌人、GameMode 和 HUD。虽然类很多，但实现分别放在不同 `.cpp` 文件中。 |
-| `NeonBreach/Source/NeonBreach/BreachVisuals.h` | `Breach` 命名空间的资源入口：四个角色的 Key/显示名、角色网格加载、材质加载和激光束绘制。 |
-| `NeonBreach/Source/NeonBreach/CharacterRigData.h` | 四个角色的身体和手指骨骼映射表，由骨骼名称生成工具产生。 |
-| `NeonBreach/Source/NeonBreach/CharacterBones.h` | PMX 模型中肩膀、手臂、腿和脊柱等关键骨骼的兼容名称表。 |
+| `UnderTide/Source/UnderTide/UnderTide.cpp` | C++ 模块的最小启动文件，使用 `IMPLEMENT_PRIMARY_GAME_MODULE` 注册模块。 |
+| `UnderTide/Source/UnderTide/UnderTide.Build.cs` | 声明模块依赖：`Core`、`CoreUObject`、`Engine`、`InputCore`、`AIModule`、`NavigationSystem`、`SlateCore`；编辑器构建时额外使用网格、动画和 JSON 模块。 |
+| `UnderTide/Source/UnderTide/BreachGame.h` | 主要类的统一头文件，声明玩家控制器、玩家角色、敌人、GameMode 和 HUD。虽然类很多，但实现分别放在不同 `.cpp` 文件中。 |
+| `UnderTide/Source/UnderTide/BreachVisuals.h` | `Breach` 命名空间的资源入口：四个角色的 Key/显示名、角色网格加载、材质加载和激光束绘制。 |
+| `UnderTide/Source/UnderTide/CharacterRigData.h` | 四个角色的身体和手指骨骼映射表，由骨骼名称生成工具产生。 |
+| `UnderTide/Source/UnderTide/CharacterBones.h` | PMX 模型中肩膀、手臂、腿和脊柱等关键骨骼的兼容名称表。 |
 
 角色 Key 的顺序固定为：
 
@@ -121,7 +121,10 @@ bGallery          是否处于展示或测试模式
 | `BreachSelectionSword.cpp` | 黄泉专属刀、鞘加载与双手绑定，左手持鞘 IK、收势角度适配和仅选人可见的管理。 |
 | `BreachLocalAnimation.cpp` | 编辑器 VMD 骨骼轨道烘焙入口，按优菈已有骨架写入姿势序列，避免重导入用户调整过的模型和贴图。 |
 | `BreachSelectionCat.cpp` | 同一选人舞台的拆分实现。为李织烟创建带骨骼的白猫，编排抱持和低头轻靠，双手 IK 跟随猫的支撑点；结束后人物与猫一同定格，离开预览时隐藏。 |
-| `BreachSelectionHUD.cpp` | 绘制选人界面、标题、角色卡片、按钮和提示文字；处理鼠标 HitBox；打开界面时切换相机、暂停游戏、显示鼠标，关闭时恢复原来的视角和暂停状态。 |
+| `BreachSelectionHUD.cpp` | 绘制选人界面、角色卡片和普通角色的四枪选择；角色保存本局武器选择，黄泉不显示或响应选枪；管理鼠标、相机及暂停恢复。AK 已装备到实战，其余三枪仅预览。 |
+| `BreachWeapons.h` | 四枪的名称、类型与网格资源入口，以及 AK 容量、伤害、散射与枪口参数。 |
+| `BreachGun.cpp` | AK 与旧原型枪的装备、独立弹匣缓存、散射计算、枪口与双份枪械显隐；未适配枪械回退原型枪。 |
+| `BreachWeaponTests.cpp` | AK 的实际命中伤害、25 发弹匣、后坐、散射、换弹取消、切枪及黄泉往返检查。 |
 | `BreachHUD.cpp` | 游戏内 HUD：生命值、弹药、波次、准星、命中提示、通知和操作提示。 |
 | `ABreachPlayerController` | 目前只有一个用于选人暂停期间继续 Tick 的小接口，方便预览动画在暂停世界时更新。 |
 
@@ -159,12 +162,12 @@ bSelectionOpen
 -BreachCapture          延时截图并退出
 ```
 
-测试产生的结果一般位于 `NeonBreach/Saved/`，例如 `selection_test.txt`、`MovementFPS_*.txt` 和截图文件。
+测试产生的结果一般位于 `UnderTide/Saved/`，例如 `selection_test.txt`、`MovementFPS_*.txt` 和截图文件。
 
 ## 4. Content 目录：UE 资源
 
 ```text
-NeonBreach/Content/
+UnderTide/Content/
 ├─ Animations/
 │  ├─ Death/                 四个角色各自的 Death01
 │  ├─ Entrance/              选人入场和待机动作
@@ -179,7 +182,8 @@ NeonBreach/Content/
 │  ├─ Portraits/             用户修改的四张静态头像贴图
 │  └─ SelectionCat/           李织烟选人预览的猫模型、骨架和材质
 ├─ Maps/Arena.umap           编辑器启动地图和游戏默认地图
-└─ Materials/                角色、枪械、竞技场和霓虹灯材质
+├─ Materials/                角色、枪械、竞技场和霓虹灯材质
+└─ Weapons/                  四枪静态网格、材质和贴图；AK 已实装，其余枪械仅预览
 ```
 
 ### 4.1 资源命名和 C++ 加载方式
@@ -220,7 +224,7 @@ ABreachCharacter
 | 文件 | 关键内容 |
 | --- | --- |
 | `DefaultEngine.ini` | 默认地图 `/Game/Maps/Arena`、全局 GameMode `BreachGameMode`、DX12、抗锯齿、阴影、帧率和导航网格设置。 |
-| `DefaultGame.ini` | 项目名称、版本、打包配置，以及始终烘焙的 `Characters`、`Materials`、`Audio`、`Animations` 目录。 |
+| `DefaultGame.ini` | 项目名称、版本、打包配置，以及始终烘焙的 `Characters`、`Materials`、`Audio`、`Animations`、`Weapons` 目录。 |
 | `DefaultInput.ini` | 传统输入系统的 Action/Axis 映射。当前移动使用 WASD，视角使用鼠标，动作键包括 1、3、Space、Ctrl、R、H、Esc 和 Enter。 |
 | `DefaultEditor.ini` | 编辑器预览场景的共享灯光和后处理预设。 |
 

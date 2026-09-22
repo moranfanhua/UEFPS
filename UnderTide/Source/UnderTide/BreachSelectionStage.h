@@ -13,7 +13,7 @@ class UAnimSequence;
 class UStaticMeshComponent;
 
 UCLASS()
-class NEONBREACH_API ABreachSelectionStage : public AActor
+class UNDERTIDE_API ABreachSelectionStage : public AActor
 {
     GENERATED_BODY()
 public:
@@ -31,6 +31,8 @@ public:
     bool HasSwordEntrance() const { return bSwordReady && bRigReady && SelectedIndex==1; }
     FVector CatSupportPoint(int32 Side) const;
     UTextureRenderTarget2D* Portrait(int32 Index) const;
+    UTextureRenderTarget2D* WeaponPortrait(int32 Index) const;
+    bool HasWeaponPreview(int32 Index) const;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> Camera;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Preview;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Cat;
@@ -40,6 +42,9 @@ private:
     UPROPERTY() TArray<TObjectPtr<UPoseableMeshComponent>> PortraitBodies;
     UPROPERTY() TArray<TObjectPtr<USceneCaptureComponent2D>> PortraitCameras;
     UPROPERTY() TArray<TObjectPtr<UTextureRenderTarget2D>> PortraitTargets;
+    UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> WeaponModels;
+    UPROPERTY() TArray<TObjectPtr<USceneCaptureComponent2D>> WeaponCameras;
+    UPROPERTY() TArray<TObjectPtr<UTextureRenderTarget2D>> WeaponTargets;
     UPROPERTY() TObjectPtr<UAnimSequence> Entrance;
     UPROPERTY() TObjectPtr<UAnimSequence> FinishPose;
     UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> CatDetails;

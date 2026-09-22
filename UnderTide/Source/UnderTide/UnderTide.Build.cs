@@ -1,7 +1,7 @@
 using UnrealBuildTool;
-public class NeonBreach : ModuleRules
+public class UnderTide : ModuleRules
 {
-    public NeonBreach(ReadOnlyTargetRules Target) : base(Target)
+    public UnderTide(ReadOnlyTargetRules Target) : base(Target)
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
         PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "AIModule", "NavigationSystem", "SlateCore" });

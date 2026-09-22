@@ -2,10 +2,10 @@
 	"FileVersion": 3,
 	"EngineAssociation": "5.7",
 	"Category": "Games",
-	"Description": "Neon Breach - a C++ FPS arena using the supplied character models.",
+	"Description": "UnderTide - a C++ FPS arena using the supplied character models.",
 	"Modules": [
 		{
-			"Name": "NeonBreach",
+			"Name": "UnderTide",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}
