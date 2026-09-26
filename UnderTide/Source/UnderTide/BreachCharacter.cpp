@@ -8,6 +8,7 @@
 #include "Components/PoseableMeshComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/PointLightComponent.h"
+#include "Components/LineBatchComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -87,7 +88,7 @@ ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
     MuzzleLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("MuzzleFlash"));
     MuzzleLight->SetupAttachment(WeaponRoot);
     MuzzleLight->SetRelativeLocation(FVector(44,0,1));
-    MuzzleLight->SetLightColor(FLinearColor(.12f,.85f,1));
+    MuzzleLight->SetLightColor(FLinearColor(1.f,.55f,.15f));
     MuzzleLight->SetIntensity(0);
     MuzzleLight->SetAttenuationRadius(220);
     MuzzleLight->SetCastShadows(false);
@@ -157,6 +158,14 @@ void ABreachCharacter::BeginPlay()
         PC->SetInputMode(FInputModeGameOnly());
         PC->bShowMouseCursor = false;
     }
+}
+
+void ABreachCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if(UWorld* World=GetWorld())
+        if(ULineBatchComponent* Lines=World->GetLineBatcher(UWorld::ELineBatcherType::WorldPersistent))
+            Lines->ClearBatch(GetUniqueID());
+    Super::EndPlay(EndPlayReason);
 }
 
 void ABreachCharacter::SetupPlayerInputComponent(UInputComponent* Input)
@@ -241,6 +250,31 @@ void ABreachCharacter::Tick(float Dt)
     MuzzleLight->SetIntensity(!bUnarmed && !UsesSword() && MuzzleFlashTime>0 ? 5000.f : 0.f);
     HitMarker=FMath::Max(0.f,HitMarker-Dt);
     DamageFlash=FMath::Max(0.f,DamageFlash-Dt);
+    UpdateShotTracers(Dt);
+}
+
+void ABreachCharacter::UpdateShotTracers(float Dt)
+{
+    if(ShotTracers.IsEmpty() && !bTracerLinesDrawn) return;
+    ULineBatchComponent* Lines=GetNetMode()==NM_DedicatedServer?nullptr:
+        GetWorld()->GetLineBatcher(UWorld::ELineBatcherType::WorldPersistent);
+    const uint32 BatchId=GetUniqueID();
+    if(Lines) Lines->ClearBatch(BatchId);
+    bTracerLinesDrawn=false;
+    constexpr float TracerLength=15.f;
+    for(int32 Index=ShotTracers.Num()-1;Index>=0;--Index)
+    {
+        FShotTracer& Tracer=ShotTracers[Index];
+        Tracer.HeadDistance=FMath::Min(Tracer.Distance,Tracer.HeadDistance+Tracer.Speed*FMath::Max(0.f,Dt));
+        const float TailDistance=FMath::Max(0.f,Tracer.HeadDistance-TracerLength);
+        if(Lines)
+        {
+            Lines->DrawLine(Tracer.Start+Tracer.Direction*TailDistance,
+                Tracer.Start+Tracer.Direction*Tracer.HeadDistance,FLinearColor(1.f,.55f,.15f),0,.5f,1.f,BatchId);
+            bTracerLinesDrawn=true;
+        }
+        if(Tracer.HeadDistance>=Tracer.Distance) ShotTracers.RemoveAtSwap(Index);
+    }
 }
 
 void ABreachCharacter::Fire()
@@ -283,6 +317,7 @@ void ABreachCharacter::Fire()
     else if(UsesAA12()) ShotBloom=FMath::Min(Breach::AA12MaxBloom,ShotBloom+Breach::AA12BloomPerShot);
     FCollisionQueryParams Params(SCENE_QUERY_STAT(BreachShot),true,this);
     const int32 PelletCount=UsesAA12()?Breach::AA12PelletCount:1;
+    const FVector Muzzle=GunMuzzleLocation();
     bLastHeadshot=false;
     for(int32 Pellet=0;Pellet<PelletCount;++Pellet)
     {
@@ -291,7 +326,16 @@ void ABreachCharacter::Fire()
         FHitResult Hit;
         const bool bHit=GetWorld()->LineTraceSingleByChannel(Hit,Start,End,ECC_Visibility,Params);
         const FVector Impact=bHit?Hit.ImpactPoint:End;
-        Breach::Beam(GetWorld(),GunMuzzleLocation(),Impact,FLinearColor(.1f,.85f,1),1.5f,.055f);
+        const FVector TracerPath=Impact-Muzzle;
+        const float TracerDistance=TracerPath.Size();
+        if(TracerDistance>KINDA_SMALL_NUMBER)
+        {
+            FShotTracer& Tracer=ShotTracers.AddDefaulted_GetRef();
+            Tracer.Start=Muzzle;
+            Tracer.Direction=TracerPath/TracerDistance;
+            Tracer.Distance=TracerDistance;
+            Tracer.Speed=FMath::Max(3000.f,TracerDistance/.25f);
+        }
         if(auto* Enemy=Cast<ABreachEnemy>(Hit.GetActor()); Enemy && !Enemy->bDisplayOnly && !Enemy->bDefeated)
         {
             ++ShotsHit;

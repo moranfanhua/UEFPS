@@ -330,6 +330,7 @@ void ABreachGameMode::RunWeaponTest()
         Check(P->Ammo==29 && P->ShotsFired==Run->Shots+1,TEXT("An M4 shot consumes one of 30 rounds"));
         Check(FMath::IsNearlyEqual(Run->Target->Health,10000.f-Breach::M4Damage),TEXT("An actual M4 body hit deals 35 damage"));
     });
+    At(11.525f,[=]() { Capture(TEXT("M4"),TEXT("Tracer")); });
     At(11.59f,[=]()
     {
         Run->M4Pitch=FMath::Abs(FRotator::NormalizeAxis(PC->GetControlRotation().Pitch));
@@ -413,6 +414,7 @@ void ABreachGameMode::RunWeaponTest()
         Check(P->Ammo==39 && P->ShotsFired==Run->Shots+1,TEXT("An MP5 shot consumes one of 40 rounds"));
         Check(FMath::IsNearlyEqual(Run->Target->Health,10000.f-Breach::MP5Damage),TEXT("An actual close MP5 body hit deals 30 damage"));
     });
+    At(16.925f,[=]() { Capture(TEXT("MP5"),TEXT("Tracer")); });
     At(16.99f,[=]()
     {
         const float Pitch=FMath::Abs(FRotator::NormalizeAxis(PC->GetControlRotation().Pitch));
@@ -494,6 +496,7 @@ void ABreachGameMode::RunWeaponTest()
             FMath::IsNearlyEqual(Run->Target->Health,10000.f-Breach::AA12PelletDamage*Breach::AA12PelletCount),
             TEXT("All eight close AA12 pellets trace and deal damage independently"));
     });
+    At(21.875f,[=]() { Capture(TEXT("AA12"),TEXT("Tracer")); });
     At(21.94f,[=]()
     {
         const float Pitch=FMath::Abs(FRotator::NormalizeAxis(PC->GetControlRotation().Pitch));
@@ -528,10 +531,25 @@ void ABreachGameMode::RunWeaponTest()
             TEXT("AA12 world representation remains visible with both shadow modes"));
         Capture(TEXT("AA12"),TEXT("World"));
     });
-    At(25.05f,[=]()
+    At(24.85f,[=,this]()
     {
         if(Run->Target.IsValid()) Run->Target->Destroy();
         if(Run->WorldCamera.IsValid()) Run->WorldCamera->Destroy();
+        PC->SetViewTarget(P);PC->GetHUD()->bShowHUD=true;
+        P->SelectWeapon(0);P->DrawRifle();
+        // Keep a short, unobstructed flight path large enough to compare in two captures.
+        FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        auto* TracerTarget=GetWorld()->SpawnActor<ABreachEnemy>(P->Camera->GetComponentLocation()+FVector(500,0,0),FRotator::ZeroRotator,Params);
+        TracerTarget->SetActorTickEnabled(false);TracerTarget->GetCharacterMovement()->DisableMovement();
+        TracerTarget->SetActorHiddenInGame(true);TracerTarget->Health=10000.f;
+        Run->Target=TracerTarget;
+        PC->SetControlRotation(FRotator::ZeroRotator);P->Fire();
+    });
+    At(24.9f,[=]() { Capture(TEXT("AK"),TEXT("Tracer")); });
+    At(25.f,[=]() { Capture(TEXT("AK"),TEXT("TracerFlight")); });
+    At(25.35f,[=]()
+    {
+        if(Run->Target.IsValid()) Run->Target->Destroy();
         Run->Report+=FString::Printf(TEXT("FAILURES=%d\n"),Run->Failures);
         FFileHelper::SaveStringToFile(Run->Report,*(FPaths::ProjectDir()/TEXT("Saved/weapon_test.txt")));
         UE_LOG(LogTemp,Display,TEXT("WEAPON_TEST\n%s"),*Run->Report);

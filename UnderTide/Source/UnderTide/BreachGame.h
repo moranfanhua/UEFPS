@@ -39,6 +39,7 @@ class UNDERTIDE_API ABreachCharacter : public ACharacter
 public:
     ABreachCharacter(const FObjectInitializer& ObjectInitializer=FObjectInitializer::Get());
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* Input) override;
     virtual bool CanJumpInternal_Implementation() const override;
@@ -132,6 +133,17 @@ private:
     int32 AKAmmo=25,M4Ammo=30,MP5Ammo=40,AA12Ammo=8;
     int32 ConfiguredGunIndex=INDEX_NONE;
     float ShotBloom=0.f,MuzzleFlashTime=0.f;
+    struct FShotTracer
+    {
+        FVector Start;
+        FVector Direction;
+        float Distance=0.f;
+        float HeadDistance=0.f;
+        float Speed=0.f;
+    };
+    TArray<FShotTracer> ShotTracers;
+    bool bTracerLinesDrawn=false;
+    void UpdateShotTracers(float DeltaSeconds);
     float AimProgress=0.f;
     void ConfigureSelectedGun();
     void UpdateGunVisibility();

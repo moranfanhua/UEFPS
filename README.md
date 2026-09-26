@@ -53,7 +53,9 @@ AA12 使用 **8 发**弹鼓，射击间隔 **0.22 秒**（约 273 RPM）。每�
 
 AK、M4、MP5、AA12 与资源缺失时的原型回退分别记住弹匣剩余弹数，共享备用弹药；切换武器、角色、黄泉往返或收枪不会补弹。换弹中途切换枪械会取消未完成的换弹。按 `3` 收枪、`1` 重新持枪仍有效；隐藏的四把导入枪械和原型零件同时关闭普通及隐藏投影，避免重复枪影。当前换弹沿用程序化压枪、左手动作与计时，静态网格没有独立弹匣拆装动画；武器状态尚未完成联机同步。
 
-本地专项验证可运行 `UnderTide/Scripts/VerifyWeapon.ps1 -Render`，或通过 `-BreachWeaponTest -BreachWeaponCapture` 启动游戏；报告为 `Saved/weapon_test.txt`，四枪各生成 `Hip`、`Aim`、`Recoil`、`Reload` 四张第一人称截图，M4、MP5 与 AA12 另生成外部视角截图。实现与参数分别位于 `BreachGun.cpp`、`BreachWeapons.h`，射击沿用 `BreachCharacter.cpp`。
+射击时的枪口灯和曳光为暖橙色火光；每条曳光是一段最长 15 cm 的短光线，沿射击方向逐帧前移，到命中点结束。AA12 仍为 8 颗弹丸各绘制一条曳光；命中判定与各枪射程保持原有即时射线逻辑。
+
+本地专项验证可运行 `UnderTide/Scripts/VerifyWeapon.ps1 -Render`，或通过 `-BreachWeaponTest -BreachWeaponCapture` 启动游戏；报告为 `Saved/weapon_test.txt`，四枪各生成 `Hip`、`Aim`、`Tracer`、`Recoil`、`Reload` 五张第一人称截图，AK 另生成稍后飞行位置的 `TracerFlight`，M4、MP5 与 AA12 另生成外部视角截图。实现与参数分别位于 `BreachGun.cpp`、`BreachWeapons.h`，射击沿用 `BreachCharacter.cpp`。
 
 | 枪型 | UE Static Mesh | 原始压缩包 | 当前材质 |
 | --- | --- | --- | --- |
