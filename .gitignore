@@ -92,3 +92,5 @@ Modeling/Ascalon/*.py
 #图片
 *.png
 
+#临时文件
+TEMP

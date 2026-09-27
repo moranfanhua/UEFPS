@@ -123,11 +123,11 @@ bGallery          是否处于展示或测试模式
 | `BreachSelectionSword.cpp` | 黄泉专属刀、鞘加载与双手绑定，左手持鞘 IK、收势角度适配和仅选人可见的管理。 |
 | `BreachLocalAnimation.cpp` | 编辑器 VMD 骨骼轨道烘焙入口，按优菈已有骨架写入姿势序列，避免重导入用户调整过的模型和贴图。 |
 | `BreachSelectionCat.cpp` | 同一选人舞台的拆分实现。为李织烟创建带骨骼的白猫，编排抱持和低头轻靠，双手 IK 跟随猫的支撑点；结束后人物与猫一同定格，离开预览时隐藏。 |
-| `BreachSelectionHUD.cpp` | 绘制选人界面、角色卡片和普通角色的四枪选择；角色保存本局武器选择，黄泉不显示或响应选枪；管理鼠标、相机及暂停恢复。AK 已装备到实战，其余三枪仅预览。 |
-| `BreachWeapons.h` | 四枪的名称、类型与网格资源入口，以及 AK 容量、伤害、散射与枪口参数。 |
-| `BreachGun.cpp` | AK 与旧原型枪的装备、独立弹匣缓存、散射计算、枪口与双份枪械显隐；未适配枪械回退原型枪。 |
-| `BreachWeaponTests.cpp` | AK 的实际命中伤害、25 发弹匣、后坐、散射、换弹取消、切枪及黄泉往返检查。 |
-| `BreachHUD.cpp` | 游戏内 HUD：生命值、弹药、波次、准星、命中提示、通知和操作提示。 |
+| `BreachSelectionHUD.cpp` | 绘制选人界面、角色卡片和普通角色的四枪选择；角色保存本局武器选择，黄泉不显示或响应选枪；管理鼠标、相机及暂停恢复。四枪均已装备到实战。 |
+| `BreachWeapons.h` | 四枪的名称、类型与网格资源入口，以及各枪容量、伤害、散射、距离和枪口参数。 |
+| `BreachGun.cpp` | 四枪的装备、独立弹匣缓存、散射与距离伤害计算、枪口和双份枪械显隐；资源缺失时安全回退原型枪。 |
+| `BreachWeaponTests.cpp` | 四枪的实际命中伤害、弹匣、射速、后坐、散射、距离衰减、AA12 独立弹丸、换弹取消、切枪及黄泉往返检查。 |
+| `BreachHUD.cpp` | 游戏内 HUD：生命值、弹药、波次、命中提示、通知和操作提示。 |
 | `ABreachPlayerController` | 目前只有一个用于选人暂停期间继续 Tick 的小接口，方便预览动画在暂停世界时更新。 |
 
 选人界面的状态关系是：
@@ -174,7 +174,7 @@ UnderTide/Content/
 │  ├─ Death/                 四个角色各自的 Death01
 │  ├─ Entrance/              选人入场和待机动作
 │  └─ Locomotion/            每个角色的移动、奔跑、跳跃、下蹲和滑铲动作
-├─ Audio/                    Confirm、Fire、Reload 音效
+├─ Audio/                    Confirm、Reload、原有 Fire 与四把枪的 Fire_<枪型> 音效
 ├─ Characters/
 │  ├─ Eula/
 │  ├─ Acheron/
@@ -185,7 +185,7 @@ UnderTide/Content/
 │  └─ SelectionCat/           李织烟选人预览的猫模型、骨架和材质
 ├─ Maps/Arena.umap           编辑器启动地图和游戏默认地图
 ├─ Materials/                角色、枪械、竞技场、霓虹灯及 `PP_UnderTideToon_Normal` 常态后处理材质
-└─ Weapons/                  四枪静态网格、材质和贴图；AK 已实装，其余枪械仅预览
+└─ Weapons/                  四把已实装枪械的静态网格、材质和贴图
 ```
 
 ### 4.1 资源命名和 C++ 加载方式
@@ -259,6 +259,8 @@ SourceAssets/
 ```
 
 这些 JSON 是导入和排查模型问题时的参考资料，不是运行时必须加载的游戏资源。`CharacterRigData.h` 是从骨骼映射生成到 C++ 中的运行时版本。
+
+第一人称开镜准星独立位于 `BreachReticleHUD.cpp`，由 `BreachHUD.cpp` 调用，负责四枪矢量轮廓、屏幕缩放及开镜/选人/换弹等显隐条件；`BreachWeaponTests.cpp` 的 `-BreachReticleReview` 分支检查准星状态并输出截图。
 
 ## 7. 修改功能时从哪里开始
 

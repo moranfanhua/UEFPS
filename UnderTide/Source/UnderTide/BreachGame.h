@@ -39,6 +39,7 @@ class UNDERTIDE_API ABreachCharacter : public ACharacter
 public:
     ABreachCharacter(const FObjectInitializer& ObjectInitializer=FObjectInitializer::Get());
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void Tick(float DeltaSeconds) override;
     virtual void SetupPlayerInputComponent(UInputComponent* Input) override;
     virtual bool CanJumpInternal_Implementation() const override;
@@ -46,6 +47,14 @@ public:
     UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> Camera;
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> WeaponRoot;
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> WorldWeaponRoot;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> AK;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> WorldAK;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> M4;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> WorldM4;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> MP5;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> WorldMP5;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> AA12;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> WorldAA12;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Sword;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> WorldSword;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Scabbard;
@@ -54,7 +63,7 @@ public:
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Body;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> WorldBody;
     UPROPERTY(EditAnywhere, Category="Camera") float BaseFieldOfView = 110.f;
-    UPROPERTY(EditAnywhere, Category="Camera") float AimFieldOfView = 76.f;
+    UPROPERTY(EditAnywhere, Category="Camera") float AimFieldOfView = 46.f;
     UPROPERTY(EditAnywhere, Category="Weapon") float FireInterval = 0.105f;
     UPROPERTY(EditAnywhere, Category="Weapon") float ShotDamage = 34.f;
     UPROPERTY(EditAnywhere, Category="Weapon") int32 MagazineSize = 30;
@@ -96,19 +105,48 @@ public:
     void Reload();
     void FinishReload();
     void SelectOperator(int32 Index);
+    void SelectWeapon(int32 Index);
+    int32 GetSelectedWeaponIndex() const { return UsesSword()?INDEX_NONE:SelectedWeapons[OperatorIndex]; }
+    bool UsesAK() const { return !UsesSword() && ConfiguredGunIndex==0; }
+    bool UsesM4() const { return !UsesSword() && ConfiguredGunIndex==1; }
+    bool UsesMP5() const { return !UsesSword() && ConfiguredGunIndex==2; }
+    bool UsesAA12() const { return !UsesSword() && ConfiguredGunIndex==3; }
+    float GetShotSpread() const;
+    float GetShotDamage(float Distance) const;
+    int32 GetTotalGunAmmo() const;
+    FVector GunMuzzleLocation() const;
     bool UsesSword() const { return OperatorIndex==1; }
     bool HasSwordRig() const { return bSwordRigReady; }
     bool IsSwordAttacking() const { return SwordAttackTime>=0.f; }
     bool IsPunchAttacking() const { return PunchAttackTime>=0.f; }
     int32 GetPunchAttackSide() const { return PunchAttackSide; }
     void SetAim(bool bEnabled);
+    float GetAimBlend() const { return AimProgress*AimProgress*(3.f-2.f*AimProgress); }
     void RestartRun();
     void TogglePause();
     void ToggleSelection();
     void UpdateOperatorPose(float DeltaSeconds);
     bool HasFirstPersonRig() const { return bBodyRigReady; }
-    float GripError() const;
+    float GripError(bool bOwnerView=true) const;
 private:
+    int32 SelectedWeapons[4]={0,INDEX_NONE,0,0};
+    int32 AKAmmo=25,M4Ammo=30,MP5Ammo=40,AA12Ammo=8;
+    int32 ConfiguredGunIndex=INDEX_NONE;
+    float ShotBloom=0.f,MuzzleFlashTime=0.f;
+    struct FShotTracer
+    {
+        FVector Start;
+        FVector Direction;
+        float Distance=0.f;
+        float HeadDistance=0.f;
+        float Speed=0.f;
+    };
+    TArray<FShotTracer> ShotTracers;
+    bool bTracerLinesDrawn=false;
+    void UpdateShotTracers(float DeltaSeconds);
+    float AimProgress=0.f;
+    void ConfigureSelectedGun();
+    void UpdateGunVisibility();
     FBreachPose BodyPose;
     FBreachPose SwordPose;
     FBreachCloth BodyCloth;
@@ -165,6 +203,7 @@ private:
     float Bob = 0.f;
     FTimerHandle ReloadTimer;
     UPROPERTY() TObjectPtr<USoundBase> FireSound;
+    UPROPERTY() TArray<TObjectPtr<USoundBase>> GunFireSounds;
     UPROPERTY() TObjectPtr<USoundBase> ReloadSound;
 };
 
@@ -227,6 +266,7 @@ public:
     void RunSmokeTest();
     void RunMovementTest();
     void RunModelReview();
+    void RunWeaponTest();
     void TickSelectionTest();
     TFunction<void()> SelectionTestStep;
     UFUNCTION(Exec) void BreachSmokeTest();
@@ -264,18 +304,26 @@ public:
     virtual void NotifyHitBoxEndCursorOver(FName BoxName) override;
     void ToggleSelection();
     void ChooseOperator(int32 Index);
+    void ChooseWeapon(int32 Index);
+    bool IsWeaponSelectionAvailable() const;
+    int32 GetSelectedWeaponIndex() const;
     bool IsSelectionOpen() const { return bSelectionOpen; }
+    float GetAimReticleOpacity() const;
     ABreachSelectionStage* GetSelectionStage() const { return SelectionStage; }
     FVector2D OperatorCardCenter(int32 Index) const;
+    FVector2D WeaponCardCenter(int32 Index) const;
 private:
     UPROPERTY() TObjectPtr<ABreachSelectionStage> SelectionStage;
     TWeakObjectPtr<AActor> PreviousViewTarget;
     bool bSelectionOpen=false,bWasPaused=false,bWasAutoCamera=true,bWasPauseTick=false,bWasClickEvents=false;
     bool bStartupPending=true,bInitialSelection=false;
     int32 HoveredOperator=INDEX_NONE;
+    int32 HoveredWeapon=INDEX_NONE;
     void DrawSelection();
+    void DrawWeaponSelection();
     void EnsureSelectionStage();
     void DrawPlayerVitals(const ABreachCharacter* Player);
+    void DrawAimReticle(const ABreachCharacter* Player);
     void MenuText(const FString& Value,float X,float Y,float Size,FLinearColor Color,bool Chinese=false);
     void Text(const FString& Value, float X, float Y, float Size, FLinearColor Color);
     void Box(float X, float Y, float W, float H, FLinearColor Color);
