@@ -10,6 +10,7 @@
 #include "Misc/Paths.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 #include "UnrealClient.h"
 
@@ -243,6 +244,13 @@ void ABreachGameMode::RunWeaponTest()
     P->SetActorLocation(FVector(-1200,-1250,94));PC->SetControlRotation(FRotator::ZeroRotator);
     At(.4f,[=]()
     {
+        for(int32 Weapon=0;Weapon<Breach::WeaponCount;++Weapon)
+        {
+            const FString Path=FString::Printf(TEXT("/Game/Audio/Fire_%s.Fire_%s"),Breach::WeaponNames[Weapon],Breach::WeaponNames[Weapon]);
+            USoundBase* GunSound=LoadObject<USoundBase>(nullptr,*Path);
+            Check(GunSound && GunSound->GetDuration()>.1f && GunSound->GetDuration()<.5f,
+                FString::Printf(TEXT("%s has a playable gunshot sound asset"),Breach::WeaponNames[Weapon]));
+        }
         Check(P->UsesAK() && P->Ammo==25 && P->MagazineSize==25,TEXT("Default ordinary operator starts with a full 25-round AK"));
         for(int32 Operator:{0,2,3})
         {

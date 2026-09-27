@@ -203,6 +203,7 @@ private:
     float Bob = 0.f;
     FTimerHandle ReloadTimer;
     UPROPERTY() TObjectPtr<USoundBase> FireSound;
+    UPROPERTY() TArray<TObjectPtr<USoundBase>> GunFireSounds;
     UPROPERTY() TObjectPtr<USoundBase> ReloadSound;
 };
 

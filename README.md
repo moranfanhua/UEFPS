@@ -55,6 +55,8 @@ AK、M4、MP5、AA12 与资源缺失时的原型回退分别记住弹匣剩余�
 
 射击时的枪口灯和曳光为暖橙色火光；每条曳光是一段最长 15 cm 的短光线，沿射击方向逐帧前移，到命中点结束。AA12 仍为 8 颗弹丸各绘制一条曳光；命中判定与各枪射程保持原有即时射线逻辑。
 
+AK、M4、MP5 和 AA12 现在分别使用 `/Game/Audio/Fire_AK`、`Fire_M4`、`Fire_MP5`、`Fire_AA12` 的枪声：AK 较厚重，M4 较短促，MP5 更轻快，AA12 有更明显的低频与机械声；连射时有轻微音高变化。单次射击只播放一次枪声，AA12 的八颗弹丸不会重复播放。音效是项目内程序合成的原创素材，源 WAV 与生成、定向导入脚本位于 `UnderTide/AudioSource/`；新资源缺失时回退到原有 `/Game/Audio/Fire`。
+
 本地专项验证可运行 `UnderTide/Scripts/VerifyWeapon.ps1 -Render`，或通过 `-BreachWeaponTest -BreachWeaponCapture` 启动游戏；报告为 `Saved/weapon_test.txt`，四枪各生成 `Hip`、`Aim`、`Tracer`、`Recoil`、`Reload` 五张第一人称截图，AK 另生成稍后飞行位置的 `TracerFlight`，M4、MP5 与 AA12 另生成外部视角截图。实现与参数分别位于 `BreachGun.cpp`、`BreachWeapons.h`，射击沿用 `BreachCharacter.cpp`。
 
 | 枪型 | UE Static Mesh | 原始压缩包 | 当前材质 |

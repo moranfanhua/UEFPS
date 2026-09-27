@@ -152,6 +152,12 @@ void ABreachCharacter::BeginPlay()
     for(auto* VisualMesh:Meshes) Breach::EnableToonStencil(VisualMesh);
     SelectOperator(0);
     FireSound = LoadObject<USoundBase>(nullptr, TEXT("/Game/Audio/Fire.Fire"));
+    GunFireSounds.SetNum(Breach::WeaponCount);
+    for(int32 Index=0;Index<Breach::WeaponCount;++Index)
+    {
+        const FString SoundPath=FString::Printf(TEXT("/Game/Audio/Fire_%s.Fire_%s"),Breach::WeaponNames[Index],Breach::WeaponNames[Index]);
+        GunFireSounds[Index]=LoadObject<USoundBase>(nullptr,*SoundPath);
+    }
     ReloadSound = LoadObject<USoundBase>(nullptr, TEXT("/Game/Audio/Reload.Reload"));
     if (auto* PC = Cast<APlayerController>(Controller))
     {
@@ -349,7 +355,13 @@ void ABreachCharacter::Fire()
             for(int32 i=0;i<SparkCount;++i) Breach::Beam(GetWorld(),Impact,Impact+Hit.ImpactNormal*12+FMath::VRand()*14,FLinearColor(1,.35f,.08f),1,.1f);
         }
     }
-    if(FireSound) UGameplayStatics::PlaySound2D(this,FireSound,.4f);
+    const bool bHasGunSound=GunFireSounds.IsValidIndex(ConfiguredGunIndex) && GunFireSounds[ConfiguredGunIndex];
+    USoundBase* ShotSound=bHasGunSound?GunFireSounds[ConfiguredGunIndex].Get():FireSound.Get();
+    if(ShotSound)
+    {
+        const float Volume=bHasGunSound?Breach::GunShotVolumes[ConfiguredGunIndex]:.4f;
+        UGameplayStatics::PlaySound2D(this,ShotSound,Volume,FMath::FRandRange(.97f,1.03f));
+    }
     AddControllerPitchInput(UsesAK()?(bAiming?-.28f:-.38f):UsesM4()?(bAiming?-.18f:-.24f):
         UsesMP5()?(bAiming?-.13f:-.18f):UsesAA12()?(bAiming?-.38f:-.5f):-.10f);
     if(UsesAK()) AddControllerYawInput(FMath::FRandRange(-.11f,.11f));

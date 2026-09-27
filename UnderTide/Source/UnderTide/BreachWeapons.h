@@ -6,6 +6,7 @@ namespace Breach
 {
     inline constexpr int32 WeaponCount=4;
     inline constexpr const TCHAR* WeaponNames[]={TEXT("AK"),TEXT("M4"),TEXT("MP5"),TEXT("AA12")};
+    inline constexpr float GunShotVolumes[WeaponCount]={.54f,.62f,.42f,.57f};
     inline constexpr const TCHAR* WeaponTypes[]={TEXT("突击步枪"),TEXT("突击步枪"),TEXT("冲锋枪"),TEXT("自动霰弹枪")};
     inline constexpr int32 AKMagazineSize=25;
     inline constexpr float AKDamage=38.f;

@@ -174,7 +174,7 @@ UnderTide/Content/
 │  ├─ Death/                 四个角色各自的 Death01
 │  ├─ Entrance/              选人入场和待机动作
 │  └─ Locomotion/            每个角色的移动、奔跑、跳跃、下蹲和滑铲动作
-├─ Audio/                    Confirm、Fire、Reload 音效
+├─ Audio/                    Confirm、Reload、原有 Fire 与四把枪的 Fire_<枪型> 音效
 ├─ Characters/
 │  ├─ Eula/
 │  ├─ Acheron/
