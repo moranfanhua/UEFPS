@@ -56,6 +56,25 @@ M4 原包的 OBJ 引用了未提供的 MTL，导入时按材质槽匹配原皮�
 
 本地转换、导入和独立双侧预览脚本分别为 `Tools/prepare_guns.py`、`UnderTide/Scripts/import_guns.py`、`UnderTide/Scripts/review_guns.py`，沿用本地工具忽略规则。中间文件位于 `SourceAssets/Converted/Guns/`，检查报告与截图位于 `UnderTide/Saved/GunImport/`；运行游戏不依赖这些工具或源文件。
 
+#### UE 海嗣资源
+
+六个最新版模型已作为静态网格导入；各目录包含材质与 2K 贴图。法线贴图使用 UE 对应的绿色通道翻转，颜色贴图开启 sRGB，粗糙度使用线性采样；发光强度按各模型源材质设置。
+
+| 编号 | 模型版本 | UE Static Mesh |
+| --- | --- | --- |
+| 01 | ShellSeaRunner v2 | `/Game/Enemies/Seaborn/ShellSeaRunner/SM_ShellSeaRunner` |
+| 02 | DeepSeaSlider v1 | `/Game/Enemies/Seaborn/DeepSeaSlider/SM_DeepSeaSlider` |
+| 03 | SpinalSeaSpitter v2，三足 | `/Game/Enemies/Seaborn/SpinalSeaSpitter/SM_SpinalSeaSpitter` |
+| 04 | SeaDrifter v1 | `/Game/Enemies/Seaborn/SeaDrifter/SM_SeaDrifter` |
+| 05 | BowlSeaReaper v2，四触手 | `/Game/Enemies/Seaborn/BowlSeaReaper/SM_BowlSeaReaper` |
+| 06 | FirstSeaPiercer v2，长刺垂直花面 | `/Game/Enemies/Seaborn/FirstSeaPiercer/SM_FirstSeaPiercer` |
+
+六个静态网格保留源模型制作尺寸，可从内容浏览器打开或拖入关卡。01 的源轴向与其他五只不同，放置时需按需调整朝向。静态模型尚未绑定骨骼、接入敌人 AI、伤害或战斗波次，当前 Arena 与玩家角色保持原有行为。
+
+本地导入工具为 `UnderTide/Scripts/import_seaborn.py`；导入报告与已生成的 UE 检查截图保存在 `UnderTide/Saved/SeabornImport/`。`Modeling/Seaborn*/` 内的 `.py` 生成工具与 `.json` 检查报告按根目录 `.gitignore` 排除，仅保留在本机；说明文档及 `Content` 下导入的 UE 资源不受该规则影响。上述独立资源导入不改变原图与角色外形的授权条件。
+
+资源核对包括六个网格的面数、尺寸及 23 张 2K 贴图，以及六个单体和 06 侧面的 UE 实际渲染。这里的验证为编辑器资源与渲染检查，不代表战斗逻辑、动画、联机或打包验证。
+
 ### 动画来源
 
 - 女性动作来源：Quaternius **Animated Women Pack**，官方页面：<https://quaternius.com/packs/animatedwomen.html>

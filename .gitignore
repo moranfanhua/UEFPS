@@ -89,6 +89,10 @@ ehthumbs.db
 *.blend
 Modeling/Ascalon/*.py
 
+# 海嗣模型的本地生成脚本与检查报告；保留说明和 UE 导入资源。
+/Modeling
+/Modeling
+
 #图片
 *.png
 *.mov
