@@ -9,6 +9,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/BoxComponent.h"
 #include "Engine/DamageEvents.h"
+#include "Engine/SkeletalMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/CommandLine.h"
@@ -33,8 +34,9 @@ void ABreachGameMode::RunSeabornMechanismTest()
     const bool Spitter=Key==TEXT("SpinalSeaSpitter");
     const bool Drifter=Key==TEXT("SeaDrifter");
     const bool Reaper=Key==TEXT("BowlSeaReaper");
-    Check(Key==TEXT("ShellSeaRunner") || Slider || Spitter || Drifter || Reaper,TEXT("Requested species is implemented"));
-    const EBreachSeabornSpecies Kind=Reaper?EBreachSeabornSpecies::BowlSeaReaper:(Drifter?EBreachSeabornSpecies::SeaDrifter:(Spitter?EBreachSeabornSpecies::SpinalSeaSpitter:(Slider?EBreachSeabornSpecies::DeepSeaSlider:EBreachSeabornSpecies::ShellSeaRunner)));
+    const bool Piercer=Key==TEXT("FirstSeaPiercer");
+    Check(Key==TEXT("ShellSeaRunner") || Slider || Spitter || Drifter || Reaper || Piercer,TEXT("Requested species is implemented"));
+    const EBreachSeabornSpecies Kind=Piercer?EBreachSeabornSpecies::FirstSeaPiercer:(Reaper?EBreachSeabornSpecies::BowlSeaReaper:(Drifter?EBreachSeabornSpecies::SeaDrifter:(Spitter?EBreachSeabornSpecies::SpinalSeaSpitter:(Slider?EBreachSeabornSpecies::DeepSeaSlider:EBreachSeabornSpecies::ShellSeaRunner))));
     auto* Player=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0));
     if(!Player) { FPlatformMisc::RequestExitWithStatus(true,1); return; }
     const FVector Origin(0,0,10000);
@@ -47,13 +49,14 @@ void ABreachGameMode::RunSeabornMechanismTest()
     auto* Enemy=GetWorld()->SpawnActor<ABreachSeabornEnemy>(Origin,FRotator::ZeroRotator,Params);
     Enemy->SetActorTickEnabled(false);
     Check(!Enemy->bMechanicsEnabled && Enemy->Health==0,TEXT("New actors require explicit activation"));
+    Check(!Enemy->ActivateSpecies(static_cast<EBreachSeabornSpecies>(255)) && !Enemy->bMechanicsEnabled,TEXT("Invalid species cannot activate an unintended enemy"));
     Check(Enemy->ActivateSpecies(Kind) && Enemy->HasRig(),TEXT("Activation loads existing rig and actions"));
     if(Drifter) Check(Enemy->GetCharacterMovement()->MovementMode==MOVE_Flying && Enemy->GetActorLocation().Z>Origin.Z,TEXT("Drifter activates with true flying movement above its ground plane"));
     Enemy->SetActorLocation(Origin);
     const auto Profile=Enemy->GetProfile();
     Enemy->GetCharacterMovement()->DisableMovement();
     const float Duration=Enemy->GetAttackDuration();
-    const float AfterHit=Reaper?100.f:(Drifter?89.f:86.f);
+    const float AfterHit=Piercer?72.5f:(Reaper?100.f:(Drifter?89.f:86.f));
     FDamageEvent True(UBreachTrueDamage::StaticClass());
     if(Reaper)
     {
@@ -102,7 +105,7 @@ void ABreachGameMode::RunSeabornMechanismTest()
     }
     else
     {
-    Check(Enemy->Health==(Spitter?220.f:(Slider?140.f:150.f)) && FMath::IsNearlyEqual(Enemy->GetCharacterMovement()->MaxWalkSpeed,790.f*Profile.Speed/1.9f,.001f),TEXT("Level-0 HP and speed use documented FPS conversion"));
+    Check(Enemy->Health==(Piercer?450.f:(Spitter?220.f:(Slider?140.f:150.f))) && FMath::IsNearlyEqual(Enemy->GetCharacterMovement()->MaxWalkSpeed,790.f*Profile.Speed/1.9f,.001f),TEXT("Level-0 HP and speed use documented FPS conversion"));
     Enemy->AdvanceMechanics(.01f);
     Check(Enemy->Action==EBreachSeabornAction::Attack && Player->Health==100,TEXT("Attack starts with a visible windup"));
     Enemy->AdvanceMechanics(Duration*.42f+.01f);
@@ -139,12 +142,33 @@ void ABreachGameMode::RunSeabornMechanismTest()
         Check(!Enemy->CanHit(Player) && Profile.NerveFraction==0,TEXT("Spitter respects 500cm range and has no invented neural talent"));
         Player->SetActorLocation(Origin+FVector(100,0,0));
     }
+    if(Piercer)
+    {
+        auto* Other=GetWorld()->SpawnActor<ABreachCharacter>(Origin+FVector(200,200,0),FRotator::ZeroRotator,Params);
+        Other->SetActorTickEnabled(false); Other->GetCharacterMovement()->DisableMovement(); Other->NerveDamage->SetComponentTickEnabled(false);
+        Player->Health=80; Other->MaxHealth=400; Other->Health=200;
+        Check(Enemy->SelectTarget()==Other,TEXT("Piercer selects the lowest HP ratio rather than lowest absolute HP or nearest target"));
+        Other->Health=320;
+        Check(Enemy->SelectTarget()==Player,TEXT("Equal health ratios prefer the player who appeared first"));
+        Other->Health=1; Other->SetActorLocation(Origin+FVector(341,0,0));
+        Check(Enemy->SelectTarget()==Player && !Enemy->CanHit(Other),TEXT("A critically injured target outside 1.7 tiles cannot displace an eligible target"));
+        Other->SetActorLocation(Origin+FVector(200,200,0)); Other->Health=360; Player->Health=1;
+        auto* Cover=GetWorld()->SpawnActor<AActor>(); auto* Box=NewObject<UBoxComponent>(Cover); Cover->SetRootComponent(Box);
+        Box->SetBoxExtent(FVector(5,30,150)); Box->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+        Box->SetCollisionResponseToAllChannels(ECR_Ignore); Box->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
+        Box->RegisterComponent(); Box->SetWorldLocation(Origin+FVector(50,0,0));
+        Check(Enemy->SelectTarget()==Other,TEXT("FPS adaptation excludes occluded low-health targets"));
+        Cover->Destroy(); Other->Health=0;
+        Check(Enemy->SelectTarget()==Player && Profile.NerveFraction==0,TEXT("Piercer excludes defeated targets and has no extra neural talent"));
+        Other->Destroy(); Player->Health=AfterHit;
+    }
     FDamageEvent Arts(UBreachArtsDamage::StaticClass());
     Check(FMath::IsNearlyEqual(Enemy->TakeDamage(10,Arts,nullptr,Player),10.f*(1-Profile.ArtsResistance/100.f)),TEXT("Arts resistance reduces incoming arts damage"));
     Check(FMath::IsNearlyEqual(Enemy->TakeDamage(10,True,nullptr,Player),10.f),TEXT("True damage bypasses armor and resistance"));
     Enemy->TakeDamage(10000,True,nullptr,Player);
     Enemy->AdvanceMechanics(3);
     Check(Enemy->IsDefeated() && Enemy->Health==0 && Player->Health==AfterHit && Enemy->GetCapsuleComponent()->GetCollisionEnabled()==ECollisionEnabled::NoCollision,TEXT("Death cancels attacks and disables collision"));
+    Check(Enemy->DamageHitbox->GetCollisionEnabled()==ECollisionEnabled::NoCollision,TEXT("Death also clears the full-mesh hitscan hitbox"));
     }
     Check(RemainingToSpawn==0 && Wave==0 && EnemiesAlive==0,TEXT("Diagnostic mechanisms do not enter regular waves"));
 
@@ -200,8 +224,19 @@ void ABreachGameMode::RunSeabornMechanismTest()
         auto* PC=Cast<APlayerController>(Player->GetController());
         PC->GetHUD()->bShowHUD=false; Player->SetActorHiddenInGame(true);
         auto* Camera=GetWorld()->SpawnActor<ACameraActor>();
-        const FVector Focus=StageOrigin+FVector(0,0,125);
-        Camera->SetActorLocation(Focus+FVector(470,-540,260));
+        const auto Bounds=Subject->Visual->GetSkinnedAsset()->GetBounds();
+        const FTransform MeshTransform=Subject->Visual->GetComponentTransform();
+        const FVector Focus=MeshTransform.TransformPosition(Bounds.Origin);
+        const FVector ViewDirection=FVector(470,-540,260).GetSafeNormal();
+        const FRotationMatrix ViewAxes((-ViewDirection).Rotation());
+        float FitDistance=500;
+        for(int32 I=0;I<8;++I)
+        {
+            const FVector Corner=MeshTransform.TransformVector(Bounds.BoxExtent*FVector(I&1?1:-1,I&2?1:-1,I&4?1:-1));
+            const float Depth=FVector::DotProduct(Corner,ViewAxes.GetScaledAxis(EAxis::X));
+            FitDistance=FMath::Max(FitDistance,FMath::Max(float(FMath::Abs(FVector::DotProduct(Corner,ViewAxes.GetScaledAxis(EAxis::Y)))/.445f),float(FMath::Abs(FVector::DotProduct(Corner,ViewAxes.GetScaledAxis(EAxis::Z)))/.25f))-Depth);
+        }
+        Camera->SetActorLocation(Focus+ViewDirection*FitDistance*1.12f);
         Camera->SetActorRotation((Focus-Camera->GetActorLocation()).Rotation());
         Camera->GetCameraComponent()->SetFieldOfView(48);
         PC->bAutoManageActiveCameraTarget=false; PC->SetViewTarget(Camera);

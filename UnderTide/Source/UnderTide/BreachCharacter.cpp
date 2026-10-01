@@ -147,6 +147,8 @@ ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
 void ABreachCharacter::BeginPlay()
 {
     Super::BeginPlay();
+    static uint64 NextSpawnOrder=0;
+    TargetSpawnOrder=++NextSpawnOrder;
     TInlineComponentArray<UMeshComponent*> Meshes(this);
     for(auto* VisualMesh:Meshes) Breach::EnableToonStencil(VisualMesh);
     SelectOperator(0);

@@ -11,7 +11,7 @@ class UAnimSequence;
 class UBoxComponent;
 
 UENUM(BlueprintType)
-enum class EBreachSeabornSpecies : uint8 { ShellSeaRunner, DeepSeaSlider, SpinalSeaSpitter, SeaDrifter, BowlSeaReaper };
+enum class EBreachSeabornSpecies : uint8 { ShellSeaRunner, DeepSeaSlider, SpinalSeaSpitter, SeaDrifter, BowlSeaReaper, FirstSeaPiercer };
 UENUM(BlueprintType)
 enum class EBreachSeabornAction : uint8 { Idle, Move, Attack, Wake, Dead };
 

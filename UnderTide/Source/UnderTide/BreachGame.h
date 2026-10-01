@@ -74,7 +74,10 @@ public:
     UPROPERTY(EditAnywhere, Category="Sword", meta=(ClampMin="0.0", ClampMax="1.0")) float FirstPersonSwordMotionScale = .35f;
     UPROPERTY(EditAnywhere, Category="Sword", meta=(ClampMin="0.1")) float FirstPersonSwordAnchorSpeed = 4.f;
     UPROPERTY(EditAnywhere, Category="Sword") FVector SwordRunGripOffset = FVector(22.f,24.f,-38.f);
+    UPROPERTY(EditAnywhere, Category="Vitals", meta=(ClampMin="1.0")) float MaxHealth=100.f;
     float Health = 100.f;
+    float GetHealthFraction() const { return FMath::Clamp(Health/FMath::Max(1.f,MaxHealth),0.f,1.f); }
+    uint64 GetTargetSpawnOrder() const { return TargetSpawnOrder; }
     int32 Ammo = 30;
     int32 Reserve = 180;
     int32 OperatorIndex = 0;
@@ -113,6 +116,7 @@ public:
     bool HasFirstPersonRig() const { return bBodyRigReady; }
     float GripError() const;
 private:
+    uint64 TargetSpawnOrder=0;
     FBreachPose BodyPose;
     FBreachPose SwordPose;
     FBreachCloth BodyCloth;

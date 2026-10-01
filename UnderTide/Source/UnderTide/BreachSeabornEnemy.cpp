@@ -47,7 +47,7 @@ void ABreachSeabornEnemy::BeginPlay()
 
 bool ABreachSeabornEnemy::ActivateSpecies(EBreachSeabornSpecies Kind)
 {
-    if(!HasAuthority()) return false;
+    if(!HasAuthority() || uint8(Kind)>uint8(EBreachSeabornSpecies::FirstSeaPiercer)) return false;
     const float FloorZ=GetActorLocation().Z-(Profile.bFlying && bRigReady?FlightAnchorHeight:GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight());
     Species=Kind;
     SetProfile();
@@ -165,6 +165,12 @@ void ABreachSeabornEnemy::SetProfile()
         Profile.Key=TEXT("BowlSeaReaper"); Profile.Health=20000; Profile.Attack=400; Profile.Defense=800;
         Profile.ArtsResistance=75; Profile.Speed=.3f; Profile.Interval=3; Profile.NerveFraction=.1f; Profile.bDormant=true;
     }
+    else if(Species==EBreachSeabornSpecies::FirstSeaPiercer)
+    {
+        Profile.Key=TEXT("FirstSeaPiercer"); Profile.Health=9000; Profile.Attack=550; Profile.Defense=240;
+        Profile.Speed=.75f; Profile.Interval=3.5f; Profile.Range=1.7f*FBreachSeabornProfile::TileSize;
+        Profile.bRanged=true; Profile.bLowestHealthTarget=true;
+    }
 }
 
 void ABreachSeabornEnemy::SetAction(EBreachSeabornAction Next)
@@ -190,6 +196,7 @@ bool ABreachSeabornEnemy::CanHit(const ABreachCharacter* Player) const
 ABreachCharacter* ABreachSeabornEnemy::SelectTarget() const
 {
     ABreachCharacter* Best=nullptr;
+    ABreachCharacter* InRange=nullptr;
     float BestDistance=TNumericLimits<float>::Max();
     for(TActorIterator<ABreachCharacter> It(GetWorld());It;++It)
     {
@@ -197,8 +204,14 @@ ABreachCharacter* ABreachSeabornEnemy::SelectTarget() const
         if(Player->Health<=0 || Player->IsActorBeingDestroyed()) continue;
         const float Distance=FVector::DistSquared(GetActorLocation(),Player->GetActorLocation());
         if(Distance<BestDistance) { Best=Player; BestDistance=Distance; }
+        if(Profile.bLowestHealthTarget && CanHit(Player))
+        {
+            const float Ratio=Player->GetHealthFraction();
+            const float Current=InRange?InRange->GetHealthFraction():2.f;
+            if(Ratio<Current || (Ratio==Current && Player->GetTargetSpawnOrder()<InRange->GetTargetSpawnOrder())) InRange=Player;
+        }
     }
-    return Best;
+    return InRange?InRange:Best;
 }
 
 void ABreachSeabornEnemy::ApplyIncapacitation(float Seconds)
