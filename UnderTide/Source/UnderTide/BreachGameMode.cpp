@@ -141,6 +141,12 @@ void ABreachGameMode::BeginPlay()
         FTimerHandle MovementTimer;
         GetWorldTimerManager().SetTimer(MovementTimer,this,&ABreachGameMode::RunMovementTest,.6f,false);
     }
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachSeabornMechanismTest")))
+    {
+        bGallery=true;
+        FTimerHandle MechanismTimer;
+        GetWorldTimerManager().SetTimer(MechanismTimer,this,&ABreachGameMode::RunSeabornMechanismTest,.6f,false);
+    }
     if(FParse::Param(FCommandLine::Get(),TEXT("BreachRunnerTest")))
     {
         bGallery=true;

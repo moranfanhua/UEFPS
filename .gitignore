@@ -97,3 +97,8 @@ Modeling/Ascalon/*.py
 *.png
 *.mov
 *.webm
+
+# 本地海嗣生成、机制说明与验证辅助文件
+/SourceAssets/SeabornMechanisms/create_nerve_blur.py
+/SourceAssets/SeabornMechanisms/MECHANICS.md
+/SourceAssets/SeabornMechanisms/VerifyMechanisms.ps1

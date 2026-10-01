@@ -1,5 +1,6 @@
 #include "BreachGame.h"
 #include "BreachMovementComponent.h"
+#include "BreachSeabornEnemy.h"
 #include "BreachVisuals.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -271,6 +272,11 @@ void ABreachCharacter::Fire()
         bLastHeadshot=Head; HitMarker=.18f;
         UGameplayStatics::ApplyPointDamage(Enemy,ShotDamage*(Head?2.f:1.f),Direction,Hit,Controller,this,UDamageType::StaticClass());
     }
+    else if(auto* Seaborn=Cast<ABreachSeabornEnemy>(Hit.GetActor()); Seaborn && !Seaborn->IsDefeated() && Seaborn->bMechanicsEnabled)
+    {
+        ++ShotsHit; bLastHeadshot=false; HitMarker=.18f;
+        UGameplayStatics::ApplyPointDamage(Seaborn,ShotDamage,Direction,Hit,Controller,this,UDamageType::StaticClass());
+    }
     else if(bHit)
     {
         for(int32 i=0;i<4;++i) Breach::Beam(GetWorld(),Impact,Impact+Hit.ImpactNormal*12+FMath::VRand()*14,FLinearColor(1,.35f,.08f),1,.1f);
@@ -350,6 +356,11 @@ void ABreachCharacter::PerformSwordHit()
         ++ShotsHit; bLastHeadshot=false; HitMarker=.22f;
         UGameplayStatics::ApplyDamage(Enemy,SwordDamage,Controller,this,UDamageType::StaticClass());
     }
+    else if(auto* Seaborn=Cast<ABreachSeabornEnemy>(Hit.GetActor()); bHit && Seaborn && !Seaborn->IsDefeated() && Seaborn->bMechanicsEnabled)
+    {
+        ++ShotsHit; bLastHeadshot=false; HitMarker=.22f;
+        UGameplayStatics::ApplyDamage(Seaborn,SwordDamage,Controller,this,UDamageType::StaticClass());
+    }
 }
 
 void ABreachCharacter::ApplySwordAttackPose()
@@ -398,6 +409,11 @@ void ABreachCharacter::PerformPunchHit()
     {
         ++ShotsHit; bLastHeadshot=false; HitMarker=.2f;
         UGameplayStatics::ApplyDamage(Enemy,PunchDamage,Controller,this,UDamageType::StaticClass());
+    }
+    else if(auto* Seaborn=Cast<ABreachSeabornEnemy>(Hit.GetActor()); bHit && Seaborn && !Seaborn->IsDefeated() && Seaborn->bMechanicsEnabled)
+    {
+        ++ShotsHit; bLastHeadshot=false; HitMarker=.2f;
+        UGameplayStatics::ApplyDamage(Seaborn,PunchDamage,Controller,this,UDamageType::StaticClass());
     }
 }
 
