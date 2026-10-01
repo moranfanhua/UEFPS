@@ -33,6 +33,7 @@
 | `BreachLocomotion.cpp` | 玩家动画状态选择与姿态过渡；是角色类的拆分实现。 |
 | `BreachMovementComponent.h/.cpp` | 速度平滑、惯性滑铲、坡道、滑铲跳及移动预测状态。 |
 | `BreachEnemy.cpp` | 敌人行为、受击和死亡倒地。 |
+| `BreachRunnerTests.cpp` | 壳海狂奔者四腿疾跑、骨段长度、脚爪落地、循环及停步验证。 |
 | `BreachGameMode.cpp`、`BreachArena.cpp` | 游戏流程、波次、分数、测试入口及竞技场创建。 |
 | `BreachHUD.cpp`、`BreachVitalsHUD.cpp` | 战斗 HUD、头像、玩家显示名和生命条。 |
 | `BreachSelectionHUD.cpp` | 选人界面绘制、点击和开关流程；是 HUD 类的拆分实现。 |
@@ -142,6 +143,8 @@ $breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
 - 布料是 `FBreachCloth` 的骨骼链模拟，不是完整 MMD/Bullet 或 Chaos 网格布料，没有布料自碰撞。玩家只计算世界模型衣物物理，再复用局部旋转到拥有者身体；瞬移、换角色和长帧须安全重置。
 
 ## 角色与资源保护
+
+战斗波次当前生成壳海狂奔者，最高移速共用 `UBreachMovementComponent::UnarmedSpeed`，暂不造成伤害。运行网格、21 节骨架和 Run／Attack／Die 动作位于 `/Game/Enemies/Seaborn/ShellSeaRunner/Rig/`；原静态网格及材质保留。骨骼版依据 `UnderTide/enemies/` 三段视频缩短颌部并增加四节尾部，原四腿绑定姿态保留。约 0.533 秒原地疾跑按实际移速调整播放速率，停步混合回绑定站姿；约 165 cm 开始制动，近距停稳后播放咬合动作，伤害继续留空。死亡打断攻击，屈腿伏地并保持末帧；根骨动画不得重复驱动移动。骨骼或动作修改后运行 `-BreachRunnerTest`，画面验证添加 `-BreachRunnerCapture`（本地封装 `Scripts/VerifyRunner.ps1 -Render`），检查四条腿、脚爪与尾部落地、循环衔接、攻击／死亡切换和第一人称画面。
 
 角色索引固定为 `0=Eula`、`1=Acheron`、`2=Lizhiyan`、`3=Ascalon`。新增或替换角色要同步资源入口、骨骼映射、动画路径、UI、测试和文档。
 

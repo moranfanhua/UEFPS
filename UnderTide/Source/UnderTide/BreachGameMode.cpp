@@ -7,6 +7,7 @@
 #include "GameFramework/HUD.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/BoxComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
@@ -140,6 +141,12 @@ void ABreachGameMode::BeginPlay()
         FTimerHandle MovementTimer;
         GetWorldTimerManager().SetTimer(MovementTimer,this,&ABreachGameMode::RunMovementTest,.6f,false);
     }
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachRunnerTest")))
+    {
+        bGallery=true;
+        FTimerHandle RunnerTimer;
+        GetWorldTimerManager().SetTimer(RunnerTimer,this,&ABreachGameMode::RunRunnerTest,.6f,false);
+    }
     if(FParse::Param(FCommandLine::Get(),TEXT("BreachSelectionTest")))
     {
         bGallery=true;PrimaryActorTick.bTickEvenWhenPaused=true;
@@ -220,9 +227,14 @@ void ABreachGameMode::SpawnEnemy()
     const FVector Points[]={FVector(1900,-1150,100),FVector(1900,1150,100),FVector(1000,-1400,100),FVector(1000,1400,100),FVector(-600,-1450,100),FVector(-600,1450,100)};
     FVector Location=Points[FMath::RandRange(0,5)];
     for(int32 i=0;i<6 && P && FVector::Dist2D(Location,P->GetActorLocation())<700;++i) Location=Points[i];
-    FActorSpawnParameters Params; Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-    auto* E=GetWorld()->SpawnActor<ABreachEnemy>(Location,FRotator(0,180,0),Params);
-    if(E) { E->Configure((Wave+RemainingToSpawn)%4,Wave); --RemainingToSpawn; ++EnemiesAlive; }
+    const FTransform SpawnTransform(FRotator(0,180,0),Location);
+    auto* E=GetWorld()->SpawnActorDeferred<ABreachEnemy>(ABreachEnemy::StaticClass(),SpawnTransform,nullptr,nullptr,ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding);
+    if(E)
+    {
+        E->bShellSeaRunner=true;
+        UGameplayStatics::FinishSpawningActor(E,SpawnTransform);
+        if(IsValid(E)) { E->ConfigureShellSeaRunner(Wave); --RemainingToSpawn; ++EnemiesAlive; }
+    }
 }
 void ABreachGameMode::EnemyDefeated(ABreachEnemy* E,bool Head)
 {
@@ -362,6 +374,21 @@ void ABreachGameMode::RunSmokeTest()
             UGameplayStatics::ApplyDamage(Fallen,1000,P->GetController(),P,UDamageType::StaticClass());
             Check(Score==ScoreBefore && Fallen->GetCapsuleComponent()->GetCollisionEnabled()==ECollisionEnabled::NoCollision,*FString::Printf(TEXT("%s defeated body cannot score twice or block player"),Breach::Keys[I]));
         }
+        const FTransform RunnerTransform(FRotator(0,180,0),FVector(X+250,0,100));
+        auto* Runner=GetWorld()->SpawnActorDeferred<ABreachEnemy>(ABreachEnemy::StaticClass(),RunnerTransform,nullptr,nullptr,ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+        Runner->bShellSeaRunner=true;
+        UGameplayStatics::FinishSpawningActor(Runner,RunnerTransform);
+        Runner->ConfigureShellSeaRunner(1); ++EnemiesAlive;
+        Check(Runner->bShellSeaRunner && Runner->RunnerVisual->GetSkinnedAsset()!=nullptr && Runner->HasRunnerAnimation() && Runner->RunnerVisual->IsVisible() && !Runner->Visual->IsVisible(),TEXT("ShellSeaRunner wave enemy uses rigged mesh and gallop animation"));
+        Check(FMath::IsNearlyEqual(Runner->GetCharacterMovement()->MaxWalkSpeed,UBreachMovementComponent::UnarmedSpeed),TEXT("ShellSeaRunner reaches ordinary unarmed movement speed"));
+        FHitResult RunnerHit;
+        FCollisionQueryParams RunnerTrace(SCENE_QUERY_STAT(ShellSeaRunnerShot),true,P);
+        Check(GetWorld()->LineTraceSingleByChannel(RunnerHit,P->Camera->GetComponentLocation(),Runner->GetActorLocation()+FVector(0,0,45),ECC_Visibility,RunnerTrace) && RunnerHit.GetActor()==Runner,TEXT("ShellSeaRunner blocks player hitscan"));
+        const float HealthBeforeRunner=P->Health;
+        Runner->Tick(3.f);
+        Check(P->Health==HealthBeforeRunner,TEXT("ShellSeaRunner chase has no damage yet"));
+        UGameplayStatics::ApplyDamage(Runner,1000,P->GetController(),P,UDamageType::StaticClass());
+        Check(Runner->bDefeated && Runner->HasDeathAnimation() && Runner->GetCapsuleComponent()->GetCollisionEnabled()==ECollisionEnabled::NoCollision && Runner->RunnerHitbox->GetCollisionEnabled()==ECollisionEnabled::NoCollision,TEXT("ShellSeaRunner plays skeletal death and clears collision"));
         UGameplayStatics::ApplyDamage(P,25,E->GetController(),E,UDamageType::StaticClass());
         Check(P->Health==75,TEXT("Player damage updates health"));
         UGameplayStatics::ApplyDamage(P,1000,E->GetController(),E,UDamageType::StaticClass());

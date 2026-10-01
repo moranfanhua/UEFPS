@@ -267,7 +267,7 @@ void ABreachCharacter::Fire()
     if(auto* Enemy=Cast<ABreachEnemy>(Hit.GetActor()); Enemy && !Enemy->bDisplayOnly && !Enemy->bDefeated)
     {
         ++ShotsHit;
-        const bool Head=Hit.ImpactPoint.Z > Enemy->GetActorLocation().Z+47.f;
+        const bool Head=!Enemy->bShellSeaRunner && Hit.ImpactPoint.Z > Enemy->GetActorLocation().Z+47.f;
         bLastHeadshot=Head; HitMarker=.18f;
         UGameplayStatics::ApplyPointDamage(Enemy,ShotDamage*(Head?2.f:1.f),Direction,Hit,Controller,this,UDamageType::StaticClass());
     }

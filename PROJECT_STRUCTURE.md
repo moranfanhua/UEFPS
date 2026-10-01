@@ -84,7 +84,8 @@ GPT_UE_TEST/
 | --- | --- |
 | `BreachGameMode.cpp` | 游戏总流程。启动时调用 `BuildArena()`，创建展示角色；运行时管理波次、分数、击杀数、敌人数量、胜负状态和自动演示。 |
 | `BreachArena.cpp` | 创建竞技场几何、地板、围墙、掩体、中央反应堆、角色展示台、文字标牌、灯光和后处理。已有带 `BreachArena` 标签的物体时不会重复创建。 |
-| `BreachEnemy.cpp` | 敌人移动、朝向玩家、视线检测、攻击、受伤和死亡。普通移动由 `Pose.Walk()` 程序化生成，死亡优先播放对应的 `Death01` 动画。 |
+| `BreachEnemy.cpp` | 敌人移动、朝向玩家、视线检测、受伤和死亡。壳海狂奔者用独立骨骼网格和逐腿疾跑循环，播放速率随实际移速变化，停步混合回站姿；近距停稳后扬尾前探咬合，死亡打断攻击并屈腿伏地保持末帧，暂不造成伤害；人物敌人仍用 `Pose.Walk()` 和对应的 `Death01` 动画。 |
+| `BreachRunnerTests.cpp` | 狂奔者四腿与尾部骨骼、脚爪行程、骨段长度、循环衔接、根骨原地、停步、咬合恢复及死亡打断检查，提供奔跑、攻击、死亡侧面与第一人称截图。入口为 `-BreachRunnerTest`，截图另加 `-BreachRunnerCapture`。 |
 | `BreachAssets.cpp` | 编辑器资源处理：裁剪辅助第一人称手臂网格，以及从 JSON/动作文件烘焙死亡和角色动画。函数使用 `WITH_EDITOR`，打包后的游戏不会执行编辑器写入操作。 |
 | `BreachModelReview.cpp` | 阿斯卡纶正、侧、背离屏检查入口；只有显式使用 `-BreachModelReview` 才进入模型检查场景，附加 `-BreachReviewHead` 聚焦头部。`Scripts/VerifyModelReview.ps1 -Head` 封装该入口。保留原骨架的 `CopyCharacterGeometry` 位于 `BreachAssets.cpp`，网格更新仅允许编辑器构建执行。 |
 | `BreachCharacter.cpp` | 玩家角色的构造、输入绑定、相机、完整人物模型、枪械组件、黄泉刀、射击/挥拳/挥刀、瞄准、换弹、受伤和重开。普通角色收枪后以 70 点伤害挥拳，黄泉固定持刀并以 180 点伤害攻击。 |

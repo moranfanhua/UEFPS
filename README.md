@@ -69,7 +69,9 @@ M4 原包的 OBJ 引用了未提供的 MTL，导入时按材质槽匹配原皮�
 | 05 | BowlSeaReaper v2，四触手 | `/Game/Enemies/Seaborn/BowlSeaReaper/SM_BowlSeaReaper` |
 | 06 | FirstSeaPiercer v2，长刺垂直花面 | `/Game/Enemies/Seaborn/FirstSeaPiercer/SM_FirstSeaPiercer` |
 
-六个静态网格保留源模型制作尺寸，可从内容浏览器打开或拖入关卡。01 的源轴向与其他五只不同，放置时需按需调整朝向。静态模型尚未绑定骨骼、接入敌人 AI、伤害或战斗波次，当前 Arena 与玩家角色保持原有行为。
+六个静态网格保留源模型制作尺寸，可从内容浏览器打开或拖入关卡。战斗波次当前使用壳海狂奔者的独立骨骼版本：21 个骨骼节点包含身体、上下颌、四条上腿／下腿／脚爪链和四节尾部。依据用户提供的 `UnderTide/enemies/` 三个 WebM 侧视参考，骨骼版缩短颌部、收窄张口幅度并增加细长尾部；原 v2 静态模型、主体 UV 与贴图保留，原有骨骼的绑定姿态不变。四腿按前后及左右时差进行落脚、蹬地和收腿，约 0.533 秒原地疾跑循环按实际速度调整播放速率，停步平滑回到站姿；位移只由角色移动组件计算。其最高移速为 790 cm/s（普通角色空手移速），约 165 cm 处开始制动，进入近距且停稳后播放约 0.983 秒的扬尾、前探、咬合与恢复动作。死亡打断攻击，播放同长度的屈腿伏地动作并保持末帧，尸体沿用 9 秒清理。接触与攻击伤害尚未定义，因此它暂时不会伤害玩家。其余五个海嗣仍只作为静态资源，四名人物模型仍用于展示与既有检查。
+
+运行资源为 `/Game/Enemies/Seaborn/ShellSeaRunner/Rig/SK_ShellSeaRunner`、同目录 `SK_ShellSeaRunner_Skeleton` 和 `A_ShellSeaRunner_Run`、`A_ShellSeaRunner_Attack`、`A_ShellSeaRunner_Die`；骨骼版使用独立的 `M_ShellSeaRunner_Rig` 和两种尾部材质，原静态网格和材质保留。三段视频仅作为动作参考，UE 动画为按该模型骨长重制的三维动作，并非视频自带的骨骼数据。逐腿检查入口为 `-BreachRunnerTest`，添加 `-BreachRunnerCapture` 可生成侧面四帧、站姿、攻击三帧、死亡三帧及第一人称截图；本地封装为 `UnderTide/Scripts/VerifyRunner.ps1 -Render`，报告在 `Saved/runner_test.txt`。本地骨架准备及导入工具为 `Tools/rig_shell_runner.py`、`UnderTide/Scripts/import_shell_runner_rig.py`，可编辑骨架源文件为 `SourceAssets/Converted/ShellSeaRunner/ShellSeaRunner_Rig.blend`；这些本地辅助文件遵循忽略规则，游戏运行只读取 UE 资源。角色原型来自《明日方舟》／鹰角网络，不属于 CC0 素材。
 
 本地导入工具为 `UnderTide/Scripts/import_seaborn.py`；导入报告与已生成的 UE 检查截图保存在 `UnderTide/Saved/SeabornImport/`。`Modeling/Seaborn*/` 内的 `.py` 生成工具与 `.json` 检查报告按根目录 `.gitignore` 排除，仅保留在本机；说明文档及 `Content` 下导入的 UE 资源不受该规则影响。上述独立资源导入不改变原图与角色外形的授权条件。
 

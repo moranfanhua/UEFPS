@@ -10,6 +10,7 @@
 
 class UCameraComponent;
 class UStaticMeshComponent;
+class UBoxComponent;
 class UPointLightComponent;
 class UPoseableMeshComponent;
 class USoundBase;
@@ -168,6 +169,8 @@ private:
     UPROPERTY() TObjectPtr<USoundBase> ReloadSound;
 };
 
+enum class EBreachRunnerAction : uint8 { Run, Attack, Die };
+
 UCLASS()
 class UNDERTIDE_API ABreachEnemy : public ACharacter
 {
@@ -178,8 +181,11 @@ public:
     virtual void Tick(float DeltaSeconds) override;
     virtual float TakeDamage(float Damage, const FDamageEvent& Event, AController* Instigator, AActor* Causer) override;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Visual;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> RunnerVisual;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UBoxComponent> RunnerHitbox;
     UPROPERTY(EditAnywhere) int32 ModelIndex = 0;
     UPROPERTY(EditAnywhere) bool bDisplayOnly = false;
+    UPROPERTY(EditAnywhere) bool bShellSeaRunner = false;
     float Health = 100.f;
     float MaxHealth = 100.f;
     bool bDefeated = false;
@@ -188,10 +194,24 @@ public:
     float Phase = 0.f;
     float DespawnTime = 0.f;
     void Configure(int32 Index, int32 Wave);
+    void ConfigureShellSeaRunner(int32 Wave);
+    bool SampleRunnerPose(float Time, float Blend=1.f);
+    bool SampleRunnerAction(EBreachRunnerAction Action, float Time);
+    bool StartRunnerAttack();
+    bool IsRunnerAttacking() const { return RunnerAttackTime>=0.f; }
+    bool HasRunnerAnimation() const { return RunnerRun!=nullptr; }
     void UpdatePose(float DeltaSeconds);
     void UpdateDeathPose(float DeltaSeconds);
-    bool HasDeathAnimation() const { return DeathAnimation!=nullptr; }
+    bool HasDeathAnimation() const { return bShellSeaRunner?RunnerDie!=nullptr:DeathAnimation!=nullptr; }
 private:
+    UPROPERTY() TObjectPtr<UAnimSequence> RunnerRun;
+    UPROPERTY() TObjectPtr<UAnimSequence> RunnerAttack;
+    UPROPERTY() TObjectPtr<UAnimSequence> RunnerDie;
+    FBreachPose RunnerPose;
+    float RunnerTime=0.f;
+    float RunnerBlend=0.f;
+    float RunnerAttackTime=-1.f;
+    TArray<FTransform> RunnerActionStart;
     UPROPERTY() TObjectPtr<UAnimSequence> DeathAnimation;
     TArray<int32> DeathBoneIndices;
     FBreachPose Pose;
@@ -225,6 +245,7 @@ public:
     void StartWave();
     void SpawnEnemy();
     void RunSmokeTest();
+    void RunRunnerTest();
     void RunMovementTest();
     void RunModelReview();
     void TickSelectionTest();
