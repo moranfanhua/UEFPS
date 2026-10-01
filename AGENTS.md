@@ -34,6 +34,7 @@
 | `BreachMovementComponent.h/.cpp` | 速度平滑、惯性滑铲、坡道、滑铲跳及移动预测状态。 |
 | `BreachEnemy.cpp` | 敌人行为、受击和死亡倒地。 |
 | `BreachRunnerTests.cpp` | 壳海狂奔者四腿疾跑、骨段长度、脚爪落地、循环及停步验证。 |
+| `BreachSeabornReview.cpp` | 海嗣独立资源审查；等待动画压缩后检查采样、根骨、尺度和循环，并输出动作与玩家视线高度截图，不接入敌人 AI。 |
 | `BreachGameMode.cpp`、`BreachArena.cpp` | 游戏流程、波次、分数、测试入口及竞技场创建。 |
 | `BreachHUD.cpp`、`BreachVitalsHUD.cpp` | 战斗 HUD、头像、玩家显示名和生命条。 |
 | `BreachSelectionHUD.cpp` | 选人界面绘制、点击和开关流程；是 HUD 类的拆分实现。 |

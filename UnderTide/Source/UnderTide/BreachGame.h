@@ -248,6 +248,7 @@ public:
     void RunRunnerTest();
     void RunMovementTest();
     void RunModelReview();
+    void RunSeabornReview();
     void TickSelectionTest();
     TFunction<void()> SelectionTestStep;
     UFUNCTION(Exec) void BreachSmokeTest();

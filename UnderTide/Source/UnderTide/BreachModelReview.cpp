@@ -15,6 +15,7 @@
 
 void ABreachGameMode::RunModelReview()
 {
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachSeabornReview"))) { RunSeabornReview(); return; }
     bGallery=true;
     FString Path,Prefix=TEXT("Ascalon_Review");
     FParse::Value(FCommandLine::Get(),TEXT("BreachReviewMesh="),Path);
