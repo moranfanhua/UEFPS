@@ -38,6 +38,7 @@
 | `BreachSeabornEnemy.h/.cpp`、`BreachSeabornMechanismTests.cpp` | 显式启用的海嗣机制与独立诊断；诊断入口为 `-BreachSeabornMechanismTest -BreachMechanismEnemy=<Key>`，不加入常规波次。 |
 | `BreachGameMode.cpp`、`BreachArena.cpp` | 游戏流程、波次、分数、测试入口及竞技场创建。 |
 | `BreachHUD.cpp`、`BreachVitalsHUD.cpp` | 战斗 HUD、头像、玩家显示名和生命条。 |
+| `BreachNerveDamageComponent.h/.cpp` | 神经损伤累计、爆发和冷却；本地拥有者的模糊与耳鸣反馈，生命条上方白蓝直线显示损伤。 |
 | `BreachSelectionHUD.cpp` | 选人界面绘制、点击和开关流程；是 HUD 类的拆分实现。 |
 | `BreachSelectionStage.h/.cpp` | 预览相机、角色入场、结束定格和头像捕获接口。 |
 | `BreachSelectionCat.cpp`、`BreachSelectionSword.cpp` | 李织烟抱猫及黄泉配刀的选人展示。 |

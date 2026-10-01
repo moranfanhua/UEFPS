@@ -19,6 +19,7 @@ class USkeleton;
 class UAnimSequence;
 class ABreachEnemy;
 class ABreachSelectionStage;
+class UBreachNerveDamageComponent;
 
 UCLASS()
 class UNDERTIDE_API ABreachPlayerController : public APlayerController
@@ -45,6 +46,8 @@ public:
     virtual bool CanJumpInternal_Implementation() const override;
     virtual float TakeDamage(float Damage, const FDamageEvent& Event, AController* Instigator, AActor* Causer) override;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> Camera;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UBreachNerveDamageComponent> NerveDamage;
+    void OnNerveBurst();
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> WeaponRoot;
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> WorldWeaponRoot;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Sword;

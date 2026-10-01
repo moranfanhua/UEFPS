@@ -1,5 +1,6 @@
 #include "BreachSeabornEnemy.h"
 #include "BreachGame.h"
+#include "BreachNerveDamageComponent.h"
 #include "BreachMovementComponent.h"
 #include "Animation/AnimSequence.h"
 #include "Components/CapsuleComponent.h"
@@ -38,8 +39,7 @@ bool ABreachSeabornEnemy::ActivateSpecies(EBreachSeabornSpecies Kind)
 {
     if(!HasAuthority()) return false;
     Species=Kind;
-    Profile=FBreachSeabornProfile();
-    Profile.Key=TEXT("ShellSeaRunner");
+    SetProfile();
     MaxHealth=Profile.Health*FBreachSeabornProfile::CombatScale;
     Health=MaxHealth;
     AttackCooldown=ActionTime=MoveTime=Incapacitated=Disarmed=DormantTime=0;
@@ -80,6 +80,10 @@ void ABreachSeabornEnemy::LoadPresentation()
     {
         IdleClip=nullptr; MoveClip=Load(TEXT("Run")); AttackClip=Load(TEXT("Attack")); WakeClip=nullptr;
     }
+    else
+    {
+        IdleClip=Load(TEXT("Idle")); MoveClip=Load(TEXT("Move")); AttackClip=Load(TEXT("Attack")); WakeClip=nullptr;
+    }
     DieClip=Load(TEXT("Die"));
     bRigReady=MoveClip && AttackClip && DieClip;
     Pose.Apply(Visual);
@@ -87,9 +91,18 @@ void ABreachSeabornEnemy::LoadPresentation()
 
 void ABreachSeabornEnemy::OnRepSpecies()
 {
-    Profile=FBreachSeabornProfile(); Profile.Key=TEXT("ShellSeaRunner");
+    SetProfile();
     LoadPresentation();
-    bMechanicsEnabled=true;
+}
+
+void ABreachSeabornEnemy::SetProfile()
+{
+    Profile=FBreachSeabornProfile(); Profile.Key=TEXT("ShellSeaRunner");
+    if(Species==EBreachSeabornSpecies::DeepSeaSlider)
+    {
+        Profile.Key=TEXT("DeepSeaSlider"); Profile.Health=2800; Profile.Defense=130;
+        Profile.ArtsResistance=10; Profile.Speed=1.1f; Profile.Interval=2; Profile.NerveFraction=.15f;
+    }
 }
 
 void ABreachSeabornEnemy::SetAction(EBreachSeabornAction Next)
@@ -147,7 +160,7 @@ void ABreachSeabornEnemy::AdvanceMechanics(float Dt)
     if(Action==EBreachSeabornAction::Attack)
     {
         ActionTime+=Dt;
-        const float Duration=AttackClip?AttackClip->GetPlayLength():.8f;
+        const float Duration=GetAttackDuration();
         if(!bHitApplied && ActionTime>=Duration*.42f) { bHitApplied=true; ResolveAttack(); }
         if(ActionTime>=Duration) { AttackTarget.Reset(); SetAction(EBreachSeabornAction::Idle); }
         return;
@@ -173,11 +186,14 @@ void ABreachSeabornEnemy::AdvanceMechanics(float Dt)
     }
 }
 
+float ABreachSeabornEnemy::GetAttackDuration() const { return AttackClip?AttackClip->GetPlayLength():.8f; }
+
 void ABreachSeabornEnemy::ResolveAttack()
 {
     auto* Player=AttackTarget.Get();
     if(!CanHit(Player) || IsDefeated() || Incapacitated>0 || Disarmed>0) return;
     UGameplayStatics::ApplyDamage(Player,Profile.Attack*FBreachSeabornProfile::CombatScale,GetController(),this,UDamageType::StaticClass());
+    Player->NerveDamage->ApplyNerveDamage(Profile.Attack*Profile.NerveFraction,this);
 }
 
 float ABreachSeabornEnemy::TakeDamage(float Damage,const FDamageEvent& Event,AController* DamageInstigator,AActor* Causer)

@@ -1,6 +1,7 @@
 #include "BreachGame.h"
 #include "BreachMovementComponent.h"
 #include "BreachSeabornEnemy.h"
+#include "BreachNerveDamageComponent.h"
 #include "BreachVisuals.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -20,6 +21,7 @@ ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer.SetDefaultSubobjectClass<UBreachMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
     PrimaryActorTick.bCanEverTick = true;
+    NerveDamage=CreateDefaultSubobject<UBreachNerveDamageComponent>(TEXT("NerveDamage"));
     GetCapsuleComponent()->InitCapsuleSize(34.f, 92.f);
     GetCharacterMovement()->MaxWalkSpeed = UBreachMovementComponent::RifleSpeed;
     GetCharacterMovement()->JumpZVelocity = 540.f;
@@ -252,7 +254,7 @@ void ABreachCharacter::Fire()
         return;
     }
     if(Ammo<=0) { Reload(); return; }
-    NextShot=Now+FireInterval;
+    NextShot=Now+FireInterval*NerveDamage->GetFireIntervalMultiplier();
     --Ammo; ++ShotsFired; Recoil=1;
     const FVector Start=Camera->GetComponentLocation();
     FVector Direction=Camera->GetForwardVector();
@@ -543,6 +545,12 @@ void ABreachCharacter::FinishReload()
     const int32 Count=FMath::Min(MagazineSize-Ammo,Reserve);
     Ammo+=Count; Reserve-=Count; bReloading=false;
 }
+void ABreachCharacter::OnNerveBurst()
+{
+    const float Now=GetWorld()->GetTimeSeconds();
+    NextShot=Now+FMath::Max(FireInterval,FMath::Max(0.f,NextShot-Now))*UBreachNerveDamageComponent::FireIntervalMultiplier;
+}
+
 float ABreachCharacter::TakeDamage(float Damage,const FDamageEvent& Event,AController* DamageInstigator,AActor* Causer)
 {
     if(Health<=0) return 0;
@@ -550,6 +558,7 @@ float ABreachCharacter::TakeDamage(float Damage,const FDamageEvent& Event,AContr
     if(Health<=0)
     {
         StopFire(); GetWorldTimerManager().ClearTimer(ReloadTimer); bReloading=false;
+        NerveDamage->StopFeedback();
         if(auto* GM=GetWorld()->GetAuthGameMode<ABreachGameMode>()) GM->EndRun();
     }
     return Damage;

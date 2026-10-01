@@ -10,7 +10,7 @@ class UPoseableMeshComponent;
 class UAnimSequence;
 
 UENUM(BlueprintType)
-enum class EBreachSeabornSpecies : uint8 { ShellSeaRunner };
+enum class EBreachSeabornSpecies : uint8 { ShellSeaRunner, DeepSeaSlider };
 UENUM(BlueprintType)
 enum class EBreachSeabornAction : uint8 { Idle, Move, Attack, Wake, Dead };
 
@@ -54,6 +54,7 @@ public:
     bool HasRig() const { return bRigReady; }
     float GetActionTime() const { return ActionTime; }
     float GetAttackCooldown() const { return AttackCooldown; }
+    float GetAttackDuration() const;
     ABreachCharacter* SelectTarget() const;
     bool CanHit(const ABreachCharacter* Player) const;
     // Server simulation also used by the deterministic diagnostic scene.
@@ -75,6 +76,7 @@ private:
     TWeakObjectPtr<ABreachCharacter> AttackTarget;
     UFUNCTION() void OnRepSpecies();
     void LoadPresentation();
+    void SetProfile();
     void SetAction(EBreachSeabornAction Next);
     void UpdatePresentation(float DeltaSeconds);
     void ResolveAttack();
