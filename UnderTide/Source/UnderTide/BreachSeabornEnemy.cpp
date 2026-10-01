@@ -2,6 +2,7 @@
 #include "BreachGame.h"
 #include "BreachNerveDamageComponent.h"
 #include "BreachMovementComponent.h"
+#include "BreachVisuals.h"
 #include "Animation/AnimSequence.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PoseableMeshComponent.h"
@@ -103,6 +104,11 @@ void ABreachSeabornEnemy::SetProfile()
         Profile.Key=TEXT("DeepSeaSlider"); Profile.Health=2800; Profile.Defense=130;
         Profile.ArtsResistance=10; Profile.Speed=1.1f; Profile.Interval=2; Profile.NerveFraction=.15f;
     }
+    else if(Species==EBreachSeabornSpecies::SpinalSeaSpitter)
+    {
+        Profile.Key=TEXT("SpinalSeaSpitter"); Profile.Health=4400; Profile.Defense=160;
+        Profile.Speed=.75f; Profile.Interval=3; Profile.Range=2.5f*FBreachSeabornProfile::TileSize; Profile.bRanged=true;
+    }
 }
 
 void ABreachSeabornEnemy::SetAction(EBreachSeabornAction Next)
@@ -192,6 +198,8 @@ void ABreachSeabornEnemy::ResolveAttack()
 {
     auto* Player=AttackTarget.Get();
     if(!CanHit(Player) || IsDefeated() || Incapacitated>0 || Disarmed>0) return;
+    if(Profile.bRanged)
+        Breach::Beam(GetWorld(),GetActorLocation(),Player->GetActorLocation(),FLinearColor(.3f,.7f,.65f),3.f,.12f);
     UGameplayStatics::ApplyDamage(Player,Profile.Attack*FBreachSeabornProfile::CombatScale,GetController(),this,UDamageType::StaticClass());
     Player->NerveDamage->ApplyNerveDamage(Profile.Attack*Profile.NerveFraction,this);
 }

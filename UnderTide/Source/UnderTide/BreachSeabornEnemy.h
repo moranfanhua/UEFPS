@@ -10,7 +10,7 @@ class UPoseableMeshComponent;
 class UAnimSequence;
 
 UENUM(BlueprintType)
-enum class EBreachSeabornSpecies : uint8 { ShellSeaRunner, DeepSeaSlider };
+enum class EBreachSeabornSpecies : uint8 { ShellSeaRunner, DeepSeaSlider, SpinalSeaSpitter };
 UENUM(BlueprintType)
 enum class EBreachSeabornAction : uint8 { Idle, Move, Attack, Wake, Dead };
 
@@ -20,7 +20,7 @@ struct FBreachSeabornProfile
     FString Key;
     float Health=3000, Attack=280, Defense=0, ArtsResistance=20;
     float Speed=1.9f, Interval=1.3f, Range=160, NerveFraction=0;
-    bool bFlying=false, bLowestHealthTarget=false, bDormant=false;
+    bool bFlying=false, bRanged=false, bLowestHealthTarget=false, bDormant=false;
     static constexpr float CombatScale=.05f;
     static constexpr float TileSize=200.f;
 };

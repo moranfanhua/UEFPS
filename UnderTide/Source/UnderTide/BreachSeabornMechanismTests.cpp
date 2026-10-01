@@ -3,6 +3,7 @@
 #include "BreachNerveDamageComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/BoxComponent.h"
 #include "Engine/DamageEvents.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -25,8 +26,9 @@ void ABreachGameMode::RunSeabornMechanismTest()
         if(!Pass) ++*Failures;
     };
     const bool Slider=Key==TEXT("DeepSeaSlider");
-    Check(Key==TEXT("ShellSeaRunner") || Slider,TEXT("Requested species is implemented"));
-    const EBreachSeabornSpecies Kind=Slider?EBreachSeabornSpecies::DeepSeaSlider:EBreachSeabornSpecies::ShellSeaRunner;
+    const bool Spitter=Key==TEXT("SpinalSeaSpitter");
+    Check(Key==TEXT("ShellSeaRunner") || Slider || Spitter,TEXT("Requested species is implemented"));
+    const EBreachSeabornSpecies Kind=Spitter?EBreachSeabornSpecies::SpinalSeaSpitter:(Slider?EBreachSeabornSpecies::DeepSeaSlider:EBreachSeabornSpecies::ShellSeaRunner);
     auto* Player=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0));
     if(!Player) { FPlatformMisc::RequestExitWithStatus(true,1); return; }
     const FVector Origin(0,0,10000);
@@ -43,7 +45,7 @@ void ABreachGameMode::RunSeabornMechanismTest()
     const auto Profile=Enemy->GetProfile();
     Enemy->GetCharacterMovement()->DisableMovement();
     const float Duration=Enemy->GetAttackDuration();
-    Check(Enemy->Health==(Slider?140.f:150.f) && FMath::IsNearlyEqual(Enemy->GetCharacterMovement()->MaxWalkSpeed,790.f*Profile.Speed/1.9f),TEXT("Level-0 HP and speed use documented FPS conversion"));
+    Check(Enemy->Health==(Spitter?220.f:(Slider?140.f:150.f)) && FMath::IsNearlyEqual(Enemy->GetCharacterMovement()->MaxWalkSpeed,790.f*Profile.Speed/1.9f,.001f),TEXT("Level-0 HP and speed use documented FPS conversion"));
     Enemy->AdvanceMechanics(.01f);
     Check(Enemy->Action==EBreachSeabornAction::Attack && Player->Health==100,TEXT("Attack starts with a visible windup"));
     Enemy->AdvanceMechanics(Duration*.42f+.01f);
@@ -61,6 +63,25 @@ void ABreachGameMode::RunSeabornMechanismTest()
     Enemy->ApplyIncapacitation(1);
     Enemy->AdvanceMechanics(.5f);
     Check(FMath::IsNearlyEqual(Player->Health,86.f),TEXT("Incapacitation cancels queued attacks"));
+    auto* Wall=GetWorld()->SpawnActor<AActor>();
+    auto* Blocker=NewObject<UBoxComponent>(Wall);
+    Wall->SetRootComponent(Blocker);
+    Blocker->SetBoxExtent(FVector(5,100,150));
+    Blocker->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    Blocker->SetCollisionResponseToAllChannels(ECR_Ignore);
+    Blocker->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
+    Blocker->RegisterComponent(); Blocker->SetWorldLocation(Origin+FVector(50,0,0));
+    Enemy->ActivateSpecies(Kind); Enemy->AdvanceMechanics(.01f); Enemy->AdvanceMechanics(Duration);
+    Check(!Enemy->CanHit(Player) && Player->Health==86,TEXT("Opaque cover prevents attacks and damage"));
+    Wall->Destroy();
+    if(Spitter)
+    {
+        Player->SetActorLocation(Origin+FVector(490,0,0));
+        Check(Enemy->CanHit(Player),TEXT("Spitter can attack within its 2.5-tile ranged area"));
+        Player->SetActorLocation(Origin+FVector(501,0,0));
+        Check(!Enemy->CanHit(Player) && Profile.NerveFraction==0,TEXT("Spitter respects 500cm range and has no invented neural talent"));
+        Player->SetActorLocation(Origin+FVector(100,0,0));
+    }
     FDamageEvent Arts(UBreachArtsDamage::StaticClass());
     Check(FMath::IsNearlyEqual(Enemy->TakeDamage(10,Arts,nullptr,Player),10.f*(1-Profile.ArtsResistance/100.f)),TEXT("Arts resistance reduces incoming arts damage"));
     FDamageEvent True(UBreachTrueDamage::StaticClass());
