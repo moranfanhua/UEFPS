@@ -32,8 +32,9 @@ void ABreachGameMode::RunSeabornMechanismTest()
     const bool Slider=Key==TEXT("DeepSeaSlider");
     const bool Spitter=Key==TEXT("SpinalSeaSpitter");
     const bool Drifter=Key==TEXT("SeaDrifter");
-    Check(Key==TEXT("ShellSeaRunner") || Slider || Spitter || Drifter,TEXT("Requested species is implemented"));
-    const EBreachSeabornSpecies Kind=Drifter?EBreachSeabornSpecies::SeaDrifter:(Spitter?EBreachSeabornSpecies::SpinalSeaSpitter:(Slider?EBreachSeabornSpecies::DeepSeaSlider:EBreachSeabornSpecies::ShellSeaRunner));
+    const bool Reaper=Key==TEXT("BowlSeaReaper");
+    Check(Key==TEXT("ShellSeaRunner") || Slider || Spitter || Drifter || Reaper,TEXT("Requested species is implemented"));
+    const EBreachSeabornSpecies Kind=Reaper?EBreachSeabornSpecies::BowlSeaReaper:(Drifter?EBreachSeabornSpecies::SeaDrifter:(Spitter?EBreachSeabornSpecies::SpinalSeaSpitter:(Slider?EBreachSeabornSpecies::DeepSeaSlider:EBreachSeabornSpecies::ShellSeaRunner)));
     auto* Player=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0));
     if(!Player) { FPlatformMisc::RequestExitWithStatus(true,1); return; }
     const FVector Origin(0,0,10000);
@@ -52,7 +53,55 @@ void ABreachGameMode::RunSeabornMechanismTest()
     const auto Profile=Enemy->GetProfile();
     Enemy->GetCharacterMovement()->DisableMovement();
     const float Duration=Enemy->GetAttackDuration();
-    const float AfterHit=Drifter?89.f:86.f;
+    const float AfterHit=Reaper?100.f:(Drifter?89.f:86.f);
+    FDamageEvent True(UBreachTrueDamage::StaticClass());
+    if(Reaper)
+    {
+        Check(Enemy->Health==1000 && Profile.Attack==400 && Profile.Defense==800 && Profile.ArtsResistance==75,TEXT("Reaper uses its level-0 elite profile"));
+        Enemy->AdvanceMechanics(29.9f);
+        Check(Enemy->Action==EBreachSeabornAction::Idle && !Enemy->bAwake && Player->Health==100,TEXT("Dormant reaper is rooted and disarmed for the first thirty seconds"));
+        Enemy->AdvanceMechanics(.2f);
+        Check(Enemy->Action==EBreachSeabornAction::Move && !Enemy->bAwake && Player->Health==100 && Enemy->GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Pawn)==ECR_Ignore,TEXT("Dormant reaper can move after thirty seconds but cannot attack or block players"));
+        Enemy->ApplyDisarm(20);
+        Enemy->TakeDamage(.05f,True,nullptr,Player); Enemy->AdvanceMechanics(.01f);
+        Check(Enemy->Action!=EBreachSeabornAction::Wake,TEXT("Health at or above 99.99 percent does not wake the reaper"));
+        Enemy->ApplyIncapacitation(1);
+        Enemy->TakeDamage(.06f,True,nullptr,Player); Enemy->AdvanceMechanics(.5f);
+        Check(Enemy->Action!=EBreachSeabornAction::Wake,TEXT("Incapacitation defers the health-triggered wake"));
+        Enemy->AdvanceMechanics(.5f); Enemy->AdvanceMechanics(.01f);
+        Check(Enemy->Action==EBreachSeabornAction::Wake && !Enemy->bAwake,TEXT("Health-triggered wake ignores disarm and plays Skill_Begin first"));
+        Enemy->AdvanceMechanics(Enemy->GetWakeDuration());
+        Check(Enemy->bAwake && FMath::IsNearlyEqual(Enemy->GetCharacterMovement()->MaxWalkSpeed,790.f*.3f/1.9f*6.f,.001f),TEXT("Completed wake enables combat and adds 500 percent movement speed"));
+        auto* Other=GetWorld()->SpawnActor<ABreachCharacter>(Origin+FVector(200,100,0),FRotator::ZeroRotator,Params);
+        Other->SetActorTickEnabled(false); Other->GetCharacterMovement()->DisableMovement(); Other->NerveDamage->SetComponentTickEnabled(false);
+        auto* Wall=GetWorld()->SpawnActor<AActor>();
+        auto* Blocker=NewObject<UBoxComponent>(Wall); Wall->SetRootComponent(Blocker);
+        Blocker->SetBoxExtent(FVector(5,300,200)); Blocker->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+        Blocker->SetCollisionResponseToAllChannels(ECR_Ignore); Blocker->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
+        Blocker->RegisterComponent(); Blocker->SetWorldLocation(Origin+FVector(50,0,0));
+        const float Before=Enemy->Health;
+        Enemy->AdvanceMechanics(.5f);
+        Check(FMath::IsNearlyEqual(Enemy->Health,Before-20.f,.001f),TEXT("Awake reaper loses four percent maximum HP per second"));
+        Check(Player->Health==100 && Player->NerveDamage->GetAccumulated()==40 && Other->NerveDamage->GetAccumulated()==40,TEXT("Aura applies 20 percent ATK per second to every player through cover"));
+        Other->SetActorLocation(Origin+FVector(501,0,0));
+        Enemy->ApplyIncapacitation(1); Enemy->AdvanceMechanics(.5f);
+        Check(Player->NerveDamage->GetAccumulated()==80 && Other->NerveDamage->GetAccumulated()==40,TEXT("Passive aura persists during incapacitation and respects its 2.5-tile boundary"));
+        Wall->Destroy(); Other->Destroy();
+        Enemy->ActivateSpecies(Kind); Enemy->TakeDamage(1,True,nullptr,Player); Enemy->AdvanceMechanics(Enemy->GetWakeDuration());
+        Player->NerveDamage->RecoverNerveDamage(10000);
+        Enemy->AdvanceMechanics(.01f); Enemy->AdvanceMechanics(Duration*.42f+.01f);
+        Check(Player->Health==80 && Player->NerveDamage->GetAccumulated()>40,TEXT("Awakened melee deals 20 damage plus ten percent ATK neural damage and aura"));
+        Player->SetActorLocation(Origin+FVector(5000,0,0));
+        Enemy->AdvanceMechanics(25);
+        Check(Enemy->IsDefeated(),TEXT("Awakened maximum-HP drain eventually defeats the reaper"));
+        Player->Health=100; Player->SetActorLocation(Origin+FVector(100,0,0));
+        Player->NerveDamage->RecoverNerveDamage(10000); Enemy->AdvanceMechanics(1);
+        Check(Player->NerveDamage->GetAccumulated()==0,TEXT("Reaper death immediately stops the neural aura"));
+        Enemy->ActivateSpecies(Kind); Enemy->TakeDamage(10000,True,nullptr,Player);
+        Check(Enemy->IsDefeated() && !Enemy->bAwake,TEXT("Lethal damage while dormant goes straight to death"));
+    }
+    else
+    {
     Check(Enemy->Health==(Spitter?220.f:(Slider?140.f:150.f)) && FMath::IsNearlyEqual(Enemy->GetCharacterMovement()->MaxWalkSpeed,790.f*Profile.Speed/1.9f,.001f),TEXT("Level-0 HP and speed use documented FPS conversion"));
     Enemy->AdvanceMechanics(.01f);
     Check(Enemy->Action==EBreachSeabornAction::Attack && Player->Health==100,TEXT("Attack starts with a visible windup"));
@@ -92,11 +141,11 @@ void ABreachGameMode::RunSeabornMechanismTest()
     }
     FDamageEvent Arts(UBreachArtsDamage::StaticClass());
     Check(FMath::IsNearlyEqual(Enemy->TakeDamage(10,Arts,nullptr,Player),10.f*(1-Profile.ArtsResistance/100.f)),TEXT("Arts resistance reduces incoming arts damage"));
-    FDamageEvent True(UBreachTrueDamage::StaticClass());
     Check(FMath::IsNearlyEqual(Enemy->TakeDamage(10,True,nullptr,Player),10.f),TEXT("True damage bypasses armor and resistance"));
     Enemy->TakeDamage(10000,True,nullptr,Player);
     Enemy->AdvanceMechanics(3);
     Check(Enemy->IsDefeated() && Enemy->Health==0 && Player->Health==AfterHit && Enemy->GetCapsuleComponent()->GetCollisionEnabled()==ECollisionEnabled::NoCollision,TEXT("Death cancels attacks and disables collision"));
+    }
     Check(RemainingToSpawn==0 && Wave==0 && EnemiesAlive==0,TEXT("Diagnostic mechanisms do not enter regular waves"));
 
     auto* Nerve=Player->NerveDamage.Get();
@@ -168,7 +217,11 @@ void ABreachGameMode::RunSeabornMechanismTest()
         const auto Shot=[Output](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Output/(FString(Name)+TEXT(".png")),false,false); };
         FTimerHandle Idle,Attack,AttackShot,Death,DeathShot,Hold,View,ViewShot,Exit;
         GetWorldTimerManager().SetTimer(Idle,[Shot]() { Shot(TEXT("Enemy_Idle")); },3.f,false);
-        GetWorldTimerManager().SetTimer(Attack,[Subject,Duration]() { Subject->AdvanceMechanics(.01f); Subject->AdvanceMechanics(Duration*.42f); Subject->Tick(0); },4.f,false);
+        GetWorldTimerManager().SetTimer(Attack,[Subject,Duration,Reaper,True,Player]()
+        {
+            if(Reaper) { Subject->TakeDamage(1,True,nullptr,Player); Subject->AdvanceMechanics(Subject->GetWakeDuration()); }
+            Subject->AdvanceMechanics(.01f); Subject->AdvanceMechanics(Duration*.42f); Subject->Tick(0);
+        },4.f,false);
         GetWorldTimerManager().SetTimer(AttackShot,[Shot]() { Shot(TEXT("Enemy_Attack")); },5.f,false);
         GetWorldTimerManager().SetTimer(Death,[Subject,True,Player]() { Subject->TakeDamage(10000,True,nullptr,Player); Subject->Tick(2); },6.f,false);
         GetWorldTimerManager().SetTimer(DeathShot,[Shot]() { Shot(TEXT("Enemy_Death")); },7.f,false);

@@ -8,9 +8,10 @@
 class ABreachCharacter;
 class UPoseableMeshComponent;
 class UAnimSequence;
+class UBoxComponent;
 
 UENUM(BlueprintType)
-enum class EBreachSeabornSpecies : uint8 { ShellSeaRunner, DeepSeaSlider, SpinalSeaSpitter, SeaDrifter };
+enum class EBreachSeabornSpecies : uint8 { ShellSeaRunner, DeepSeaSlider, SpinalSeaSpitter, SeaDrifter, BowlSeaReaper };
 UENUM(BlueprintType)
 enum class EBreachSeabornAction : uint8 { Idle, Move, Attack, Wake, Dead };
 
@@ -42,6 +43,7 @@ public:
     virtual float TakeDamage(float Damage,const FDamageEvent& Event,AController* Instigator,AActor* Causer) override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out) const override;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Visual;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UBoxComponent> DamageHitbox;
     UPROPERTY(EditAnywhere, ReplicatedUsing=OnRepSpecies, Category="Seaborn") EBreachSeabornSpecies Species=EBreachSeabornSpecies::ShellSeaRunner;
     UPROPERTY(EditAnywhere, ReplicatedUsing=OnRepSpecies, Category="Seaborn") bool bMechanicsEnabled=false;
     UPROPERTY(Replicated, BlueprintReadOnly, Category="Seaborn") float Health=0;
@@ -55,6 +57,7 @@ public:
     float GetActionTime() const { return ActionTime; }
     float GetAttackCooldown() const { return AttackCooldown; }
     float GetAttackDuration() const;
+    float GetWakeDuration() const;
     ABreachCharacter* SelectTarget() const;
     bool CanHit(const ABreachCharacter* Player) const;
     // Server simulation also used by the deterministic diagnostic scene.
@@ -68,6 +71,7 @@ private:
     UPROPERTY() TObjectPtr<UAnimSequence> MoveClip;
     UPROPERTY() TObjectPtr<UAnimSequence> AttackClip;
     UPROPERTY() TObjectPtr<UAnimSequence> WakeClip;
+    UPROPERTY() TObjectPtr<UAnimSequence> AwakeMoveClip;
     UPROPERTY() TObjectPtr<UAnimSequence> DieClip;
     UPROPERTY(Replicated) float ActionStarted=0;
     UPROPERTY(Replicated) float Incapacitated=0;
@@ -82,5 +86,7 @@ private:
     void SetAction(EBreachSeabornAction Next);
     void UpdatePresentation(float DeltaSeconds);
     void ResolveAttack();
+    void TryWake();
+    void ApplyNerveAura(float DeltaSeconds);
     void Die();
 };
