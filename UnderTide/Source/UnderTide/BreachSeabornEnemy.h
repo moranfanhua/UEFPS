@@ -10,7 +10,7 @@ class UPoseableMeshComponent;
 class UAnimSequence;
 
 UENUM(BlueprintType)
-enum class EBreachSeabornSpecies : uint8 { ShellSeaRunner, DeepSeaSlider, SpinalSeaSpitter };
+enum class EBreachSeabornSpecies : uint8 { ShellSeaRunner, DeepSeaSlider, SpinalSeaSpitter, SeaDrifter };
 UENUM(BlueprintType)
 enum class EBreachSeabornAction : uint8 { Idle, Move, Attack, Wake, Dead };
 
@@ -46,7 +46,7 @@ public:
     UPROPERTY(EditAnywhere, ReplicatedUsing=OnRepSpecies, Category="Seaborn") bool bMechanicsEnabled=false;
     UPROPERTY(Replicated, BlueprintReadOnly, Category="Seaborn") float Health=0;
     UPROPERTY(Replicated, BlueprintReadOnly, Category="Seaborn") float MaxHealth=0;
-    UPROPERTY(Replicated, BlueprintReadOnly, Category="Seaborn") EBreachSeabornAction Action=EBreachSeabornAction::Idle;
+    UPROPERTY(ReplicatedUsing=OnRepAction, BlueprintReadOnly, Category="Seaborn") EBreachSeabornAction Action=EBreachSeabornAction::Idle;
     UPROPERTY(Replicated) bool bAwake=false;
     UFUNCTION(BlueprintCallable, Category="Seaborn") bool ActivateSpecies(EBreachSeabornSpecies Kind);
     const FBreachSeabornProfile& GetProfile() const { return Profile; }
@@ -72,9 +72,11 @@ private:
     UPROPERTY(Replicated) float ActionStarted=0;
     UPROPERTY(Replicated) float Incapacitated=0;
     float Disarmed=0, DormantTime=0, AttackCooldown=0, ActionTime=0, MoveTime=0;
+    float FlightAnchorHeight=0;
     bool bRigReady=false, bHitApplied=false;
     TWeakObjectPtr<ABreachCharacter> AttackTarget;
     UFUNCTION() void OnRepSpecies();
+    UFUNCTION() void OnRepAction();
     void LoadPresentation();
     void SetProfile();
     void SetAction(EBreachSeabornAction Next);

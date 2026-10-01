@@ -10,6 +10,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/GameStateBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
 #if WITH_EDITOR
@@ -22,6 +23,7 @@ ABreachSeabornEnemy::ABreachSeabornEnemy()
     bReplicates=true;
     GetCapsuleComponent()->InitCapsuleSize(45,72);
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     GetCharacterMovement()->bRunPhysicsWithNoController=true;
     GetCharacterMovement()->BrakingDecelerationWalking=2400;
     Visual=CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("SeabornVisual"));
@@ -39,6 +41,7 @@ void ABreachSeabornEnemy::BeginPlay()
 bool ABreachSeabornEnemy::ActivateSpecies(EBreachSeabornSpecies Kind)
 {
     if(!HasAuthority()) return false;
+    const float FloorZ=GetActorLocation().Z-(Profile.bFlying && bRigReady?FlightAnchorHeight:GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight());
     Species=Kind;
     SetProfile();
     MaxHealth=Profile.Health*FBreachSeabornProfile::CombatScale;
@@ -51,6 +54,9 @@ bool ABreachSeabornEnemy::ActivateSpecies(EBreachSeabornSpecies Kind)
     GetCharacterMovement()->MaxWalkSpeed=UBreachMovementComponent::UnarmedSpeed*Profile.Speed/1.9f;
     GetCharacterMovement()->MaxFlySpeed=GetCharacterMovement()->MaxWalkSpeed;
     LoadPresentation();
+    FVector Position=GetActorLocation();
+    Position.Z=FloorZ+(Profile.bFlying?FlightAnchorHeight:GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight());
+    SetActorLocation(Position);
     SetAction(EBreachSeabornAction::Idle);
     ForceNetUpdate();
     return bRigReady;
@@ -67,7 +73,13 @@ void ABreachSeabornEnemy::LoadPresentation()
     const float Scale=Species==EBreachSeabornSpecies::ShellSeaRunner?.65f:1.f;
     Visual->SetRelativeScale3D(FVector(Scale));
     Visual->SetRelativeRotation(FRotator(0,-90,0));
-    Visual->SetRelativeLocation(FVector(0,0,-GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight()));
+    const auto Bounds=Asset->GetBounds();
+    const float HalfHeight=FMath::Max(40.f,float(Bounds.BoxExtent.Z)*Scale);
+    const float Radius=FMath::Clamp(float(FMath::Min(Bounds.BoxExtent.X,Bounds.BoxExtent.Y))*Scale,25.f,HalfHeight);
+    GetCapsuleComponent()->SetCapsuleSize(Radius,HalfHeight);
+    FlightAnchorHeight=Bounds.Origin.Z*Scale;
+    Visual->SetRelativeLocation(FVector(0,0,Profile.bFlying?-FlightAnchorHeight:-HalfHeight-(Bounds.Origin.Z-Bounds.BoxExtent.Z)*Scale));
+    Visual->SetRenderCustomDepth(true); Visual->SetCustomDepthStencilValue(1);
     const auto Load=[&](const TCHAR* Name)
     {
         const FString Object=TEXT("A_")+Profile.Key+TEXT("_")+Name;
@@ -92,8 +104,17 @@ void ABreachSeabornEnemy::LoadPresentation()
 
 void ABreachSeabornEnemy::OnRepSpecies()
 {
+    if(!bMechanicsEnabled) { Visual->SetVisibility(false); GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision); return; }
     SetProfile();
     LoadPresentation();
+    OnRepAction();
+}
+
+void ABreachSeabornEnemy::OnRepAction()
+{
+    GetCapsuleComponent()->SetCollisionEnabled(bMechanicsEnabled && !IsDefeated()?ECollisionEnabled::QueryAndPhysics:ECollisionEnabled::NoCollision);
+    if(IsDefeated()) { GetCharacterMovement()->StopMovementImmediately(); GetCharacterMovement()->DisableMovement(); }
+    else if(bMechanicsEnabled) GetCharacterMovement()->SetMovementMode(Profile.bFlying?MOVE_Flying:MOVE_Walking);
 }
 
 void ABreachSeabornEnemy::SetProfile()
@@ -108,6 +129,12 @@ void ABreachSeabornEnemy::SetProfile()
     {
         Profile.Key=TEXT("SpinalSeaSpitter"); Profile.Health=4400; Profile.Defense=160;
         Profile.Speed=.75f; Profile.Interval=3; Profile.Range=2.5f*FBreachSeabornProfile::TileSize; Profile.bRanged=true;
+    }
+    else if(Species==EBreachSeabornSpecies::SeaDrifter)
+    {
+        Profile.Key=TEXT("SeaDrifter"); Profile.Attack=220; Profile.Defense=200;
+        Profile.Speed=.75f; Profile.Interval=3; Profile.Range=2.5f*FBreachSeabornProfile::TileSize;
+        Profile.NerveFraction=.2f; Profile.bRanged=true; Profile.bFlying=true;
     }
 }
 
@@ -174,7 +201,7 @@ void ABreachSeabornEnemy::AdvanceMechanics(float Dt)
     auto* Player=SelectTarget();
     if(!Player) { SetAction(EBreachSeabornAction::Idle); return; }
     FVector Direction=Player->GetActorLocation()-GetActorLocation(); Direction.Z=0;
-    if(!Direction.IsNearlyZero()) SetActorRotation(Direction.Rotation());
+    if(!Direction.IsNearlyZero()) SetActorRotation(FRotator(0,Direction.Rotation().Yaw,0));
     if(CanHit(Player))
     {
         GetCharacterMovement()->StopMovementImmediately();
@@ -188,6 +215,14 @@ void ABreachSeabornEnemy::AdvanceMechanics(float Dt)
     else
     {
         SetAction(EBreachSeabornAction::Move);
+        if(Profile.bFlying)
+        {
+            FHitResult Ground;
+            FCollisionQueryParams Params(SCENE_QUERY_STAT(SeabornFlight),false,this);
+            Params.AddIgnoredActor(Player);
+            if(GetWorld()->LineTraceSingleByChannel(Ground,GetActorLocation()+FVector(0,0,300),GetActorLocation()-FVector(0,0,2000),ECC_WorldStatic,Params))
+                Direction.Z=Ground.ImpactPoint.Z+FlightAnchorHeight-GetActorLocation().Z;
+        }
         AddMovementInput(Direction.GetSafeNormal(),1,true);
     }
 }
@@ -246,7 +281,11 @@ void ABreachSeabornEnemy::Tick(float Dt)
     Super::Tick(Dt);
     if(!bMechanicsEnabled) return;
     if(HasAuthority()) AdvanceMechanics(Dt);
-    else ActionTime=FMath::Max(0.f,GetWorld()->GetTimeSeconds()-ActionStarted);
+    else if(Incapacitated<=0)
+    {
+        const auto* State=GetWorld()->GetGameState();
+        ActionTime=FMath::Max(0.f,(State?State->GetServerWorldTimeSeconds():GetWorld()->GetTimeSeconds())-ActionStarted);
+    }
     if(IsDefeated()) ActionTime+=HasAuthority()?Dt:0;
     if(Incapacitated<=0) MoveTime+=Dt*(Action==EBreachSeabornAction::Move?FMath::Max(.1f,GetVelocity().Size2D()/350.f):1.f);
     UpdatePresentation(Dt);

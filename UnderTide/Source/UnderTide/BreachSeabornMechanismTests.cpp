@@ -2,6 +2,10 @@
 #include "BreachSeabornEnemy.h"
 #include "BreachNerveDamageComponent.h"
 #include "Camera/CameraComponent.h"
+#include "Camera/CameraActor.h"
+#include "Components/PoseableMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/PointLightComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/BoxComponent.h"
 #include "Engine/DamageEvents.h"
@@ -27,8 +31,9 @@ void ABreachGameMode::RunSeabornMechanismTest()
     };
     const bool Slider=Key==TEXT("DeepSeaSlider");
     const bool Spitter=Key==TEXT("SpinalSeaSpitter");
-    Check(Key==TEXT("ShellSeaRunner") || Slider || Spitter,TEXT("Requested species is implemented"));
-    const EBreachSeabornSpecies Kind=Spitter?EBreachSeabornSpecies::SpinalSeaSpitter:(Slider?EBreachSeabornSpecies::DeepSeaSlider:EBreachSeabornSpecies::ShellSeaRunner);
+    const bool Drifter=Key==TEXT("SeaDrifter");
+    Check(Key==TEXT("ShellSeaRunner") || Slider || Spitter || Drifter,TEXT("Requested species is implemented"));
+    const EBreachSeabornSpecies Kind=Drifter?EBreachSeabornSpecies::SeaDrifter:(Spitter?EBreachSeabornSpecies::SpinalSeaSpitter:(Slider?EBreachSeabornSpecies::DeepSeaSlider:EBreachSeabornSpecies::ShellSeaRunner));
     auto* Player=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0));
     if(!Player) { FPlatformMisc::RequestExitWithStatus(true,1); return; }
     const FVector Origin(0,0,10000);
@@ -42,27 +47,30 @@ void ABreachGameMode::RunSeabornMechanismTest()
     Enemy->SetActorTickEnabled(false);
     Check(!Enemy->bMechanicsEnabled && Enemy->Health==0,TEXT("New actors require explicit activation"));
     Check(Enemy->ActivateSpecies(Kind) && Enemy->HasRig(),TEXT("Activation loads existing rig and actions"));
+    if(Drifter) Check(Enemy->GetCharacterMovement()->MovementMode==MOVE_Flying && Enemy->GetActorLocation().Z>Origin.Z,TEXT("Drifter activates with true flying movement above its ground plane"));
+    Enemy->SetActorLocation(Origin);
     const auto Profile=Enemy->GetProfile();
     Enemy->GetCharacterMovement()->DisableMovement();
     const float Duration=Enemy->GetAttackDuration();
+    const float AfterHit=Drifter?89.f:86.f;
     Check(Enemy->Health==(Spitter?220.f:(Slider?140.f:150.f)) && FMath::IsNearlyEqual(Enemy->GetCharacterMovement()->MaxWalkSpeed,790.f*Profile.Speed/1.9f,.001f),TEXT("Level-0 HP and speed use documented FPS conversion"));
     Enemy->AdvanceMechanics(.01f);
     Check(Enemy->Action==EBreachSeabornAction::Attack && Player->Health==100,TEXT("Attack starts with a visible windup"));
     Enemy->AdvanceMechanics(Duration*.42f+.01f);
-    Check(FMath::IsNearlyEqual(Player->Health,86.f),TEXT("Attack hit phase deals 14 physical damage"));
+    Check(FMath::IsNearlyEqual(Player->Health,AfterHit),TEXT("Attack hit phase deals the species physical damage"));
     Enemy->AdvanceMechanics(.05f);
-    Check(FMath::IsNearlyEqual(Player->Health,86.f),TEXT("An attack hits once"));
-    Check(FMath::IsNearlyEqual(Player->NerveDamage->GetAccumulated(),Slider?42.f:0.f),TEXT("Attack adds the specified raw-scale nerve damage once"));
+    Check(FMath::IsNearlyEqual(Player->Health,AfterHit),TEXT("An attack hits once"));
+    Check(FMath::IsNearlyEqual(Player->NerveDamage->GetAccumulated(),Drifter?44.f:(Slider?42.f:0.f)),TEXT("Attack adds the specified raw-scale nerve damage once"));
     Check(Enemy->GetAttackCooldown()>0,TEXT("Attack interval includes recovery"));
     Enemy->ActivateSpecies(Kind); Enemy->AdvanceMechanics(.01f);
     Player->SetActorLocation(Origin+FVector(1000,0,0));
     Enemy->AdvanceMechanics(Duration*.42f+.01f);
-    Check(FMath::IsNearlyEqual(Player->Health,86.f),TEXT("Leaving melee range avoids the queued hit"));
+    Check(FMath::IsNearlyEqual(Player->Health,AfterHit),TEXT("Leaving attack range avoids the queued hit"));
     Player->SetActorLocation(Origin+FVector(100,0,0));
     Enemy->ActivateSpecies(Kind); Enemy->AdvanceMechanics(.01f);
     Enemy->ApplyIncapacitation(1);
     Enemy->AdvanceMechanics(.5f);
-    Check(FMath::IsNearlyEqual(Player->Health,86.f),TEXT("Incapacitation cancels queued attacks"));
+    Check(FMath::IsNearlyEqual(Player->Health,AfterHit),TEXT("Incapacitation cancels queued attacks"));
     auto* Wall=GetWorld()->SpawnActor<AActor>();
     auto* Blocker=NewObject<UBoxComponent>(Wall);
     Wall->SetRootComponent(Blocker);
@@ -72,7 +80,7 @@ void ABreachGameMode::RunSeabornMechanismTest()
     Blocker->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
     Blocker->RegisterComponent(); Blocker->SetWorldLocation(Origin+FVector(50,0,0));
     Enemy->ActivateSpecies(Kind); Enemy->AdvanceMechanics(.01f); Enemy->AdvanceMechanics(Duration);
-    Check(!Enemy->CanHit(Player) && Player->Health==86,TEXT("Opaque cover prevents attacks and damage"));
+    Check(!Enemy->CanHit(Player) && Player->Health==AfterHit,TEXT("Opaque cover prevents attacks and damage"));
     Wall->Destroy();
     if(Spitter)
     {
@@ -88,18 +96,18 @@ void ABreachGameMode::RunSeabornMechanismTest()
     Check(FMath::IsNearlyEqual(Enemy->TakeDamage(10,True,nullptr,Player),10.f),TEXT("True damage bypasses armor and resistance"));
     Enemy->TakeDamage(10000,True,nullptr,Player);
     Enemy->AdvanceMechanics(3);
-    Check(Enemy->IsDefeated() && Enemy->Health==0 && Player->Health==86 && Enemy->GetCapsuleComponent()->GetCollisionEnabled()==ECollisionEnabled::NoCollision,TEXT("Death cancels attacks and disables collision"));
+    Check(Enemy->IsDefeated() && Enemy->Health==0 && Player->Health==AfterHit && Enemy->GetCapsuleComponent()->GetCollisionEnabled()==ECollisionEnabled::NoCollision,TEXT("Death cancels attacks and disables collision"));
     Check(RemainingToSpawn==0 && Wave==0 && EnemiesAlive==0,TEXT("Diagnostic mechanisms do not enter regular waves"));
 
     auto* Nerve=Player->NerveDamage.Get();
     Nerve->RecoverNerveDamage(10000);
     Check(Nerve->GetMeterFraction()==0,TEXT("Nerve HUD starts with an empty white line"));
     Nerve->ApplyNerveDamage(999,Enemy);
-    Check(!Nerve->IsBurstActive() && Player->Health==86 && Nerve->GetAccumulated()==999 && FMath::IsNearlyEqual(Nerve->GetMeterFraction(),.999f,.0001f),TEXT("999 accumulation does not burst"));
+    Check(!Nerve->IsBurstActive() && Player->Health==AfterHit && Nerve->GetAccumulated()==999 && FMath::IsNearlyEqual(Nerve->GetMeterFraction(),.999f,.0001f),TEXT("999 accumulation does not burst"));
     Nerve->ApplyNerveDamage(1,Enemy);
-    Check(Nerve->IsBurstActive() && Nerve->GetMeterFraction()==1 && Player->Health==36,TEXT("Threshold bursts once for 50 true damage and displays full blue"));
+    Check(Nerve->IsBurstActive() && Nerve->GetMeterFraction()==1 && Player->Health==AfterHit-50,TEXT("Threshold bursts once for 50 true damage and displays full blue"));
     Nerve->ApplyNerveDamage(5000,Enemy);
-    Check(Player->Health==36 && Nerve->GetAccumulated()==0,TEXT("Burst cooldown prevents repeated damage and accumulation"));
+    Check(Player->Health==AfterHit-50 && Nerve->GetAccumulated()==0,TEXT("Burst cooldown prevents repeated damage and accumulation"));
     UGameplayStatics::SetGamePaused(this,true); Nerve->AdvanceRecovery(1);
     Check(Nerve->GetBurstRemaining()==10,TEXT("Pause freezes the impairment timer"));
     UGameplayStatics::SetGamePaused(this,false);
@@ -124,6 +132,63 @@ void ABreachGameMode::RunSeabornMechanismTest()
     };
     if(!FParse::Param(FCommandLine::Get(),TEXT("BreachMechanismCapture"))) { Finish(); return; }
     Enemy->Destroy();
+    if(!Slider)
+    {
+        const FVector StageOrigin(0,0,10000);
+        auto* Floor=GetWorld()->SpawnActor<AActor>();
+        auto* Surface=NewObject<UStaticMeshComponent>(Floor);
+        Floor->SetRootComponent(Surface);
+        Surface->SetStaticMesh(LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cube.Cube")));
+        Surface->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        Surface->RegisterComponent();
+        Surface->SetWorldTransform(FTransform(FRotator::ZeroRotator,StageOrigin-FVector(0,0,5),FVector(30,30,.1)));
+        auto* Subject=GetWorld()->SpawnActor<ABreachSeabornEnemy>(StageOrigin+FVector(0,0,72),FRotator::ZeroRotator,Params);
+        Subject->ActivateSpecies(Kind); Subject->SetActorTickEnabled(false);
+        Subject->GetCharacterMovement()->StopMovementImmediately();
+        Subject->GetCharacterMovement()->DisableMovement();
+        Player->Health=100; Player->DamageFlash=0;
+        Player->SetActorLocation(Subject->GetActorLocation()+FVector(100,0,0));
+        auto* PC=Cast<APlayerController>(Player->GetController());
+        PC->GetHUD()->bShowHUD=false; Player->SetActorHiddenInGame(true);
+        auto* Camera=GetWorld()->SpawnActor<ACameraActor>();
+        const FVector Focus=StageOrigin+FVector(0,0,125);
+        Camera->SetActorLocation(Focus+FVector(470,-540,260));
+        Camera->SetActorRotation((Focus-Camera->GetActorLocation()).Rotation());
+        Camera->GetCameraComponent()->SetFieldOfView(48);
+        PC->bAutoManageActiveCameraTarget=false; PC->SetViewTarget(Camera);
+        for(const FVector Offset:{FVector(250,-350,300),FVector(200,350,180),FVector(-300,80,240)})
+        {
+            auto* Light=NewObject<UPointLightComponent>(Floor);
+            Light->SetIntensity(12000); Light->SetAttenuationRadius(1800); Light->SetSourceRadius(90);
+            Light->RegisterComponent(); Light->SetWorldLocation(Focus+Offset);
+        }
+        Subject->Tick(0);
+        const FVector Scale=Subject->Visual->GetRelativeScale3D();
+        const FVector StartRoot=Subject->GetActorLocation();
+        const auto Shot=[Output](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Output/(FString(Name)+TEXT(".png")),false,false); };
+        FTimerHandle Idle,Attack,AttackShot,Death,DeathShot,Hold,View,ViewShot,Exit;
+        GetWorldTimerManager().SetTimer(Idle,[Shot]() { Shot(TEXT("Enemy_Idle")); },3.f,false);
+        GetWorldTimerManager().SetTimer(Attack,[Subject,Duration]() { Subject->AdvanceMechanics(.01f); Subject->AdvanceMechanics(Duration*.42f); Subject->Tick(0); },4.f,false);
+        GetWorldTimerManager().SetTimer(AttackShot,[Shot]() { Shot(TEXT("Enemy_Attack")); },5.f,false);
+        GetWorldTimerManager().SetTimer(Death,[Subject,True,Player]() { Subject->TakeDamage(10000,True,nullptr,Player); Subject->Tick(2); },6.f,false);
+        GetWorldTimerManager().SetTimer(DeathShot,[Shot]() { Shot(TEXT("Enemy_Death")); },7.f,false);
+        GetWorldTimerManager().SetTimer(Hold,[Subject,Scale,StartRoot,Check,Shot]()
+        {
+            Subject->Tick(2);
+            Check(Subject->Visual->GetRelativeScale3D().Equals(Scale,.001f) && Subject->GetActorLocation().Equals(StartRoot,.001f),TEXT("Death uses authored pose without root drift or shrinking"));
+            Shot(TEXT("Enemy_DeathHold"));
+        },9.f,false);
+        GetWorldTimerManager().SetTimer(View,[Player,PC,Subject]()
+        {
+            Player->SetActorHiddenInGame(false); Player->Health=100; Player->DamageFlash=0;
+            Player->SetActorLocation(FVector(480,0,10092));
+            Player->GetController()->SetControlRotation((Subject->GetActorLocation()-Player->Camera->GetComponentLocation()).Rotation());
+            Player->UpdateOperatorPose(0); PC->SetViewTarget(Player); PC->GetHUD()->bShowHUD=true;
+        },10.f,false);
+        GetWorldTimerManager().SetTimer(ViewShot,[Shot]() { Shot(TEXT("Enemy_FirstPerson")); },11.f,false);
+        GetWorldTimerManager().SetTimer(Exit,Finish,13.f,false);
+        return;
+    }
     Player->Health=100;
     Player->DamageFlash=0;
     Player->SetActorLocation(FVector(-500,0,92));
