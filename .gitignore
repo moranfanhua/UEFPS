@@ -29,21 +29,11 @@ crashinfo-*
 **/__pycache__/
 *.py[cod]
 
-# FBX 准备工具生成的本地编译文件
-/Tools/*.exe
-/Tools/*.obj
-/Tools/*.pdb
-/Tools/*.ilk
-/Tools/*.exp
-/Tools/*.lib
-
-# UE 命令行工具和编辑器的本地用户目录
-/Tools/UE*/
-
-# 可选的项目资源处理和验证工具
+# 本地生成、转换、导入及验证工具，不进入版本控制
 /Tools/
-/UnderTide/Scripts/*.py
-/UnderTide/Scripts/*.ps1
+/UnderTide/Scripts/
+*.py
+*.ps1
 
 # 可选的本地启动和编译快捷方式。没有这些文件也可以直接用 Unreal Editor
 # 打开、编译和运行项目。
@@ -57,23 +47,16 @@ crashinfo-*
 *.zip
 *.7z
 
-# 模型转换生成的中间文件
-/SourceAssets/Converted/
-/SourceAssets/*_download_page.html
+# 本地源素材、建模输出、生成结果说明和审计报告
+# 运行所需的 UE 资源位于 UnderTide/Content/，骨骼映射位于 C++ 源码。
+/SourceAssets/
+/Modeling/
+/UnderTide/AudioSource/
 
-# 下载的动画源文件和重定向中间文件。
-# 可运行的 UE 动画资源保留在 UnderTide/Content/Animations/ 中。
-/SourceAssets/Animations/
+# 用户提供的建模、动作参考资料保留在本机
+/Seaborn_Reference/
+/UnderTide/enemies/
 
-# 原始模型源文件和导入用音频保留在仓库外。
-# 可运行的 UE 资源已经存放在 UnderTide/Content 中。
-# 只有在拥有再分发许可并希望 GitHub 用户重复资源导入流程时，
-# 才需要删除下面这些源文件夹规则。
-/SourceAssets/Eula/
-/SourceAssets/EulaCasual/
-/SourceAssets/Lizhiyan/
-/SourceAssets/Marionette/
-/SourceAssets/Audio/
 # 操作系统和编辑器临时文件
 Thumbs.db
 ehthumbs.db
@@ -83,11 +66,11 @@ ehthumbs.db
 *.bak
 *.swp
 
-#模型和动作
+# 模型和动作中间文件
 *.fbx
 *.vmd
 *.blend
-Modeling/Ascalon/*.py
+*.blend[0-9]
 
 #图片
 *.png

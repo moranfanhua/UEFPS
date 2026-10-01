@@ -39,8 +39,9 @@ ehthumbs.db
 *.swp
 
 # Optional project-specific asset pipeline and validation scripts
-Scripts/*.py
-Scripts/*.ps1
+Scripts/
+AudioSource/
+enemies/
 
 # Optional local launch/build shortcuts. The project can be opened, compiled,
 # and played directly from Unreal Editor without these files.

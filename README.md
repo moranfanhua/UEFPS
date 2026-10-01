@@ -16,16 +16,16 @@
 
 ### 角色模型
 
-| 角色 | UE Skeletal Mesh | 原始模型文件 | 用途 |
+| 角色 | UE Skeletal Mesh | 模型来源 | 用途 |
 | --- | --- | --- | --- |
-| 优菈 | `/Game/Characters/Eula/SK_Eula` | `SourceAssets/Eula/优菈.pmx` | 玩家、敌人展示、选人页面 |
-| 黄泉 | `/Game/Characters/Acheron/SK_Acheron` | `model/` 中用户提供的黄泉模型（轴修复版 PMX） | 玩家、敌人展示、选人页面 |
-| 李织烟 | `/Game/Characters/Lizhiyan/SK_Lizhiyan` | `SourceAssets/Lizhiyan/李织烟.pmx` | 玩家、敌人展示、选人页面 |
-| 阿斯卡纶 | `/Game/Characters/Ascalon/SK_Ascalon` | `model/` 中用户提供的阿斯卡纶 `askl.pmx` | 玩家、敌人展示、选人页面 |
+| 优菈 | `/Game/Characters/Eula/SK_Eula` | 用户提供的优菈 PMX 模型 | 玩家、敌人展示、选人页面 |
+| 黄泉 | `/Game/Characters/Acheron/SK_Acheron` | 用户提供的黄泉模型（轴修复版 PMX） | 玩家、敌人展示、选人页面 |
+| 李织烟 | `/Game/Characters/Lizhiyan/SK_Lizhiyan` | 用户提供的李织烟 PMX 模型 | 玩家、敌人展示、选人页面 |
+| 阿斯卡纶 | `/Game/Characters/Ascalon/SK_Ascalon` | 用户提供的阿斯卡纶 PMX 模型 | 玩家、敌人展示、选人页面 |
 
 角色使用各自的 Skeleton、材质和纹理。当前第一人称实现使用上表中的完整 `SK_*` 模型；旧角色保留的 `FPArms` 辅助资源不参与运行。黄泉、阿斯卡纶替换了原索引 1、3 的联动优菈和木偶，旧模型和动画移出 Content，原始压缩包保留。
 
-角色、敌人和随身武器在常态下通过 Custom Stencil 1 接入 `/Game/Materials/PP_UnderTideToon_Normal` 风格化后处理。该 Shader 采用偏现代二次元的写实融合方向：保留原贴图、PBR 光照和粗糙度细节，仅在角色范围内轻量压缩明暗、给暗部加入冷色倾向、收束高光，并用低透明度屏幕空间轮廓帮助角色与环境分离；场景本身不做色阶化。主要参数在材质编辑器中集中调节，HLSL 源码位于 `UnderTide/Shaders/Private/UnderTideToonNormal.ush`，需要重建材质时运行 `UnderTide/Scripts/create_toon_shader.py`。`Normal` 后缀明确表示这是常态着色，后续特殊状态使用独立材质和 Shader 名称。
+角色、敌人和随身武器在常态下通过 Custom Stencil 1 接入 `/Game/Materials/PP_UnderTideToon_Normal` 风格化后处理。该 Shader 采用偏现代二次元的写实融合方向：保留原贴图、PBR 光照和粗糙度细节，仅在角色范围内轻量压缩明暗、给暗部加入冷色倾向、收束高光，并用低透明度屏幕空间轮廓帮助角色与环境分离；场景本身不做色阶化。主要参数在材质编辑器中集中调节，HLSL 源码位于 `UnderTide/Shaders/Private/UnderTideToonNormal.ush`。`Normal` 后缀明确表示这是常态着色，后续特殊状态使用独立材质和 Shader 名称。
 
 四张手工头像位于 `/Game/Characters/Portraits/T_<Key>_Portrait`，选人页保留用户修改的竖版卡片，战斗 HUD 使用同一套贴图。更换角色资源不会重新生成或覆盖这些头像。
 
@@ -55,9 +55,9 @@ AK、M4、MP5、AA12 与资源缺失时的原型回退分别记住弹匣剩余�
 
 射击时的枪口灯和曳光为暖橙色火光；每条曳光是一段最长 15 cm 的短光线，沿射击方向逐帧前移，到命中点结束。AA12 仍为 8 颗弹丸各绘制一条曳光；命中判定与各枪射程保持原有即时射线逻辑。
 
-AK、M4、MP5 和 AA12 现在分别使用 `/Game/Audio/Fire_AK`、`Fire_M4`、`Fire_MP5`、`Fire_AA12` 的枪声：AK 较厚重，M4 较短促，MP5 更轻快，AA12 有更明显的低频与机械声；连射时有轻微音高变化。单次射击只播放一次枪声，AA12 的八颗弹丸不会重复播放。音效是项目内程序合成的原创素材，源 WAV 与生成、定向导入脚本位于 `UnderTide/AudioSource/`；新资源缺失时回退到原有 `/Game/Audio/Fire`。
+AK、M4、MP5 和 AA12 现在分别使用 `/Game/Audio/Fire_AK`、`Fire_M4`、`Fire_MP5`、`Fire_AA12` 的枪声：AK 较厚重，M4 较短促，MP5 更轻快，AA12 有更明显的低频与机械声；连射时有轻微音高变化。单次射击只播放一次枪声，AA12 的八颗弹丸不会重复播放。音效是项目内程序合成的原创素材；新资源缺失时回退到原有 `/Game/Audio/Fire`。
 
-本地专项验证可运行 `UnderTide/Scripts/VerifyWeapon.ps1 -Render`，或通过 `-BreachWeaponTest -BreachWeaponCapture` 启动游戏；报告为 `Saved/weapon_test.txt`，四枪各生成 `Hip`、`Aim`、`Tracer`、`Recoil`、`Reload` 五张第一人称截图，AK 另生成稍后飞行位置的 `TracerFlight`，M4、MP5 与 AA12 另生成外部视角截图。实现与参数分别位于 `BreachGun.cpp`、`BreachWeapons.h`，射击沿用 `BreachCharacter.cpp`。
+专项验证通过 `-BreachWeaponTest -BreachWeaponCapture` 启动游戏；报告为 `Saved/weapon_test.txt`，四枪各生成 `Hip`、`Aim`、`Tracer`、`Recoil`、`Reload` 五张第一人称截图，AK 另生成稍后飞行位置的 `TracerFlight`，M4、MP5 与 AA12 另生成外部视角截图。实现与参数分别位于 `BreachGun.cpp`、`BreachWeapons.h`，射击沿用 `BreachCharacter.cpp`。
 
 | 枪型 | UE Static Mesh | 原始压缩包 | 当前材质 |
 | --- | --- | --- | --- |
@@ -69,8 +69,6 @@ AK、M4、MP5 和 AA12 现在分别使用 `/Game/Audio/Fire_AK`、`Fire_M4`、`F
 M4 原包的 OBJ 引用了未提供的 MTL，导入时按材质槽匹配原皮贴图并重建基础材质，未还原原游戏的晶体、变色等特殊着色效果；粉皮贴图和 PSK 附件保留在原始包中。AK、AA12 的 PMX 骨架及蒙皮也保留在原始包中，静态网格不包含可驱动的骨骼或动画。MP5、M4 保留源文件尺寸，AK、AA12 按每 PMX 单位 8 cm 转换；四把实战枪械共用武器根节点的 0.8 倍缩放，各自使用独立网格偏移和枪口位置。
 
 来源与使用条件：四个包均由用户提供；AK、AA12 包内注明模型来自《卡拉彼丘》、版权属于 Day1 工作室、配布者为“优姬在睡觉”，并限制商业使用、二次配布以及原说明列出的其他用途。M4、MP5 的包名分别标注“桃乐丝啊”和“慕Qes”，包内未找到明确的再分发许可。上述模型均不属于 Quaternius 的 CC0 动作授权范围，原始包和使用说明保留。
-
-本地转换、导入和独立双侧预览脚本分别为 `Tools/prepare_guns.py`、`UnderTide/Scripts/import_guns.py`、`UnderTide/Scripts/review_guns.py`，沿用本地工具忽略规则。中间文件位于 `SourceAssets/Converted/Guns/`，检查报告与截图位于 `UnderTide/Saved/GunImport/`；运行游戏不依赖这些工具或源文件。
 
 ### 第一人称开镜准星
 
@@ -150,23 +148,18 @@ M4 原包的 OBJ 引用了未提供的 MTL，导入时按材质槽匹配原皮�
 - 阿斯卡纶：用户提供 `pose/Catwalk Sequence 03.fbx`，[Mixamo](https://www.mixamo.com/) 动作，遵循 Adobe Mixamo 条款，不是 CC0；资源为 `/Game/Animations/Entrance/Ascalon/A_Ascalon_Catwalk_Sequence_03`。
 - 黄泉人物和配刀来自用户提供的模型压缩包，原文件注明 miHoYo 版权、流云景编辑，并限制商业使用及二次配布；阿斯卡纶沿用用户提供素材的原作者条件。此项不改变 Quaternius 动作包的独立 CC0 授权。
 
-本地处理入口为 `Tools/inspect_roster_refresh.py`、`prepare_roster_refresh.py`、`prepare_eula_entrance.py` 和 `UnderTide/Scripts/import_roster_refresh.py`。只导入新角色及新入场，保留现有优菈、李织烟材质和手工头像。
-
 李织烟抱猫展示参考用户提供视频的前四秒：<https://www.bilibili.com/video/BV1VtNH6wEXL/>。视频只作为动作参考，没有从中提取模型或骨骼动画。`BreachSelectionCat.cpp` 编排抬抱、低头轻靠和收稳三个阶段，猫朝向角色，前爪靠近肩膀；双手 IK 始终跟随猫的两个支撑点。猫的头、四肢、耳朵和尾巴使用自己的骨架，3.5 秒结束后与人物一起定格。猫仅在李织烟的选人预览中显示，切换角色或关闭页面时隐藏，不是战斗宠物或联机复制实体。
 
-猫模型来自 Daily Lowpoly 的 [Lowpoly Cat + Run Animation](https://dailylowpoly.itch.io/lowpoly-cat-running)，作者明确允许用于商业项目；这是作者页面的许可，不是 CC0。源文件 `cat_rigged.fbx` 保留在本地 `SourceAssets/Converted/Cat/`，不作为独立素材包再分发。导入副本调整平滑法线，并配上白色材质、眼鼻和青色项圈；模型与参考视频中的猫不完全相同。
+猫模型来自 Daily Lowpoly 的 [Lowpoly Cat + Run Animation](https://dailylowpoly.itch.io/lowpoly-cat-running)，作者明确允许用于商业项目；这是作者页面的许可，不是 CC0。素材不作为独立素材包再分发。导入副本调整平滑法线，并配上白色材质、眼鼻和青色项圈；模型与参考视频中的猫不完全相同。
 
 - 猫网格：`/Game/Characters/SelectionCat/SK_SelectionCat`，骨架：`/Game/Characters/SelectionCat/SK_SelectionCat_Skeleton`。
 - 材质：`/Game/Characters/SelectionCat/M_CatFur`、`M_CatEye`、`M_CatPink`、`M_CatCollar`。
-- 本地重建：`Tools/prepare_selection_cat.cpp`、`Tools/BuildSelectionCatTool.bat`、`UnderTide/Scripts/import_selection_cat.py`。猫的抱持动作由选人舞台编排，不加载源文件里的奔跑动画。
 
 #### 滑铲动作
 
 使用用户确认并提供的 [Mixamo Running Slide](https://www.mixamo.com/#/?page=1&query=running%20slide)，源文件为 `pose/Running Slide.fbx`（带蒙皮、30 FPS，动作长 1.533 秒）。授权依照 [Adobe Mixamo FAQ](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html)，可免版税用于游戏，**不是 CC0**；原始动作不作为独立素材包再分发。
 
 四个角色分别使用 `/Game/Animations/Locomotion/<Key>/A_<Key>_Running_Slide`，`<Key>` 为 `Eula`、`Acheron`、`Lizhiyan`、`Ascalon`。转换保留腿部和上身动作，去除水平根位移，并按各模型蒙皮后的鞋底、下腿和手部轮廓计算贴地高度；滑行速度与碰撞继续由移动组件控制。播放时加快滑入，并把贴地段延长到实际滑铲时长；结束后混合到当前下蹲或站姿，低矮空间内不会播放强制起身。
-
-本地重建工具：`Tools/sample_mixamo_slide.cpp`、`Tools/BuildMixamoAnimationTool.bat`、`UnderTide/Scripts/retarget_mixamo_slide.py`；中间采样位于 `SourceAssets/Animations/MixamoSlide/Running_Slide.json`。工具和中间文件沿用项目的本地忽略规则。
 
 #### 惯性滑铲和速度过渡
 

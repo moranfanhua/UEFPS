@@ -8,6 +8,8 @@
 - 默认用中文与用户沟通。先检查实际代码和工作区，再实施修改；不要只给计划而停止已获授权的工作。
 - 保留用户已有改动。开始时执行 `git status --short`，记录本次任务开始前的修改；不要把它们当成自己的成果，也不要回退或覆盖。
 - 不擅自提交、推送、重置分支、清理未跟踪文件或批量重新导入资源。需要 Git 操作时以用户明确要求为准。
+- 所有用于生成、转换、导入或烘焙内容的脚本，以及针对生成结果创建的说明、清单、日志和报告文件，均不得新增到版本控制或提交历史。按用途判断，不限语言、扩展名、文件名或目录；不得通过更名、换目录或 `git add -f` 绕过。
+- 上述生成工具及结果说明仅保留在已被 Git 忽略的本地目录中，创建前确认目标路径的忽略规则。提交前逐项检查暂存清单，排除这些文件，并清理项目文档中指向未提交文件的引用。
 - 优先完成任务内可逆的必要工作；只有缺少会实质影响结果的信息或权限时才询问用户，不为常规实现选择反复要求确认。
 - 本文记录当前实现约束。用户要求改变行为时，应同步修改代码、验证和相关文档，不把旧约定当成禁止修改的理由。
 
@@ -20,7 +22,7 @@
 - C++ 构建需要兼容 UE 5.7 的 MSVC 工具链和 Windows SDK。模块依赖以 `UnderTide.Build.cs` 为准，插件以 `.uproject` 为准。
 - `Content/` 使用 Git LFS。新克隆若只含 LFS 指针，应先获取对应的大文件资源；指针文本不能作为有效 `.uasset` 使用，不要靠重新生成全部资源掩盖缺失。
 - 优先阅读 `README.md` 的资源、授权和操作说明；若存在 `PROJECT_STRUCTURE.md`，用它了解模块职责。文档与代码不一致时，核对源码并说明差异。
-- `Tools/`、`Scripts/*.py`、`Scripts/*.ps1`、部分源模型和转换中间文件被 `.gitignore` 忽略，可能只在本机存在。先检查文件是否存在，不要假设另一份克隆具备所有辅助工具。
+- 运行资源以 `UnderTide/Content/` 和 C++ 中的骨骼映射为准。
 
 ## 代码导航
 
@@ -49,23 +51,15 @@
 
 以下命令均在仓库根目录的 PowerShell 中执行。每一步检查退出码与日志，构建成功后再运行相关验证。
 
-```powershell
-# 默认构建编辑器目标 UnderTideEditor Win64 Development
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\UnderTide\Scripts\Build.ps1
-
-# 引擎位于其他目录时，传入实际路径
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\UnderTide\Scripts\Build.ps1 -EngineRoot 'E:\Unreal\UE_5.7'
-```
-
-`Build.ps1 -GameTarget` 构建 `UnderTide Win64 Development`；它和默认编辑器构建都不等于 Cook 或打包发布。自动化优先使用脚本，不使用失败后可能等待按键的快捷批处理。
-
-辅助脚本缺失时，可直接调用引擎构建工具。以下两段在同一个 PowerShell 会话执行；按本机情况修改 `$breachEngineRoot`：
+直接调用引擎构建工具。以下两段在同一个 PowerShell 会话执行；按本机情况修改 `$breachEngineRoot`：
 
 ```powershell
 $breachEngineRoot = 'D:\UE\UE_5.7'
 $breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
 & "$breachEngineRoot\Engine\Build\BatchFiles\Build.bat" UnderTideEditor Win64 Development "-Project=$breachProjectFile" -WaitMutex -NoHotReloadFromIDE
 ```
+
+游戏目标将上述 `UnderTideEditor` 替换为 `UnderTide`。编辑器或游戏目标的编译都不等于 Cook 或打包发布。
 
 ```powershell
 # 交互式打开编辑器
@@ -76,30 +70,35 @@ $breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
 
 ## 验证要求
 
-按本次改动选择验证，不必为纯文档修改启动 UE。下列脚本均支持 `-EngineRoot`：
+按本次改动选择验证，不必为纯文档修改启动 UE。以下命令沿用上面的引擎与工程变量，直接调用项目中的验证入口：
 
 ```powershell
 # 基础资源、死亡动作、VMD 表情及衣物约束；使用 null RHI
-& .\UnderTide\Scripts\Verify.ps1
+$breachEditorCmd = "$breachEngineRoot\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
+& $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachTest -nullrhi -unattended
 
 # 启动选人、切换、入场、定格、返回游戏及表情对照截图
-& .\UnderTide\Scripts\VerifySelection.ps1
+& $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachSelectionTest -RenderOffscreen -ForceRes -windowed -ResX=1600 -ResY=900 -unattended
 
 # 四个角色的移动逻辑；默认无渲染
-& .\UnderTide\Scripts\VerifyMovement.ps1 -Operators @(0,1,2,3)
+foreach ($breachOperator in 0..3) {
+    & $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachMovementTest "-BreachOperator=$breachOperator" -nullrhi -unattended
+}
 
 # 世界视角和第一人称低头画面
-& .\UnderTide\Scripts\VerifyMovement.ps1 -Operators @(0,1,2,3) -Render
-& .\UnderTide\Scripts\VerifyMovement.ps1 -Operators @(0,1,2,3) -Render -FirstPerson -LookPitch -80
+foreach ($breachOperator in 0..3) {
+    & $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachMovementTest "-BreachOperator=$breachOperator" -BreachMovementCapture -RenderOffscreen -ForceRes -windowed -ResX=1600 -ResY=900 -unattended
+    & $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachMovementTest "-BreachOperator=$breachOperator" -BreachMovementCapture -BreachMovementFirstPerson -BreachLookPitch=-80 -RenderOffscreen -ForceRes -windowed -ResX=1600 -ResY=900 -unattended
+}
 
 # 有模型修改时，检查模型与头部
-& .\UnderTide\Scripts\VerifyModelReview.ps1
-& .\UnderTide\Scripts\VerifyModelReview.ps1 -Head
+& $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachModelReview -RenderOffscreen -ForceRes -windowed -ResX=1000 -ResY=1200 -unattended
+& $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachModelReview -BreachReviewHead -BreachReviewPrefix=Ascalon_Head -RenderOffscreen -ForceRes -windowed -ResX=1000 -ResY=1200 -unattended
 ```
 
-`VerifyModelReview.ps1` 默认检查阿斯卡纶；其他模型先检查该脚本的 `-Mesh` 参数及对应审查代码，不要把默认检查误当成四角色验证。
+`-BreachModelReview` 默认检查阿斯卡纶；其他模型通过 `-BreachReviewMesh=<网格对象路径>` 指定，并核对对应审查代码，不要把默认检查误当成四角色验证。
 
-辅助脚本不存在时，从 `BreachGameMode.cpp` 核对 `-BreachTest`、`-BreachSelectionTest`、`-BreachMovementTest` 等入口，再使用 `UnrealEditor-Cmd.exe <工程> /Game/Maps/Arena -game` 和相应参数执行。截图测试不能添加 `-nullrhi`；不要为运行测试先重新导入模型。
+从 `BreachGameMode.cpp` 核对验证入口及相应参数。截图测试不能添加 `-nullrhi`；不要为运行测试先重新导入模型。
 
 | 改动范围 | 最低验证范围 |
 | --- | --- |
@@ -112,7 +111,7 @@ $breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
 - 输出在 `UnderTide/Saved/`，日志在 `UnderTide/Saved/Logs/`。确认报告和截图的修改时间属于本次运行。
 - 检查进程退出码、报告中的 `FAILURES=0` 和日志错误；不能只看到旧报告或一条成功日志就宣布通过。
 - `-nullrhi` 无法证明渲染正确。修改画面后必须查看实际截图，特别是表情 GPU 权重、隐藏头部、手部 IK、衣物穿插和脚部朝向。
-- 图形环境不可用或验证脚本缺失时，明确报告限制。不要声称已经完成目视检查。
+- 图形环境或验证入口不可用时，明确报告限制。不要声称已经完成目视检查。
 - 不硬编码历史通过项数；测试数量随项目变化。功能回归应补充能发现实际错误的检查，不添加仅重复实现的测试。
 - 完成前运行 `git diff --check`；有暂存修改时另查 `git diff --cached --check`。新文件用 `git diff --no-index --check -- NUL <文件>` 检查，不为检查而暂存用户文件。
 
@@ -160,7 +159,7 @@ $breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
 - `LoadObject` 的对象路径需包含点号后的对象名，例如 `/Game/Characters/Eula/SK_Eula.SK_Eula`。资源缺失时保留安全回退，不解引用空对象。
 - 当前入场：优菈两段用户 VMD 拼接、黄泉挥刀、李织烟抱猫、阿斯卡纶 Catwalk。黄泉配刀来自其模型；刀网格、刀鞘和挥刀动作也用于黄泉实战近战，实战中刀鞘套在刀上，双手握住同一刀柄，从右上蓄势向左下斜劈并回收；主动攻击优先于跑动锁手与武器缓动，第一人称攻击期间不复制世界布料偏转，以免袖口遮挡刀路，命中在约 42% 的落刀阶段。刀与刀鞘整体显示为资源原尺寸的 50%，不绘制额外挥刀轨迹。猫仍只是选人展示实体，这些展示和武器状态尚未实现完整联机复制。
 - 不用自动捕获头像覆盖 `Portraits` 手工贴图，不覆盖用户修改的材质和竖版角色卡片。
-- 当前阿斯卡纶可能已有几何和材质修订，原 PMX 不能被默认当作最新网格。重新导入前检查当前资源；若存在 `Modeling/` 修订记录，一并阅读。
+- 当前阿斯卡纶可能已有几何和材质修订，原 PMX 不能被默认当作最新网格。重新导入前核对当前网格、材质和绑定姿态。
 - 修改二进制资源前备份受影响文件到 `Saved/`，限定导入范围。仅补充表情、动画或物理时，不重导入整个模型。
 - 使用 `CopyCharacterGeometry` 修改几何时保留并校验原骨架与绑定姿态；不要替换 Skeleton 导致已有动画失效。骨骼对应以名称和映射验证，不能假定原 PMX 索引等于 UE 骨骼数组索引。
 - 保留旧原始压缩包和用户资源；不为整理目录擅自删除。辅助生成文件、缓存、下载资源和原始模型不要因方便而强制加入 Git。
