@@ -89,8 +89,8 @@ GPT_UE_TEST/
 | `BreachSeabornMechanismTests.cpp` | 六种海嗣独立机制检查，入口 `-BreachSeabornMechanismTest -BreachMechanismEnemy=<Key>`。 |
 | `BreachSeabornWaveTests.cpp` | 混合生成、碰撞失败重试、场上数量上限、实战伤害、唤醒自损、暂停、死亡奖励、清场及下一波集成验证。入口 `-BreachSeabornWaveTest`，截图另加 `-BreachSeabornWaveCapture`。 |
 | `BreachRunnerTests.cpp` | 狂奔者四腿与尾部骨骼、脚爪行程、骨段长度、循环衔接、根骨原地、停步、咬合恢复及死亡打断检查，提供奔跑、攻击、死亡侧面与第一人称截图。入口为 `-BreachRunnerTest`，截图另加 `-BreachRunnerCapture`。 |
-| `BreachEnemyAwareness.h/.cpp` | 波次敌人与独立海嗣共用感知和移动意图；低速游荡、接收坐标前进、视野内追逐及 50 米广播，失去视线后到最后已知位置等待。 |
-| `BreachEnemyAwarenessTests.cpp` | 用 `-BreachEnemyAwarenessTest` 检查感知、广播边界、遮挡、等待和地面／飞行实际移动，报告输出到 `Saved/enemy_awareness_test.txt`。 |
+| `BreachEnemyAwareness.h/.cpp` | 波次敌人与独立海嗣共用感知和移动意图；低速游荡、接收坐标或受击后以正常速度前往来源快照、视野内追逐及 50 米广播，失去视线后到最后已知位置等待。 |
+| `BreachEnemyAwarenessTests.cpp` | 用 `-BreachEnemyAwarenessTest` 检查感知、受击来源快照、可见玩家优先、广播边界、遮挡、等待和地面／飞行实际移动，报告输出到 `Saved/enemy_awareness_test.txt`。 |
 | `BreachSeabornReview.cpp` | 独立加载海嗣骨骼资源，检查压缩数据就绪、原地根骨、尺度、动作变化、循环和死亡末帧；截图包含各动作阶段与玩家视线高度。使用 `-BreachModelReview -BreachSeabornReview -BreachReviewEnemy=<Key>`，截图另加 `-BreachSeabornCapture`。 |
 | `BreachAssets.cpp` | 编辑器资源处理：裁剪辅助第一人称手臂网格，以及从 JSON/动作文件烘焙死亡和角色动画。函数使用 `WITH_EDITOR`，打包后的游戏不会执行编辑器写入操作。 |
 | `BreachModelReview.cpp` | 阿斯卡纶正、侧、背离屏检查入口；只有显式使用 `-BreachModelReview` 才进入模型检查场景，附加 `-BreachReviewHead` 聚焦头部。`Scripts/VerifyModelReview.ps1 -Head` 封装该入口。保留原骨架的 `CopyCharacterGeometry` 位于 `BreachAssets.cpp`，网格更新仅允许编辑器构建执行。 |
@@ -113,6 +113,8 @@ bGallery          是否处于展示或测试模式
 每波敌人数为 `4 + Wave * 2`，同时场上最多保持 8 个敌人，生成间隔 1.8 秒。六种海嗣按每组六种各一次的随机顺序混合生成，每波重新洗牌；首波六个正好覆盖全部种类。属性使用各自现有机制配置。生成点保留在竞技场外围，先查地板，再按实际胶囊检查碰撞，距玩家至少 700 cm；位置堵塞或资源加载失败时保留计划中的种类和待生成数量，下一次重试。敌人被击败后，GameMode 更新分数、弹药和少量生命值；包括钵海收割者自损死亡在内，每个敌人只结算一次。尸体取消碰撞，9 秒后清理；最后一个敌人倒地且没有待生成敌人时，进入 6 秒下一波间歇。后方四个角色展示台保持原样。
 
 敌人尚未发现玩家时，以追逐速度的 25% 游荡，每次以当前位置为中心，在 500 cm 内重新选取目标。水平视野为 120°，视距为 1600 cm，遮挡射线通过后才读取玩家位置；看见玩家时每 0.25 秒向 5000 cm 内敌人广播该坐标。收到信号的敌人前往信号位置，自己看见玩家后开始追逐与广播。失去视线时只保留最后已知位置，进入 80 cm 范围后停下等待，直到再次看见玩家或收到新信号；接收者不会转发未看见的坐标。参数由 `Awareness` 组件设置，决策仅在服务器执行。移动仍使用局部障碍转向与 `CharacterMovement` 碰撞，尚未接入 NavMesh 全局路径规划。常规波次启用六种海嗣的现有攻击、神经损伤和唤醒机制；独立诊断仍需显式启用且不参与波次奖励。钵海收割者的休眠和唤醒限制保留。
+
+受击造成实际扣血且敌人存活时，记录攻击者当时的位置，以该敌人的正常追逐速度调查该坐标，到达后等待。来源移动不会被持续读取；新受击或新信号可以更新目标。伤害控制器的 Pawn 和伤害实体的 Instigator 优先于伤害实体自身，因此枪械和弹丸伤害使用攻击者位置；没有有效来源或自身伤害不创建调查目标。调查期间只在亲眼看见有效玩家后切换到现有索敌与广播流程，并保留始海穿刺者等原有目标优先级；当前可见玩家不会被背后的伤害来源替换。钵海收割者仍先完成唤醒动作，之后按唤醒后的正常速度调查；暂停、失能与死亡限制保留。
 
 ### 3.3 骨骼姿势和动画采样
 

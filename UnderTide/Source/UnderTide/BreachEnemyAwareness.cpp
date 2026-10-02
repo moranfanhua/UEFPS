@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Controller.h"
 #include "Kismet/GameplayStatics.h"
 
 UBreachEnemyAwareness::UBreachEnemyAwareness()
@@ -61,6 +62,18 @@ void UBreachEnemyAwareness::ReceiveSignal(FVector Position)
     if(CanSee(VisibleTarget.Get())) return;
     VisibleTarget.Reset(); Destination=Position; Intent=EBreachEnemyIntent::Investigate;
     SetCombatSpeed(CombatSpeed);
+}
+
+void UBreachEnemyAwareness::NotifyDamage(AController* DamageInstigator,AActor* DamageCauser)
+{
+    if(!IsActive() || UGameplayStatics::IsGamePaused(this)) return;
+    AActor* Source=IsValid(DamageInstigator)?DamageInstigator->GetPawn():nullptr;
+    if(!IsValid(Source) && IsValid(DamageCauser)) Source=DamageCauser->GetInstigator();
+    if(!IsValid(Source)) Source=DamageCauser;
+    if(!IsValid(Source) || Source==GetOwner() || Source->IsActorBeingDestroyed()) return;
+    // Snapshot the attacker, rather than following its actor or a projectile's impact position.
+    // ReceiveSignal keeps direct sight ahead of unseen sources and does not broadcast.
+    ReceiveSignal(Source->GetActorLocation());
 }
 
 void UBreachEnemyAwareness::Broadcast(FVector Position)

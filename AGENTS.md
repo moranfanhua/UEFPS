@@ -33,7 +33,7 @@
 | `BreachLocomotion.cpp` | 玩家动画状态选择与姿态过渡；是角色类的拆分实现。 |
 | `BreachMovementComponent.h/.cpp` | 速度平滑、惯性滑铲、坡道、滑铲跳及移动预测状态。 |
 | `BreachEnemy.cpp` | 敌人行为、受击和死亡倒地。 |
-| `BreachEnemyAwareness.h/.cpp`、`BreachEnemyAwarenessTests.cpp` | 波次敌人与海嗣共用的服务器感知、低速游荡、50 米坐标广播和最后已知位置追踪；诊断入口 `-BreachEnemyAwarenessTest`。 |
+| `BreachEnemyAwareness.h/.cpp`、`BreachEnemyAwarenessTests.cpp` | 波次敌人与海嗣共用的服务器感知、低速游荡、受击来源位置调查、50 米坐标广播和最后已知位置追踪；诊断入口 `-BreachEnemyAwarenessTest`。 |
 | `BreachRunnerTests.cpp` | 壳海狂奔者四腿疾跑、骨段长度、脚爪落地、循环及停步验证。 |
 | `BreachSeabornReview.cpp` | 海嗣独立资源审查；等待动画压缩后检查采样、根骨、尺度和循环，并输出动作与玩家视线高度截图，不接入敌人 AI。 |
 | `BreachSeabornEnemy.h/.cpp`、`BreachSeabornMechanismTests.cpp` | 六种海嗣的实战机制与独立诊断；常规波次由生成器启用，独立诊断入口为 `-BreachSeabornMechanismTest -BreachMechanismEnemy=<Key>`。 |
@@ -154,6 +154,8 @@ $breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
 壳海狂奔者的运行网格、21 节骨架和 Run／Attack／Die 动作位于 `/Game/Enemies/Seaborn/ShellSeaRunner/Rig/`；原静态网格及材质保留。骨骼版依据 `UnderTide/enemies/` 三段视频缩短颌部并增加四节尾部，原四腿绑定姿态保留。根骨动画不得重复驱动移动，死亡打断攻击并保持末帧。`ABreachEnemy` 保留为人物展示和旧动作诊断，其狂奔者咬合仅播放动作；实战伤害由 `ABreachSeabornEnemy` 处理。骨骼或动作修改后运行 `-BreachRunnerTest`，画面验证添加 `-BreachRunnerCapture`（本地封装 `Scripts/VerifyRunner.ps1 -Render`），检查四条腿、脚爪与尾部落地、循环衔接、攻击／死亡切换和第一人称画面。
 
 波次敌人与显式启用的海嗣使用 `UBreachEnemyAwareness`：默认视距 1600 cm、水平视野 120°，看见玩家时每 0.25 秒向 5000 cm 内敌人发送当前玩家坐标；信号接收者前往该坐标，不转发未亲眼看到的坐标。失去视线后前往最后已知位置，进入 80 cm 到达范围后等待，再次看见玩家或收到新信号时继续行动；死亡停止感知和广播。每次以当前位置为中心选取游荡目标，默认半径 500 cm，速度为该敌人追逐速度的 25%，到达游荡点后停留 2–4 秒。参数在敌人的 `Awareness` 组件上调整，行为决策只在服务器运行；钵海收割者原有的前 30 秒禁止移动、血量触发唤醒及唤醒后加速仍优先。当前使用角色碰撞和局部静态障碍转向，没有 NavMesh 全局路径规划。诊断 `-BreachEnemyAwarenessTest` 覆盖视野、遮挡、广播边界、最后位置、等待、死亡及地面／飞行实际移动，报告为 `Saved/enemy_awareness_test.txt`。
+
+非致命且实际扣血的受击会通过 `Awareness->NotifyDamage()` 记录伤害来源当时的位置，以正常追逐速度前往，到达后等待；来源之后的移动不会自动更新该坐标。优先使用伤害控制器的 Pawn，其次使用伤害实体的 Instigator，最后使用伤害实体自身，避免把弹丸命中点当作攻击者位置。缺失来源、自身伤害、暂停或死亡不触发调查。调查本身不广播，途中看见任何有效玩家时恢复原有索敌、目标优先级和广播；当前可见玩家优先于未看见的伤害来源。新受击或新信号可以更新调查坐标，钵海收割者的唤醒和失能限制仍优先。感知诊断同时覆盖六种海嗣受击位置快照、正常速度、改追另一名玩家、不提前广播及地面／飞行实际移动。
 
 角色索引固定为 `0=Eula`、`1=Acheron`、`2=Lizhiyan`、`3=Ascalon`。新增或替换角色要同步资源入口、骨骼映射、动画路径、UI、测试和文档。
 

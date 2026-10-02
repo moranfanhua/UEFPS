@@ -5,6 +5,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/SceneComponent.h"
 #include "Engine/DamageEvents.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -34,6 +35,12 @@ void ABreachGameMode::RunEnemyAwarenessTest()
         Enemy->bShellSeaRunner=true; UGameplayStatics::FinishSpawningActor(Enemy,Transform);
         Enemy->SetActorTickEnabled(false); Enemy->GetCharacterMovement()->SetComponentTickEnabled(false);
         return Enemy;
+    };
+    const auto MakeSource=[this](FVector Position)
+    {
+        auto* Source=GetWorld()->SpawnActor<AActor>();
+        auto* Root=NewObject<USceneComponent>(Source); Source->SetRootComponent(Root); Root->RegisterComponent();
+        Source->SetActorLocation(Position); return Source;
     };
     auto* Runner=MakeRunner(Origin);
     auto* Sense=Runner->Awareness.Get();
@@ -124,6 +131,18 @@ void ABreachGameMode::RunEnemyAwarenessTest()
     Check(Sense->Intent==EBreachEnemyIntent::Dead && !Sense->GetVisibleTarget() && Runner->GetPendingMovementInputVector().IsNearlyZero(),TEXT("Death stops sensing, signals and queued movement"));
     Near->Destroy(); Far->Destroy(); Runner->Destroy();
 
+    auto* HurtRunner=MakeRunner(Origin);
+    const FVector HiddenShot=Origin+FVector(-600,0,0); Player->SetActorLocation(HiddenShot);
+    HurtRunner->TakeDamage(1,Damage,nullptr,Player);
+    Check(HurtRunner->Awareness->Intent==EBreachEnemyIntent::Investigate && HurtRunner->Awareness->Destination.Equals(HiddenShot) &&
+        HurtRunner->GetCharacterMovement()->MaxWalkSpeed==790,TEXT("Legacy damage path snapshots an unseen causer and restores normal speed"));
+    Player->SetActorLocation(Origin+FVector(-4000,0,0)); HurtRunner->Awareness->Advance(.26f);
+    Check(HurtRunner->Awareness->Destination.Equals(HiddenShot),TEXT("Legacy investigation does not follow the unseen attacker"));
+    HurtRunner->TakeDamage(10000,Damage,nullptr,Player); HurtRunner->Awareness->NotifyDamage(Player->GetController(),Player);
+    Check(HurtRunner->Awareness->Intent==EBreachEnemyIntent::Dead,TEXT("Lethal damage cannot start a new investigation")); HurtRunner->Destroy();
+
+    auto* Witness=MakeRunner(Origin+FVector(0,800,0));
+    auto* Projectile=MakeSource(Origin+FVector(10,0,0)); Projectile->SetInstigator(Player);
     for(uint8 Index=0;Index<=uint8(EBreachSeabornSpecies::FirstSeaPiercer);++Index)
     {
         auto* Enemy=GetWorld()->SpawnActor<ABreachSeabornEnemy>(Origin,FRotator::ZeroRotator,Params);
@@ -133,6 +152,43 @@ void ABreachGameMode::RunEnemyAwarenessTest()
         auto* Awareness=Enemy->Awareness.Get(); Awareness->Advance(.01f);
         Check(Awareness->Intent==EBreachEnemyIntent::Wander && FMath::IsNearlyEqual(Enemy->GetCharacterMovement()->MaxWalkSpeed,Awareness->GetCombatSpeed()*.25f),
             *FString::Printf(TEXT("%s starts with slow wandering"),*Enemy->GetProfile().Key));
+
+        FDamageEvent True(UBreachTrueDamage::StaticClass());
+        Witness->Awareness->Reset(790);
+        Enemy->TakeDamage(1,True,Player->GetController(),Projectile);
+        Check(Awareness->Intent==EBreachEnemyIntent::Investigate && Awareness->Destination.Equals(HiddenShot) &&
+            Enemy->GetCharacterMovement()->MaxWalkSpeed==Awareness->GetCombatSpeed() && Enemy->GetCharacterMovement()->MaxFlySpeed==Awareness->GetCombatSpeed(),
+            *FString::Printf(TEXT("%s damage snapshots the attacker's pawn rather than projectile position at normal speed"),*Enemy->GetProfile().Key));
+        if(Index==uint8(EBreachSeabornSpecies::BowlSeaReaper))
+        {
+            Check(Enemy->Action==EBreachSeabornAction::Wake && Enemy->GetPendingMovementInputVector().IsNearlyZero(),TEXT("Damage investigation preserves the reaper's wake sequence"));
+            Enemy->AdvanceMechanics(Enemy->GetWakeDuration());
+            Check(Enemy->bAwake && Enemy->GetCharacterMovement()->MaxWalkSpeed==Awareness->GetCombatSpeed(),TEXT("Awakened damage investigation uses full awakened movement speed"));
+        }
+        Player->SetActorLocation(Origin+FVector(-4000,0,0)); Projectile->SetActorLocation(Origin+FVector(0,4000,0));
+        Awareness->Advance(.26f); Awareness->MoveTowardDestination(.016f);
+        Check(Awareness->Destination.Equals(HiddenShot) && !Awareness->GetVisibleTarget() && Enemy->GetPendingMovementInputVector().X<0 &&
+            Witness->Awareness->Intent==EBreachEnemyIntent::Wander,TEXT("Unseen damage starts movement without following or broadcasting the attacker"));
+        Enemy->SetActorLocation(HiddenShot); Awareness->Advance(.01f);
+        Check(Awareness->Intent==EBreachEnemyIntent::Wait && Enemy->GetPendingMovementInputVector().IsNearlyZero(),TEXT("Damage investigation waits upon arrival at the recorded position"));
+        Enemy->TakeDamage(0,True,nullptr,Projectile); Enemy->TakeDamage(1,True,nullptr,nullptr); Enemy->TakeDamage(1,True,nullptr,Enemy);
+        Check(Awareness->Intent==EBreachEnemyIntent::Wait && Awareness->Destination.Equals(HiddenShot),TEXT("Zero damage, missing sources and self damage do not invent investigation targets"));
+        UGameplayStatics::SetGamePaused(this,true); Enemy->TakeDamage(1,True,nullptr,Projectile); UGameplayStatics::SetGamePaused(this,false);
+        Check(Awareness->Intent==EBreachEnemyIntent::Wait && Awareness->Destination.Equals(HiddenShot),TEXT("Paused damage cannot update the investigation position"));
+        const FVector NewShot=Origin+FVector(-1000,100,0); Player->SetActorLocation(NewShot);
+        Enemy->TakeDamage(1,True,nullptr,Projectile);
+        Check(Awareness->Intent==EBreachEnemyIntent::Investigate && Awareness->Destination.Equals(NewShot),TEXT("Another hit uses the projectile instigator's new position and resumes investigation"));
+        Player->SetActorLocation(Origin+FVector(-4000,0,0)); Enemy->SetActorLocation(Origin); Enemy->SetActorRotation(FRotator::ZeroRotator);
+        auto* Other=GetWorld()->SpawnActor<ABreachCharacter>(Origin+FVector(600,0,0),FRotator::ZeroRotator,Params);
+        Other->SetActorTickEnabled(false); Other->GetCharacterMovement()->DisableMovement();
+        Awareness->Advance(.26f);
+        Check(Awareness->Intent==EBreachEnemyIntent::Pursue && Awareness->GetVisibleTarget()==Other &&
+            Witness->Awareness->Destination.Equals(Other->GetActorLocation()),TEXT("Seeing a different player replaces damage investigation and broadcasts that visible player"));
+        Enemy->TakeDamage(1,True,Player->GetController(),Projectile);
+        Check(Awareness->GetVisibleTarget()==Other && Awareness->Destination.Equals(Other->GetActorLocation()),TEXT("Direct sight keeps priority over a hit from an unseen attacker"));
+        Other->Destroy(); Witness->Awareness->Reset(790);
+        Player->SetActorLocation(HiddenShot); Enemy->SetActorLocation(Origin); Enemy->SetActorRotation(FRotator::ZeroRotator); Awareness->Reset(Awareness->GetCombatSpeed());
+
         Awareness->ReceiveSignal(Origin+FVector(700,0,0)); Awareness->MoveTowardDestination(.016f);
         Check(Awareness->Intent==EBreachEnemyIntent::Investigate && Enemy->GetPendingMovementInputVector().X>0,TEXT("Opt-in enemy moves toward a received position"));
         Player->SetActorLocation(Origin+FVector(600,0,0)); Awareness->Advance(.26f);
@@ -140,10 +196,11 @@ void ABreachGameMode::RunEnemyAwarenessTest()
         Player->SetActorLocation(Origin+FVector(-600,0,0)); Awareness->Advance(.26f);
         Enemy->SetActorLocation(Origin+FVector(600,0,0)); Awareness->Advance(.01f);
         Check(Awareness->Intent==EBreachEnemyIntent::Wait && Awareness->Destination.Equals(Origin+FVector(600,0,0)),TEXT("Opt-in enemy waits at the last observed position"));
-        FDamageEvent True(UBreachTrueDamage::StaticClass()); Enemy->TakeDamage(10000,True,nullptr,nullptr); Awareness->ReceiveSignal(Origin);
+        Enemy->TakeDamage(10000,True,nullptr,nullptr); Awareness->ReceiveSignal(Origin); Awareness->NotifyDamage(Player->GetController(),Player);
         Check(Awareness->Intent==EBreachEnemyIntent::Dead,TEXT("Opt-in enemy death rejects new signals"));
         Enemy->Destroy();
     }
+    Witness->Destroy(); Projectile->Destroy();
 
     // Exercise CharacterMovement over real world frames, including flying height.
     Player->SetActorLocation(Origin+FVector(5000,0,0));
@@ -157,25 +214,30 @@ void ABreachGameMode::RunEnemyAwarenessTest()
     Flyer->ActivateSpecies(EBreachSeabornSpecies::SeaDrifter);
     Live->Awareness->WanderRadius=250; Flyer->Awareness->WanderRadius=250;
     const FVector Initial=Live->GetActorLocation(),InitialFlight=Flyer->GetActorLocation();
+    auto* GroundSource=MakeSource(Initial+FVector(700,0,0)); auto* FlightSource=MakeSource(InitialFlight+FVector(700,0,0));
     bGallery=false; Intermission=1000;
     FTimerHandle Wander,Arrive,Dead,FinishTimer;
-    GetWorldTimerManager().SetTimer(Wander,[Live,Flyer,Initial,InitialFlight,Check]()
+    GetWorldTimerManager().SetTimer(Wander,[Live,Flyer,GroundSource,FlightSource,Initial,InitialFlight,Check,Damage]()
     {
         Check(FVector::Dist2D(Live->GetActorLocation(),Initial)>20 && Live->GetVelocity().Size2D()<=198,TEXT("Live wave enemy physically wanders at low speed"));
         Check(FVector::Dist2D(Flyer->GetActorLocation(),InitialFlight)>20 && FMath::Abs(Flyer->GetActorLocation().Z-InitialFlight.Z)<15,TEXT("Live drifter wanders while preserving flight height"));
-        Live->Awareness->ReceiveSignal(Initial+FVector(700,0,0)); Flyer->Awareness->ReceiveSignal(InitialFlight+FVector(700,0,0));
+        Live->TakeDamage(1,Damage,nullptr,GroundSource); FDamageEvent True(UBreachTrueDamage::StaticClass()); Flyer->TakeDamage(1,True,nullptr,FlightSource);
+        GroundSource->SetActorLocation(Initial+FVector(5000,0,0)); FlightSource->SetActorLocation(InitialFlight+FVector(5000,0,0));
+        Check(Live->GetCharacterMovement()->MaxWalkSpeed==790 && Flyer->GetCharacterMovement()->MaxFlySpeed==Flyer->Awareness->GetCombatSpeed(),
+            TEXT("Live ground and flying damage reactions restore full movement speed"));
     },2.f,false);
     GetWorldTimerManager().SetTimer(Arrive,[Live,Flyer,Initial,InitialFlight,Check,Damage]()
     {
-        Check(Live->Awareness->Intent==EBreachEnemyIntent::Wait && FVector::Dist2D(Live->GetActorLocation(),Initial+FVector(700,0,0))<=80 && Live->GetVelocity().IsNearlyZero(),TEXT("Live runner reaches signal coordinates and stops"));
-        Check(Flyer->Awareness->Intent==EBreachEnemyIntent::Wait && FVector::Dist2D(Flyer->GetActorLocation(),InitialFlight+FVector(700,0,0))<=80 && FMath::Abs(Flyer->GetActorLocation().Z-InitialFlight.Z)<15,TEXT("Live flyer reaches signal coordinates without landing"));
+        Check(Live->Awareness->Intent==EBreachEnemyIntent::Wait && FVector::Dist2D(Live->GetActorLocation(),Initial+FVector(700,0,0))<=80 && Live->GetVelocity().IsNearlyZero(),TEXT("Live runner reaches the damage-source snapshot and stops after the source moves"));
+        Check(Flyer->Awareness->Intent==EBreachEnemyIntent::Wait && FVector::Dist2D(Flyer->GetActorLocation(),InitialFlight+FVector(700,0,0))<=80 && FMath::Abs(Flyer->GetActorLocation().Z-InitialFlight.Z)<15,TEXT("Live flyer reaches the damage-source snapshot without following it or landing"));
         Live->TakeDamage(10000,Damage,nullptr,nullptr); FDamageEvent True(UBreachTrueDamage::StaticClass()); Flyer->TakeDamage(10000,True,nullptr,nullptr);
     },6.f,false);
-    GetWorldTimerManager().SetTimer(Dead,[Live,Flyer,Check]()
+    GetWorldTimerManager().SetTimer(Dead,[Live,Flyer,GroundSource,FlightSource,Check]()
     {
         Live->Awareness->ReceiveSignal(FVector::ZeroVector); Flyer->Awareness->ReceiveSignal(FVector::ZeroVector);
         Check(Live->GetVelocity().IsNearlyZero() && Flyer->GetVelocity().IsNearlyZero() && Live->Awareness->Intent==EBreachEnemyIntent::Dead && Flyer->Awareness->Intent==EBreachEnemyIntent::Dead,
             TEXT("Dead actors stay stopped over subsequent world frames"));
+        GroundSource->Destroy(); FlightSource->Destroy();
     },7.f,false);
     GetWorldTimerManager().SetTimer(FinishTimer,[Report,Failures]()
     {

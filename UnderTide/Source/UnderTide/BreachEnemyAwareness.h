@@ -4,6 +4,7 @@
 #include "BreachEnemyAwareness.generated.h"
 
 class ABreachCharacter;
+class AController;
 
 UENUM(BlueprintType)
 enum class EBreachEnemyIntent : uint8 { Wander, Pursue, Investigate, Wait, Dead };
@@ -25,6 +26,7 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Awareness") EBreachEnemyIntent Intent=EBreachEnemyIntent::Wander;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Awareness") FVector Destination=FVector::ZeroVector;
     UFUNCTION(BlueprintCallable, Category="Awareness") void ReceiveSignal(FVector Position);
+    void NotifyDamage(AController* DamageInstigator,AActor* DamageCauser);
     bool CanSee(const ABreachCharacter* Player) const;
     ABreachCharacter* GetVisibleTarget() const { return VisibleTarget.Get(); }
     float GetCombatSpeed() const { return CombatSpeed; }

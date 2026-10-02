@@ -265,6 +265,7 @@ float ABreachEnemy::TakeDamage(float Damage,const FDamageEvent& Event,AControlle
         GetCharacterMovement()->DisableMovement();
         if(auto* GM=GetWorld()->GetAuthGameMode<ABreachGameMode>()) GM->EnemyDefeated(this,Event.IsOfType(FPointDamageEvent::ClassID) && Damage>50);
     }
+    else if(Damage>0) Awareness->NotifyDamage(DamageInstigator,Causer);
     return Damage;
 }
 

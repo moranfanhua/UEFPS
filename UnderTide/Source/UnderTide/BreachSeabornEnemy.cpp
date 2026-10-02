@@ -341,7 +341,11 @@ float ABreachSeabornEnemy::TakeDamage(float Damage,const FDamageEvent& Event,ACo
     Applied=FMath::Min(Applied,Health);
     Health-=Applied;
     if(Health<=0) Die(Event.IsOfType(FPointDamageEvent::ClassID) && Damage>50);
-    else TryWake();
+    else
+    {
+        if(Applied>0) Awareness->NotifyDamage(DamageInstigator,Causer);
+        TryWake();
+    }
     ForceNetUpdate();
     return Applied;
 }
