@@ -2,6 +2,7 @@
 #include "BreachGame.h"
 #include "BreachNerveDamageComponent.h"
 #include "BreachMovementComponent.h"
+#include "BreachEnemyAwareness.h"
 #include "BreachVisuals.h"
 #include "Animation/AnimSequence.h"
 #include "Components/CapsuleComponent.h"
@@ -21,6 +22,7 @@
 ABreachSeabornEnemy::ABreachSeabornEnemy()
 {
     PrimaryActorTick.bCanEverTick=true;
+    Awareness=CreateDefaultSubobject<UBreachEnemyAwareness>(TEXT("EnemyAwareness"));
     bReplicates=true;
     GetCapsuleComponent()->InitCapsuleSize(45,72);
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
@@ -58,13 +60,12 @@ bool ABreachSeabornEnemy::ActivateSpecies(EBreachSeabornSpecies Kind)
     bMechanicsEnabled=true;
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     GetCharacterMovement()->SetMovementMode(Profile.bFlying?MOVE_Flying:MOVE_Walking);
-    GetCharacterMovement()->MaxWalkSpeed=UBreachMovementComponent::UnarmedSpeed*Profile.Speed/1.9f;
-    GetCharacterMovement()->MaxFlySpeed=GetCharacterMovement()->MaxWalkSpeed;
     LoadPresentation();
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn,Profile.bDormant?ECR_Ignore:ECR_Block);
     FVector Position=GetActorLocation();
     Position.Z=FloorZ+(Profile.bFlying?FlightAnchorHeight:GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight());
     SetActorLocation(Position);
+    Awareness->Reset(UBreachMovementComponent::UnarmedSpeed*Profile.Speed/1.9f);
     SetAction(EBreachSeabornAction::Idle);
     DamageHitbox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     ForceNetUpdate();
@@ -201,7 +202,7 @@ ABreachCharacter* ABreachSeabornEnemy::SelectTarget() const
     for(TActorIterator<ABreachCharacter> It(GetWorld());It;++It)
     {
         auto* Player=*It;
-        if(Player->Health<=0 || Player->IsActorBeingDestroyed()) continue;
+        if(!Awareness->CanSee(Player)) continue;
         const float Distance=FVector::DistSquared(GetActorLocation(),Player->GetActorLocation());
         if(Distance<BestDistance) { Best=Player; BestDistance=Distance; }
         if(Profile.bLowestHealthTarget && CanHit(Player))
@@ -218,7 +219,7 @@ void ABreachSeabornEnemy::ApplyIncapacitation(float Seconds)
 {
     if(!HasAuthority() || IsDefeated() || !FMath::IsFinite(Seconds) || Seconds<=0) return;
     Incapacitated=FMath::Max(Incapacitated,Seconds);
-    GetCharacterMovement()->StopMovementImmediately();
+    Awareness->Stop();
     if(Action==EBreachSeabornAction::Attack) { AttackTarget.Reset(); SetAction(EBreachSeabornAction::Idle); }
 }
 
@@ -233,6 +234,7 @@ void ABreachSeabornEnemy::AdvanceMechanics(float Dt)
 {
     if(!HasAuthority() || !bMechanicsEnabled || IsDefeated() || !FMath::IsFinite(Dt) || Dt<=0) return;
     if(UGameplayStatics::IsGamePaused(this)) return;
+    Awareness->Advance(Dt);
     AttackCooldown=FMath::Max(0.f,AttackCooldown-Dt);
     Disarmed=FMath::Max(0.f,Disarmed-Dt);
     if(bAwake && Profile.bDormant)
@@ -257,7 +259,7 @@ void ABreachSeabornEnemy::AdvanceMechanics(float Dt)
             if(ActionTime>=GetWakeDuration())
             {
                 bAwake=true;
-                GetCharacterMovement()->MaxWalkSpeed=UBreachMovementComponent::UnarmedSpeed*Profile.Speed/1.9f*6.f;
+                Awareness->SetCombatSpeed(UBreachMovementComponent::UnarmedSpeed*Profile.Speed/1.9f*6.f);
                 GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn,ECR_Block);
                 SetAction(EBreachSeabornAction::Idle);
             }
@@ -266,14 +268,9 @@ void ABreachSeabornEnemy::AdvanceMechanics(float Dt)
         DormantTime+=Dt;
         if(DormantTime<30)
         {
-            GetCharacterMovement()->StopMovementImmediately(); SetAction(EBreachSeabornAction::Idle); return;
+            Awareness->Stop(); SetAction(EBreachSeabornAction::Idle); return;
         }
-        if(auto* Player=SelectTarget())
-        {
-            FVector Direction=Player->GetActorLocation()-GetActorLocation(); Direction.Z=0;
-            if(!Direction.IsNearlyZero()) SetActorRotation(Direction.Rotation());
-            SetAction(EBreachSeabornAction::Move); AddMovementInput(Direction.GetSafeNormal(),1,true);
-        }
+        SetAction(Awareness->MoveTowardDestination(Dt)?EBreachSeabornAction::Move:EBreachSeabornAction::Idle);
         return;
     }
     if(Action==EBreachSeabornAction::Attack)
@@ -284,13 +281,12 @@ void ABreachSeabornEnemy::AdvanceMechanics(float Dt)
         if(ActionTime>=Duration) { AttackTarget.Reset(); SetAction(EBreachSeabornAction::Idle); }
         return;
     }
-    auto* Player=SelectTarget();
-    if(!Player) { SetAction(EBreachSeabornAction::Idle); return; }
-    FVector Direction=Player->GetActorLocation()-GetActorLocation(); Direction.Z=0;
-    if(!Direction.IsNearlyZero()) SetActorRotation(FRotator(0,Direction.Rotation().Yaw,0));
-    if(CanHit(Player))
+    auto* Player=Awareness->GetVisibleTarget();
+    if(Player && CanHit(Player))
     {
-        GetCharacterMovement()->StopMovementImmediately();
+        Awareness->Stop();
+        FVector Direction=Player->GetActorLocation()-GetActorLocation(); Direction.Z=0;
+        if(!Direction.IsNearlyZero()) SetActorRotation(Direction.Rotation());
         SetAction(EBreachSeabornAction::Idle);
         if(AttackCooldown<=0 && Disarmed<=0)
         {
@@ -300,16 +296,7 @@ void ABreachSeabornEnemy::AdvanceMechanics(float Dt)
     }
     else
     {
-        SetAction(EBreachSeabornAction::Move);
-        if(Profile.bFlying)
-        {
-            FHitResult Ground;
-            FCollisionQueryParams Params(SCENE_QUERY_STAT(SeabornFlight),false,this);
-            Params.AddIgnoredActor(Player);
-            if(GetWorld()->LineTraceSingleByChannel(Ground,GetActorLocation()+FVector(0,0,300),GetActorLocation()-FVector(0,0,2000),ECC_WorldStatic,Params))
-                Direction.Z=Ground.ImpactPoint.Z+FlightAnchorHeight-GetActorLocation().Z;
-        }
-        AddMovementInput(Direction.GetSafeNormal(),1,true);
+        SetAction(Awareness->MoveTowardDestination(Dt,0,Profile.bFlying,FlightAnchorHeight)?EBreachSeabornAction::Move:EBreachSeabornAction::Idle);
     }
 }
 
@@ -319,7 +306,7 @@ float ABreachSeabornEnemy::GetWakeDuration() const { return WakeClip?WakeClip->G
 void ABreachSeabornEnemy::TryWake()
 {
     if(!Profile.bDormant || bAwake || IsDefeated() || Action==EBreachSeabornAction::Wake || Incapacitated>0 || Health>=MaxHealth*.9999f) return;
-    GetCharacterMovement()->StopMovementImmediately();
+    Awareness->Stop();
     SetAction(EBreachSeabornAction::Wake);
 }
 
@@ -334,7 +321,7 @@ void ABreachSeabornEnemy::ApplyNerveAura(float Dt)
 void ABreachSeabornEnemy::ResolveAttack()
 {
     auto* Player=AttackTarget.Get();
-    if(!CanHit(Player) || IsDefeated() || Incapacitated>0 || Disarmed>0) return;
+    if(!CanHit(Player) || !Awareness->CanSee(Player) || IsDefeated() || Incapacitated>0 || Disarmed>0) return;
     if(Profile.bRanged)
         Breach::Beam(GetWorld(),GetActorLocation(),Player->GetActorLocation(),FLinearColor(.3f,.7f,.65f),3.f,.12f);
     UGameplayStatics::ApplyDamage(Player,Profile.Attack*FBreachSeabornProfile::CombatScale,GetController(),this,UDamageType::StaticClass());
@@ -359,6 +346,7 @@ float ABreachSeabornEnemy::TakeDamage(float Damage,const FDamageEvent& Event,ACo
 void ABreachSeabornEnemy::Die()
 {
     Health=0; AttackTarget.Reset(); bHitApplied=true;
+    Awareness->Die();
     GetCharacterMovement()->StopMovementImmediately();
     GetCharacterMovement()->DisableMovement();
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);

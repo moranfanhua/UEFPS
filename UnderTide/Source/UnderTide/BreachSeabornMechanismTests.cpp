@@ -1,5 +1,6 @@
 #include "BreachGame.h"
 #include "BreachSeabornEnemy.h"
+#include "BreachEnemyAwareness.h"
 #include "BreachNerveDamageComponent.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraActor.h"
@@ -105,7 +106,7 @@ void ABreachGameMode::RunSeabornMechanismTest()
     }
     else
     {
-    Check(Enemy->Health==(Piercer?450.f:(Spitter?220.f:(Slider?140.f:150.f))) && FMath::IsNearlyEqual(Enemy->GetCharacterMovement()->MaxWalkSpeed,790.f*Profile.Speed/1.9f,.001f),TEXT("Level-0 HP and speed use documented FPS conversion"));
+    Check(Enemy->Health==(Piercer?450.f:(Spitter?220.f:(Slider?140.f:150.f))) && FMath::IsNearlyEqual(Enemy->Awareness->GetCombatSpeed(),790.f*Profile.Speed/1.9f,.001f),TEXT("Level-0 HP and pursuit speed use documented FPS conversion"));
     Enemy->AdvanceMechanics(.01f);
     Check(Enemy->Action==EBreachSeabornAction::Attack && Player->Health==100,TEXT("Attack starts with a visible windup"));
     Enemy->AdvanceMechanics(Duration*.42f+.01f);
@@ -144,6 +145,8 @@ void ABreachGameMode::RunSeabornMechanismTest()
     }
     if(Piercer)
     {
+        // Target-priority checks place both candidates inside the new sight cone.
+        Enemy->SetActorRotation(FRotator::ZeroRotator);
         auto* Other=GetWorld()->SpawnActor<ABreachCharacter>(Origin+FVector(200,200,0),FRotator::ZeroRotator,Params);
         Other->SetActorTickEnabled(false); Other->GetCharacterMovement()->DisableMovement(); Other->NerveDamage->SetComponentTickEnabled(false);
         Player->Health=80; Other->MaxHealth=400; Other->Health=200;

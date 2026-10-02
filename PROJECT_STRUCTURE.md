@@ -86,6 +86,8 @@ GPT_UE_TEST/
 | `BreachArena.cpp` | 创建竞技场几何、地板、围墙、掩体、中央反应堆、角色展示台、文字标牌、灯光和后处理。已有带 `BreachArena` 标签的物体时不会重复创建。 |
 | `BreachEnemy.cpp` | 敌人移动、朝向玩家、视线检测、受伤和死亡。壳海狂奔者用独立骨骼网格和逐腿疾跑循环，播放速率随实际移速变化，停步混合回站姿；近距停稳后扬尾前探咬合，死亡打断攻击并屈腿伏地保持末帧，暂不造成伤害；人物敌人仍用 `Pose.Walk()` 和对应的 `Death01` 动画。 |
 | `BreachRunnerTests.cpp` | 狂奔者四腿与尾部骨骼、脚爪行程、骨段长度、循环衔接、根骨原地、停步、咬合恢复及死亡打断检查，提供奔跑、攻击、死亡侧面与第一人称截图。入口为 `-BreachRunnerTest`，截图另加 `-BreachRunnerCapture`。 |
+| `BreachEnemyAwareness.h/.cpp` | 波次敌人与独立海嗣共用感知和移动意图；低速游荡、接收坐标前进、视野内追逐及 50 米广播，失去视线后到最后已知位置等待。 |
+| `BreachEnemyAwarenessTests.cpp` | 用 `-BreachEnemyAwarenessTest` 检查感知、广播边界、遮挡、等待和地面／飞行实际移动，报告输出到 `Saved/enemy_awareness_test.txt`。 |
 | `BreachSeabornReview.cpp` | 独立加载海嗣骨骼资源，检查压缩数据就绪、原地根骨、尺度、动作变化、循环和死亡末帧；截图包含各动作阶段与玩家视线高度。使用 `-BreachModelReview -BreachSeabornReview -BreachReviewEnemy=<Key>`，截图另加 `-BreachSeabornCapture`。 |
 | `BreachAssets.cpp` | 编辑器资源处理：裁剪辅助第一人称手臂网格，以及从 JSON/动作文件烘焙死亡和角色动画。函数使用 `WITH_EDITOR`，打包后的游戏不会执行编辑器写入操作。 |
 | `BreachModelReview.cpp` | 阿斯卡纶正、侧、背离屏检查入口；只有显式使用 `-BreachModelReview` 才进入模型检查场景，附加 `-BreachReviewHead` 聚焦头部。`Scripts/VerifyModelReview.ps1 -Head` 封装该入口。保留原骨架的 `CopyCharacterGeometry` 位于 `BreachAssets.cpp`，网格更新仅允许编辑器构建执行。 |
@@ -106,6 +108,8 @@ bGallery          是否处于展示或测试模式
 ```
 
 每波敌人数为 `4 + Wave * 2`，同时场上最多保持 8 个敌人。敌人被击败后，GameMode 更新分数、弹药和少量生命值；最后一个敌人倒地且没有待生成敌人时，进入下一波间歇。
+
+敌人尚未发现玩家时，以追逐速度的 25% 游荡，每次以当前位置为中心，在 500 cm 内重新选取目标。水平视野为 120°，视距为 1600 cm，遮挡射线通过后才读取玩家位置；看见玩家时每 0.25 秒向 5000 cm 内敌人广播该坐标。收到信号的敌人前往信号位置，自己看见玩家后开始追逐与广播。失去视线时只保留最后已知位置，进入 80 cm 范围后停下等待，直到再次看见玩家或收到新信号；接收者不会转发未看见的坐标。参数由 `Awareness` 组件设置，决策仅在服务器执行。移动仍使用局部障碍转向与 `CharacterMovement` 碰撞，尚未接入 NavMesh 全局路径规划。独立海嗣仍需显式启用，不加入常规波次；钵海收割者的休眠和唤醒限制保留。
 
 ### 3.3 骨骼姿势和动画采样
 

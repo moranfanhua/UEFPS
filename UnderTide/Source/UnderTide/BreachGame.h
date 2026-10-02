@@ -20,6 +20,7 @@ class UAnimSequence;
 class ABreachEnemy;
 class ABreachSelectionStage;
 class UBreachNerveDamageComponent;
+class UBreachEnemyAwareness;
 
 UCLASS()
 class UNDERTIDE_API ABreachPlayerController : public APlayerController
@@ -190,6 +191,7 @@ public:
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Visual;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> RunnerVisual;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UBoxComponent> RunnerHitbox;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UBreachEnemyAwareness> Awareness;
     UPROPERTY(EditAnywhere) int32 ModelIndex = 0;
     UPROPERTY(EditAnywhere) bool bDisplayOnly = false;
     UPROPERTY(EditAnywhere) bool bShellSeaRunner = false;
@@ -197,7 +199,6 @@ public:
     float MaxHealth = 100.f;
     bool bDefeated = false;
     float AttackCooldown = 1.f;
-    float PathCooldown = 0.f;
     float Phase = 0.f;
     float DespawnTime = 0.f;
     void Configure(int32 Index, int32 Wave);
@@ -257,6 +258,7 @@ public:
     void RunModelReview();
     void RunSeabornReview();
     void RunSeabornMechanismTest();
+    void RunEnemyAwarenessTest();
     void TickSelectionTest();
     TFunction<void()> SelectionTestStep;
     UFUNCTION(Exec) void BreachSmokeTest();

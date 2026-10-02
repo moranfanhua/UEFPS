@@ -1,5 +1,6 @@
 #include "BreachGame.h"
 #include "BreachMovementComponent.h"
+#include "BreachEnemyAwareness.h"
 #include "BreachVisuals.h"
 #include "CharacterRigData.h"
 #include "Camera/CameraComponent.h"
@@ -140,6 +141,12 @@ void ABreachGameMode::BeginPlay()
         bGallery=true;
         FTimerHandle MovementTimer;
         GetWorldTimerManager().SetTimer(MovementTimer,this,&ABreachGameMode::RunMovementTest,.6f,false);
+    }
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachEnemyAwarenessTest")))
+    {
+        bGallery=true;
+        FTimerHandle AwarenessTimer;
+        GetWorldTimerManager().SetTimer(AwarenessTimer,this,&ABreachGameMode::RunEnemyAwarenessTest,.6f,false);
     }
     if(FParse::Param(FCommandLine::Get(),TEXT("BreachSeabornMechanismTest")))
     {
@@ -386,7 +393,7 @@ void ABreachGameMode::RunSmokeTest()
         UGameplayStatics::FinishSpawningActor(Runner,RunnerTransform);
         Runner->ConfigureShellSeaRunner(1); ++EnemiesAlive;
         Check(Runner->bShellSeaRunner && Runner->RunnerVisual->GetSkinnedAsset()!=nullptr && Runner->HasRunnerAnimation() && Runner->RunnerVisual->IsVisible() && !Runner->Visual->IsVisible(),TEXT("ShellSeaRunner wave enemy uses rigged mesh and gallop animation"));
-        Check(FMath::IsNearlyEqual(Runner->GetCharacterMovement()->MaxWalkSpeed,UBreachMovementComponent::UnarmedSpeed),TEXT("ShellSeaRunner reaches ordinary unarmed movement speed"));
+        Check(FMath::IsNearlyEqual(Runner->Awareness->GetCombatSpeed(),UBreachMovementComponent::UnarmedSpeed) && FMath::IsNearlyEqual(Runner->GetCharacterMovement()->MaxWalkSpeed,UBreachMovementComponent::UnarmedSpeed*.25f),TEXT("ShellSeaRunner starts wandering slowly and retains unarmed pursuit speed"));
         FHitResult RunnerHit;
         FCollisionQueryParams RunnerTrace(SCENE_QUERY_STAT(ShellSeaRunnerShot),true,P);
         Check(GetWorld()->LineTraceSingleByChannel(RunnerHit,P->Camera->GetComponentLocation(),Runner->GetActorLocation()+FVector(0,0,45),ECC_Visibility,RunnerTrace) && RunnerHit.GetActor()==Runner,TEXT("ShellSeaRunner blocks player hitscan"));

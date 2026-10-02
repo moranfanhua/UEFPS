@@ -9,6 +9,7 @@ class ABreachCharacter;
 class UPoseableMeshComponent;
 class UAnimSequence;
 class UBoxComponent;
+class UBreachEnemyAwareness;
 
 UENUM(BlueprintType)
 enum class EBreachSeabornSpecies : uint8 { ShellSeaRunner, DeepSeaSlider, SpinalSeaSpitter, SeaDrifter, BowlSeaReaper, FirstSeaPiercer };
@@ -44,6 +45,7 @@ public:
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out) const override;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Visual;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UBoxComponent> DamageHitbox;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UBreachEnemyAwareness> Awareness;
     UPROPERTY(EditAnywhere, ReplicatedUsing=OnRepSpecies, Category="Seaborn") EBreachSeabornSpecies Species=EBreachSeabornSpecies::ShellSeaRunner;
     UPROPERTY(EditAnywhere, ReplicatedUsing=OnRepSpecies, Category="Seaborn") bool bMechanicsEnabled=false;
     UPROPERTY(Replicated, BlueprintReadOnly, Category="Seaborn") float Health=0;
