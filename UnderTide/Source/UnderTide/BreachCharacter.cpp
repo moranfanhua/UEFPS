@@ -1,5 +1,7 @@
 #include "BreachGame.h"
 #include "BreachMovementComponent.h"
+#include "BreachSeabornEnemy.h"
+#include "BreachNerveDamageComponent.h"
 #include "BreachVisuals.h"
 #include "BreachWeapons.h"
 #include "Camera/CameraComponent.h"
@@ -21,6 +23,7 @@ ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer.SetDefaultSubobjectClass<UBreachMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
     PrimaryActorTick.bCanEverTick = true;
+    NerveDamage=CreateDefaultSubobject<UBreachNerveDamageComponent>(TEXT("NerveDamage"));
     GetCapsuleComponent()->InitCapsuleSize(34.f, 92.f);
     GetCharacterMovement()->MaxWalkSpeed = UBreachMovementComponent::RifleSpeed;
     GetCharacterMovement()->JumpZVelocity = 540.f;
@@ -148,6 +151,8 @@ ABreachCharacter::ABreachCharacter(const FObjectInitializer& ObjectInitializer)
 void ABreachCharacter::BeginPlay()
 {
     Super::BeginPlay();
+    static uint64 NextSpawnOrder=0;
+    TargetSpawnOrder=++NextSpawnOrder;
     TInlineComponentArray<UMeshComponent*> Meshes(this);
     for(auto* VisualMesh:Meshes) Breach::EnableToonStencil(VisualMesh);
     SelectOperator(0);
@@ -309,7 +314,7 @@ void ABreachCharacter::Fire()
         return;
     }
     if(Ammo<=0) { Reload(); return; }
-    NextShot=Now+FireInterval;
+    NextShot=Now+FireInterval*NerveDamage->GetFireIntervalMultiplier();
     --Ammo; ++ShotsFired;
     Recoil=UsesAK()?FMath::Min(3.f,Recoil+1.6f):UsesM4()?FMath::Min(2.2f,Recoil+1.05f):
         UsesMP5()?FMath::Min(1.7f,Recoil+.75f):UsesAA12()?FMath::Min(3.5f,Recoil+1.9f):1.f;
@@ -345,9 +350,14 @@ void ABreachCharacter::Fire()
         if(auto* Enemy=Cast<ABreachEnemy>(Hit.GetActor()); Enemy && !Enemy->bDisplayOnly && !Enemy->bDefeated)
         {
             ++ShotsHit;
-            const bool Head=Hit.ImpactPoint.Z > Enemy->GetActorLocation().Z+47.f;
+            const bool Head=!Enemy->bShellSeaRunner && Hit.ImpactPoint.Z > Enemy->GetActorLocation().Z+47.f;
             bLastHeadshot|=Head; HitMarker=.18f;
             UGameplayStatics::ApplyPointDamage(Enemy,GetShotDamage((Hit.ImpactPoint-Start).Size())*(Head?2.f:1.f),Direction,Hit,Controller,this,UDamageType::StaticClass());
+        }
+        else if(auto* Seaborn=Cast<ABreachSeabornEnemy>(Hit.GetActor()); Seaborn && !Seaborn->IsDefeated() && Seaborn->bMechanicsEnabled)
+        {
+            ++ShotsHit; HitMarker=.18f;
+            UGameplayStatics::ApplyPointDamage(Seaborn,GetShotDamage((Hit.ImpactPoint-Start).Size()),Direction,Hit,Controller,this,UDamageType::StaticClass());
         }
         else if(bHit)
         {
@@ -442,6 +452,11 @@ void ABreachCharacter::PerformSwordHit()
         ++ShotsHit; bLastHeadshot=false; HitMarker=.22f;
         UGameplayStatics::ApplyDamage(Enemy,SwordDamage,Controller,this,UDamageType::StaticClass());
     }
+    else if(auto* Seaborn=Cast<ABreachSeabornEnemy>(Hit.GetActor()); bHit && Seaborn && !Seaborn->IsDefeated() && Seaborn->bMechanicsEnabled)
+    {
+        ++ShotsHit; bLastHeadshot=false; HitMarker=.22f;
+        UGameplayStatics::ApplyDamage(Seaborn,SwordDamage,Controller,this,UDamageType::StaticClass());
+    }
 }
 
 void ABreachCharacter::ApplySwordAttackPose()
@@ -490,6 +505,11 @@ void ABreachCharacter::PerformPunchHit()
     {
         ++ShotsHit; bLastHeadshot=false; HitMarker=.2f;
         UGameplayStatics::ApplyDamage(Enemy,PunchDamage,Controller,this,UDamageType::StaticClass());
+    }
+    else if(auto* Seaborn=Cast<ABreachSeabornEnemy>(Hit.GetActor()); bHit && Seaborn && !Seaborn->IsDefeated() && Seaborn->bMechanicsEnabled)
+    {
+        ++ShotsHit; bLastHeadshot=false; HitMarker=.2f;
+        UGameplayStatics::ApplyDamage(Seaborn,PunchDamage,Controller,this,UDamageType::StaticClass());
     }
 }
 
@@ -619,6 +639,12 @@ void ABreachCharacter::FinishReload()
     const int32 Count=FMath::Min(MagazineSize-Ammo,Reserve);
     Ammo+=Count; Reserve-=Count; bReloading=false;
 }
+void ABreachCharacter::OnNerveBurst()
+{
+    const float Now=GetWorld()->GetTimeSeconds();
+    NextShot=Now+FMath::Max(FireInterval,FMath::Max(0.f,NextShot-Now))*UBreachNerveDamageComponent::FireIntervalMultiplier;
+}
+
 float ABreachCharacter::TakeDamage(float Damage,const FDamageEvent& Event,AController* DamageInstigator,AActor* Causer)
 {
     if(Health<=0) return 0;
@@ -626,6 +652,7 @@ float ABreachCharacter::TakeDamage(float Damage,const FDamageEvent& Event,AContr
     if(Health<=0)
     {
         StopFire(); GetWorldTimerManager().ClearTimer(ReloadTimer); bReloading=false;
+        NerveDamage->StopFeedback();
         if(auto* GM=GetWorld()->GetAuthGameMode<ABreachGameMode>()) GM->EndRun();
     }
     return Damage;

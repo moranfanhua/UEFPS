@@ -78,6 +78,29 @@ M4 原包的 OBJ 引用了未提供的 MTL，导入时按材质槽匹配原皮�
 
 专项检查：`UnrealEditor-Cmd.exe <工程> /Game/Maps/Arena -game -BreachWeaponTest -BreachReticleReview -BreachWeaponCapture -RenderOffscreen -ForceRes -windowed -ResX=1600 -ResY=900 -unattended`。输出 `Saved/reticle_review.txt` 与 `Saved/Reticle_<枪型>_<Hip/Aim/Release/Reload/Unarmed>.png`，覆盖四枪开镜、再次开镜、退出、换弹、外部视角、暂停/选人恢复、死亡和近战显隐。可修改分辨率复核缩放；无渲染运行去掉截图参数并加 `-nullrhi`。
 
+#### UE 海嗣资源
+
+六个最新版模型已作为静态网格导入；各目录包含材质与 2K 贴图。法线贴图使用 UE 对应的绿色通道翻转，颜色贴图开启 sRGB，粗糙度使用线性采样；发光强度按各模型源材质设置。
+
+| 编号 | 模型版本 | UE Static Mesh |
+| --- | --- | --- |
+| 01 | ShellSeaRunner v2 | `/Game/Enemies/Seaborn/ShellSeaRunner/SM_ShellSeaRunner` |
+| 02 | DeepSeaSlider v1 | `/Game/Enemies/Seaborn/DeepSeaSlider/SM_DeepSeaSlider` |
+| 03 | SpinalSeaSpitter v2，三足 | `/Game/Enemies/Seaborn/SpinalSeaSpitter/SM_SpinalSeaSpitter` |
+| 04 | SeaDrifter v1 | `/Game/Enemies/Seaborn/SeaDrifter/SM_SeaDrifter` |
+| 05 | BowlSeaReaper v2，四触手 | `/Game/Enemies/Seaborn/BowlSeaReaper/SM_BowlSeaReaper` |
+| 06 | FirstSeaPiercer v2，长刺垂直花面 | `/Game/Enemies/Seaborn/FirstSeaPiercer/SM_FirstSeaPiercer` |
+
+六个静态网格保留源模型制作尺寸，可从内容浏览器打开或拖入关卡。六种海嗣均有独立骨骼、动作和实战机制，常规波次使用 `ABreachSeabornEnemy` 混合生成，四名人物模型保留为后方展示与既有检查。壳海狂奔者有 21 个骨骼节点，包含身体、上下颌、四条上腿／下腿／脚爪链和四节尾部；依据用户提供的三个 WebM 侧视参考缩短颌部、收窄张口幅度并增加细长尾部，原 v2 静态模型、主体 UV、贴图和原有骨骼绑定姿态保留。四腿按前后及左右时差落脚、蹬地和收腿，约 0.533 秒原地疾跑循环按实际速度调整播放速率；位移只由角色移动组件计算。最高移速为 790 cm/s，近距停稳后播放约 0.983 秒的扬尾、前探、咬合与恢复动作。实战咬合造成 14 点伤害，旧 `ABreachEnemy` 诊断中的咬合仅播放动作。死亡打断攻击并保持伏地末帧，波次尸体沿用 9 秒清理。
+
+运行资源为 `/Game/Enemies/Seaborn/ShellSeaRunner/Rig/SK_ShellSeaRunner`、同目录 `SK_ShellSeaRunner_Skeleton` 和 `A_ShellSeaRunner_Run`、`A_ShellSeaRunner_Attack`、`A_ShellSeaRunner_Die`；骨骼版使用独立的 `M_ShellSeaRunner_Rig` 和两种尾部材质，原静态网格和材质保留。三段视频仅作为动作参考，UE 动画为按该模型骨长重制的三维动作，并非视频自带的骨骼数据。逐腿检查入口为 `-BreachRunnerTest`，添加 `-BreachRunnerCapture` 可生成侧面四帧、站姿、攻击三帧、死亡三帧及第一人称截图，报告在 `Saved/runner_test.txt`。生成和导入工具、源素材及结果说明仅保留在本地忽略目录，游戏运行只读取 UE 资源。角色原型来自《明日方舟》／鹰角网络，不属于 CC0 素材。
+
+海嗣的生成、导入、源素材和结果说明沿用根目录 `.gitignore` 的本地忽略规则，运行所需网格、动作、材质与贴图保留在 `Content`。上述独立资源导入不改变原图与角色外形的授权条件。
+
+海嗣受击沿用四枪的实战射击流程：MP5 和 AA12 按实际命中距离衰减，AA12 每颗弹丸独立结算，再由敌人应用防御；挥拳与黄泉挥刀也可命中海嗣。神经损伤爆发使当前等待中的射击及后续枪击间隔变为该枪正常值的 2.5 倍。`-BreachWeaponTest` 同时检查四枪实际命中海嗣、远距弹丸伤害及爆发后的射击节奏，报告为 `Saved/weapon_test.txt`。`/Game/Enemies/Seaborn`、`/Game/Weapons` 和神经模糊材质所在 `/Game/Effects` 均加入始终烘焙目录。
+
+资源核对包括六个网格的面数、尺寸及 23 张 2K 贴图，以及六个单体和 06 侧面的 UE 实际渲染。这里的验证为编辑器资源与渲染检查，不代表战斗逻辑、动画、联机或打包验证。
+
 ### 动画来源
 
 - 女性动作来源：Quaternius **Animated Women Pack**，官方页面：<https://quaternius.com/packs/animatedwomen.html>

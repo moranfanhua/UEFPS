@@ -74,6 +74,8 @@ ehthumbs.db
 
 #图片
 *.png
+*.mov
+*.webm
 
 #临时文件
 TEMP

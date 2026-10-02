@@ -35,8 +35,14 @@
 | `BreachLocomotion.cpp` | 玩家动画状态选择与姿态过渡；是角色类的拆分实现。 |
 | `BreachMovementComponent.h/.cpp` | 速度平滑、惯性滑铲、坡道、滑铲跳及移动预测状态。 |
 | `BreachEnemy.cpp` | 敌人行为、受击和死亡倒地。 |
+| `BreachEnemyAwareness.h/.cpp`、`BreachEnemyAwarenessTests.cpp` | 波次敌人与海嗣共用的服务器感知、低速游荡、受击来源位置调查、50 米坐标广播和最后已知位置追踪；诊断入口 `-BreachEnemyAwarenessTest`。 |
+| `BreachRunnerTests.cpp` | 壳海狂奔者四腿疾跑、骨段长度、脚爪落地、循环及停步验证。 |
+| `BreachSeabornReview.cpp` | 海嗣独立资源审查；等待动画压缩后检查采样、根骨、尺度和循环，并输出动作与玩家视线高度截图，不接入敌人 AI。 |
+| `BreachSeabornEnemy.h/.cpp`、`BreachSeabornMechanismTests.cpp` | 六种海嗣的实战机制与独立诊断；常规波次由生成器启用，独立诊断入口为 `-BreachSeabornMechanismTest -BreachMechanismEnemy=<Key>`。 |
+| `BreachSeabornWaveTests.cpp` | 六种海嗣混合波次、生成碰撞、实战伤害、死亡计分及下一波验证；入口 `-BreachSeabornWaveTest`，截图另加 `-BreachSeabornWaveCapture`。 |
 | `BreachGameMode.cpp`、`BreachArena.cpp` | 游戏流程、波次、分数、测试入口及竞技场创建。 |
 | `BreachHUD.cpp`、`BreachVitalsHUD.cpp` | 战斗 HUD、头像、玩家显示名和生命条。 |
+| `BreachNerveDamageComponent.h/.cpp` | 神经损伤累计、爆发和冷却；本地拥有者的模糊与耳鸣反馈，生命条上方白蓝直线显示损伤。 |
 | `BreachSelectionHUD.cpp` | 选人界面绘制、点击和开关流程；是 HUD 类的拆分实现。 |
 | `BreachSelectionStage.h/.cpp` | 预览相机、角色入场、结束定格和头像捕获接口。 |
 | `BreachSelectionCat.cpp`、`BreachSelectionSword.cpp` | 李织烟抱猫及黄泉配刀的选人展示。 |
@@ -145,6 +151,14 @@ foreach ($breachOperator in 0..3) {
 - 布料是 `FBreachCloth` 的骨骼链模拟，不是完整 MMD/Bullet 或 Chaos 网格布料，没有布料自碰撞。玩家只计算世界模型衣物物理，再复用局部旋转到拥有者身体；瞬移、换角色和长帧须安全重置。
 
 ## 角色与资源保护
+
+战斗波次使用 `ABreachSeabornEnemy` 混合生成壳海狂奔者、底海滑动者、脊海喷吐者、浮海飘航者、钵海收割者和始海穿刺者。每波重置随机顺序，每组连续六次生成各含一种；保留每波 `4 + Wave * 2` 个、同时最多 8 个、间隔 1.8 秒的规则。生成时检查地板、实际胶囊碰撞和距玩家至少 700 cm，失败不消耗待生成数量。现有攻击、神经损伤、钵海收割者唤醒及自损在实战生效；死亡计分并释放波次名额，尸体取消碰撞且 9 秒后清理。后方四个角色展示台保持原样。单独创建的海嗣仍须显式启用，默认不计入波次或奖励。
+
+壳海狂奔者的运行网格、21 节骨架和 Run／Attack／Die 动作位于 `/Game/Enemies/Seaborn/ShellSeaRunner/Rig/`；原静态网格及材质保留。骨骼版依据用户提供的三段视频缩短颌部并增加四节尾部，原四腿绑定姿态保留。根骨动画不得重复驱动移动，死亡打断攻击并保持末帧。`ABreachEnemy` 保留为人物展示和旧动作诊断，其狂奔者咬合仅播放动作；实战伤害由 `ABreachSeabornEnemy` 处理。骨骼或动作修改后运行 `-BreachRunnerTest`，画面验证添加 `-BreachRunnerCapture`，检查四条腿、脚爪与尾部落地、循环衔接、攻击／死亡切换和第一人称画面。
+
+波次敌人与显式启用的海嗣使用 `UBreachEnemyAwareness`：默认视距 1600 cm、水平视野 120°，看见玩家时每 0.25 秒向 5000 cm 内敌人发送当前玩家坐标；信号接收者前往该坐标，不转发未亲眼看到的坐标。失去视线后前往最后已知位置，进入 80 cm 到达范围后等待，再次看见玩家或收到新信号时继续行动；死亡停止感知和广播。每次以当前位置为中心选取游荡目标，默认半径 500 cm，速度为该敌人追逐速度的 25%，到达游荡点后停留 2–4 秒。参数在敌人的 `Awareness` 组件上调整，行为决策只在服务器运行；钵海收割者原有的前 30 秒禁止移动、血量触发唤醒及唤醒后加速仍优先。当前使用角色碰撞和局部静态障碍转向，没有 NavMesh 全局路径规划。诊断 `-BreachEnemyAwarenessTest` 覆盖视野、遮挡、广播边界、最后位置、等待、死亡及地面／飞行实际移动，报告为 `Saved/enemy_awareness_test.txt`。
+
+非致命且实际扣血的受击会通过 `Awareness->NotifyDamage()` 记录伤害来源当时的位置，以正常追逐速度前往，到达后等待；来源之后的移动不会自动更新该坐标。优先使用伤害控制器的 Pawn，其次使用伤害实体的 Instigator，最后使用伤害实体自身，避免把弹丸命中点当作攻击者位置。缺失来源、自身伤害、暂停或死亡不触发调查。调查本身不广播，途中看见任何有效玩家时恢复原有索敌、目标优先级和广播；当前可见玩家优先于未看见的伤害来源。新受击或新信号可以更新调查坐标，钵海收割者的唤醒和失能限制仍优先。感知诊断同时覆盖六种海嗣受击位置快照、正常速度、改追另一名玩家、不提前广播及地面／飞行实际移动。
 
 角色索引固定为 `0=Eula`、`1=Acheron`、`2=Lizhiyan`、`3=Ascalon`。新增或替换角色要同步资源入口、骨骼映射、动画路径、UI、测试和文档。
 

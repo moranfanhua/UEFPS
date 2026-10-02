@@ -1,5 +1,7 @@
 #include "BreachGame.h"
 #include "BreachMovementComponent.h"
+#include "BreachEnemyAwareness.h"
+#include "BreachSeabornEnemy.h"
 #include "BreachVisuals.h"
 #include "CharacterRigData.h"
 #include "Camera/CameraComponent.h"
@@ -7,6 +9,7 @@
 #include "GameFramework/HUD.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/BoxComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "EngineUtils.h"
@@ -146,6 +149,30 @@ void ABreachGameMode::BeginPlay()
         FTimerHandle MovementTimer;
         GetWorldTimerManager().SetTimer(MovementTimer,this,&ABreachGameMode::RunMovementTest,.6f,false);
     }
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachEnemyAwarenessTest")))
+    {
+        bGallery=true;
+        FTimerHandle AwarenessTimer;
+        GetWorldTimerManager().SetTimer(AwarenessTimer,this,&ABreachGameMode::RunEnemyAwarenessTest,.6f,false);
+    }
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachSeabornWaveTest")))
+    {
+        bGallery=true;
+        FTimerHandle WaveTimer;
+        GetWorldTimerManager().SetTimer(WaveTimer,this,&ABreachGameMode::RunSeabornWaveTest,.6f,false);
+    }
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachSeabornMechanismTest")))
+    {
+        bGallery=true;
+        FTimerHandle MechanismTimer;
+        GetWorldTimerManager().SetTimer(MechanismTimer,this,&ABreachGameMode::RunSeabornMechanismTest,.6f,false);
+    }
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachRunnerTest")))
+    {
+        bGallery=true;
+        FTimerHandle RunnerTimer;
+        GetWorldTimerManager().SetTimer(RunnerTimer,this,&ABreachGameMode::RunRunnerTest,.6f,false);
+    }
     if(FParse::Param(FCommandLine::Get(),TEXT("BreachSelectionTest")))
     {
         bGallery=true;PrimaryActorTick.bTickEvenWhenPaused=true;
@@ -190,11 +217,11 @@ void ABreachGameMode::Tick(float Dt)
         if(auto* P=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0)))
         {
             P->Health=100;
-            ABreachEnemy* Target=nullptr;
-            for(TActorIterator<ABreachEnemy> It(GetWorld());It;++It) if(!It->bDisplayOnly && !It->bDefeated) { Target=*It; break; }
+            ABreachSeabornEnemy* Target=nullptr;
+            for(TActorIterator<ABreachSeabornEnemy> It(GetWorld());It;++It) if(It->bWaveEnemy && !It->IsDefeated()) { Target=*It; break; }
             if(Target)
             {
-                const FVector Aim=Target->GetActorLocation()+FVector(0,0,25)-P->Camera->GetComponentLocation();
+                const FVector Aim=Target->GetActorLocation()-P->Camera->GetComponentLocation();
                 P->GetController()->SetControlRotation(Aim.Rotation());
                 P->Fire();
                 // Move slightly to test collision/movement while firing.
@@ -212,6 +239,8 @@ void ABreachGameMode::Tick(float Dt)
 }
 void ABreachGameMode::StartWave()
 {
+    if(!HasAuthority() || bGameOver) return;
+    WaveSpeciesPool.Reset();
     ++Wave; RemainingToSpawn=4+Wave*2; SpawnDelay=0; Intermission=6;
     Notice=FString::Printf(TEXT("WAVE %02d  /  HOSTILE PROJECTIONS ACTIVE"),Wave); NoticeTime=3.5f;
     if(auto* P=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0)))
@@ -222,16 +251,43 @@ void ABreachGameMode::StartWave()
 }
 void ABreachGameMode::SpawnEnemy()
 {
+    if(!HasAuthority() || bGameOver || RemainingToSpawn<=0 || EnemiesAlive>=8) return;
+    if(WaveSpeciesPool.IsEmpty())
+    {
+        for(uint8 Kind=0;Kind<=uint8(EBreachSeabornSpecies::FirstSeaPiercer);++Kind) WaveSpeciesPool.Add(Kind);
+        for(int32 I=WaveSpeciesPool.Num()-1;I>0;--I) WaveSpeciesPool.Swap(I,FMath::RandRange(0,I));
+    }
+    const auto Kind=static_cast<EBreachSeabornSpecies>(WaveSpeciesPool.Last());
     auto* P=UGameplayStatics::GetPlayerPawn(this,0);
     const FVector Points[]={FVector(1900,-1150,100),FVector(1900,1150,100),FVector(1000,-1400,100),FVector(1000,1400,100),FVector(-600,-1450,100),FVector(-600,1450,100)};
-    FVector Location=Points[FMath::RandRange(0,5)];
-    for(int32 i=0;i<6 && P && FVector::Dist2D(Location,P->GetActorLocation())<700;++i) Location=Points[i];
-    FActorSpawnParameters Params; Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-    auto* E=GetWorld()->SpawnActor<ABreachEnemy>(Location,FRotator(0,180,0),Params);
-    if(E) { E->Configure((Wave+RemainingToSpawn)%4,Wave); --RemainingToSpawn; ++EnemiesAlive; }
+    const int32 First=FMath::RandRange(0,5);
+    for(int32 I=0;I<6;++I)
+    {
+        FVector Location=Points[(First+I)%6];
+        if(P && FVector::Dist2D(Location,P->GetActorLocation())<700) continue;
+        FHitResult Ground;
+        if(!GetWorld()->LineTraceSingleByObjectType(Ground,Location+FVector(0,0,400),Location-FVector(0,0,2000),
+            FCollisionObjectQueryParams(ECC_WorldStatic),FCollisionQueryParams(SCENE_QUERY_STAT(SeabornSpawnFloor),false)) || Ground.bStartPenetrating) continue;
+        Location.Z=Ground.ImpactPoint.Z+72.5f;
+        const FTransform SpawnTransform(FRotator(0,180,0),Location);
+        auto* E=GetWorld()->SpawnActorDeferred<ABreachSeabornEnemy>(ABreachSeabornEnemy::StaticClass(),SpawnTransform,nullptr,nullptr,ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+        if(!E) continue;
+        UGameplayStatics::FinishSpawningActor(E,SpawnTransform);
+        if(!IsValid(E) || !E->ActivateSpecies(Kind)) { if(IsValid(E)) E->Destroy(); continue; }
+        FVector SafeLocation=E->GetActorLocation();
+        if(!GetWorld()->FindTeleportSpot(E,SafeLocation,E->GetActorRotation()) || FVector::DistSquared(SafeLocation,E->GetActorLocation())>FMath::Square(150.f) ||
+            (P && FVector::Dist2D(SafeLocation,P->GetActorLocation())<700)) { E->Destroy(); continue; }
+        E->SetActorLocation(SafeLocation,false,nullptr,ETeleportType::TeleportPhysics);
+        E->bWaveEnemy=true; E->ForceNetUpdate();
+        WaveSpeciesPool.Pop(); --RemainingToSpawn; ++EnemiesAlive;
+        UE_LOG(LogTemp,Display,TEXT("SEABORN_WAVE_SPAWN wave=%d species=%s active=%d inbound=%d"),Wave,*E->GetProfile().Key,EnemiesAlive,RemainingToSpawn);
+        return;
+    }
 }
-void ABreachGameMode::EnemyDefeated(ABreachEnemy* E,bool Head)
+void ABreachGameMode::EnemyDefeated(AActor* E,bool Head)
 {
+    if(!HasAuthority() || !IsValid(E)) return;
+    if(const auto* Seaborn=Cast<ABreachSeabornEnemy>(E); Seaborn && !Seaborn->bWaveEnemy) return;
     EnemiesAlive=FMath::Max(0,EnemiesAlive-1); ++Kills; Score+=Head?150:100;
     Notice=Head?TEXT("PRECISION HIT  +150"):TEXT("PROJECTION CLEARED  +100"); NoticeTime=1.3f;
     if(auto* P=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0)))
@@ -368,6 +424,21 @@ void ABreachGameMode::RunSmokeTest()
             UGameplayStatics::ApplyDamage(Fallen,1000,P->GetController(),P,UDamageType::StaticClass());
             Check(Score==ScoreBefore && Fallen->GetCapsuleComponent()->GetCollisionEnabled()==ECollisionEnabled::NoCollision,*FString::Printf(TEXT("%s defeated body cannot score twice or block player"),Breach::Keys[I]));
         }
+        const FTransform RunnerTransform(FRotator(0,180,0),FVector(X+250,0,100));
+        auto* Runner=GetWorld()->SpawnActorDeferred<ABreachEnemy>(ABreachEnemy::StaticClass(),RunnerTransform,nullptr,nullptr,ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+        Runner->bShellSeaRunner=true;
+        UGameplayStatics::FinishSpawningActor(Runner,RunnerTransform);
+        Runner->ConfigureShellSeaRunner(1); ++EnemiesAlive;
+        Check(Runner->bShellSeaRunner && Runner->RunnerVisual->GetSkinnedAsset()!=nullptr && Runner->HasRunnerAnimation() && Runner->RunnerVisual->IsVisible() && !Runner->Visual->IsVisible(),TEXT("ShellSeaRunner wave enemy uses rigged mesh and gallop animation"));
+        Check(FMath::IsNearlyEqual(Runner->Awareness->GetCombatSpeed(),UBreachMovementComponent::UnarmedSpeed) && FMath::IsNearlyEqual(Runner->GetCharacterMovement()->MaxWalkSpeed,UBreachMovementComponent::UnarmedSpeed*.25f),TEXT("ShellSeaRunner starts wandering slowly and retains unarmed pursuit speed"));
+        FHitResult RunnerHit;
+        FCollisionQueryParams RunnerTrace(SCENE_QUERY_STAT(ShellSeaRunnerShot),true,P);
+        Check(GetWorld()->LineTraceSingleByChannel(RunnerHit,P->Camera->GetComponentLocation(),Runner->GetActorLocation()+FVector(0,0,45),ECC_Visibility,RunnerTrace) && RunnerHit.GetActor()==Runner,TEXT("ShellSeaRunner blocks player hitscan"));
+        const float HealthBeforeRunner=P->Health;
+        Runner->Tick(3.f);
+        Check(P->Health==HealthBeforeRunner,TEXT("ShellSeaRunner chase has no damage yet"));
+        UGameplayStatics::ApplyDamage(Runner,1000,P->GetController(),P,UDamageType::StaticClass());
+        Check(Runner->bDefeated && Runner->HasDeathAnimation() && Runner->GetCapsuleComponent()->GetCollisionEnabled()==ECollisionEnabled::NoCollision && Runner->RunnerHitbox->GetCollisionEnabled()==ECollisionEnabled::NoCollision,TEXT("ShellSeaRunner plays skeletal death and clears collision"));
         UGameplayStatics::ApplyDamage(P,25,E->GetController(),E,UDamageType::StaticClass());
         Check(P->Health==75,TEXT("Player damage updates health"));
         UGameplayStatics::ApplyDamage(P,1000,E->GetController(),E,UDamageType::StaticClass());

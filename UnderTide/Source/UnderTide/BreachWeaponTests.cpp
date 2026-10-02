@@ -1,8 +1,12 @@
 #include "BreachGame.h"
 #include "BreachWeapons.h"
+#include "BreachSeabornEnemy.h"
+#include "BreachNerveDamageComponent.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/BoxComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Components/PoseableMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -558,6 +562,60 @@ void ABreachGameMode::RunWeaponTest()
     At(25.35f,[=]()
     {
         if(Run->Target.IsValid()) Run->Target->Destroy();
+        P->SetActorLocation(FVector(0,0,13000));P->GetCharacterMovement()->DisableMovement();
+    });
+    // Exercise the merged damage path with actual shots, including all shotgun
+    // pellets and range falloff, then verify the pending and subsequent burst cadence.
+    for(int32 Weapon=0;Weapon<Breach::WeaponCount;++Weapon)
+        At(26.f+Weapon*2.f,[=,this]()
+        {
+            P->SelectWeapon(Weapon);P->DrawRifle();P->SetAim(false);P->Ammo=P->MagazineSize;
+            PC->SetControlRotation(FRotator::ZeroRotator);
+            const float Distance=Weapon>=2?2000.f:500.f;
+            FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+            auto* Target=GetWorld()->SpawnActor<ABreachSeabornEnemy>(P->Camera->GetComponentLocation()+FVector(Distance,0,0),FRotator::ZeroRotator,Params);
+            const FString Key=Breach::WeaponNames[Weapon];
+            Check(Target && Target->ActivateSpecies(EBreachSeabornSpecies::ShellSeaRunner),Key+TEXT(" Seaborn target loads its combat rig"));
+            if(!Target) return;
+            Target->SetActorTickEnabled(false);Target->GetCharacterMovement()->DisableMovement();
+            Target->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility,ECR_Ignore);
+            Target->DamageHitbox->SetBoxExtent(FVector(1,500,500));
+            Target->DamageHitbox->SetWorldRotation(FRotator::ZeroRotator);
+            Target->DamageHitbox->SetWorldLocation(P->Camera->GetComponentLocation()+FVector(Distance+1,0,0));
+            Target->Health=Target->MaxHealth=10000.f;
+            const int32 Hits=P->ShotsHit,Ammo=P->Ammo;
+            P->Fire();
+            const int32 Pellets=Weapon==3?Breach::AA12PelletCount:1;
+            const float Damage=Weapon==0?38.f:Weapon==1?35.f:Weapon==2?23.f:1.f;
+            Check(FMath::IsNearlyEqual(10000.f-Target->Health,Damage*Pellets,.01f) &&
+                P->ShotsHit-Hits==Pellets && P->Ammo==Ammo-1 && !P->bLastHeadshot,
+                Key+TEXT(" actual Seaborn hit preserves pellet count and damage at the tested range"));
+            P->NerveDamage->SetComponentTickEnabled(false);
+            P->NerveDamage->ApplyNerveDamage(1000,Target);
+            const int32 Shots=P->ShotsFired;
+            FTimerHandle Early,Resume;
+            GetWorldTimerManager().SetTimer(Early,[=]()
+            {
+                P->Fire();Check(P->ShotsFired==Shots,Key+TEXT(" burst stretches the pending shot beyond normal cadence"));
+            },P->FireInterval*1.5f,false);
+            GetWorldTimerManager().SetTimer(Resume,[=,this]()
+            {
+                P->Fire();Check(P->ShotsFired==Shots+1,Key+TEXT(" can fire after the impaired interval"));
+                FTimerHandle Ongoing,Recovery;
+                GetWorldTimerManager().SetTimer(Ongoing,[=]()
+                {
+                    P->Fire();Check(P->ShotsFired==Shots+1,Key+TEXT(" subsequent shots retain burst cadence"));
+                },P->FireInterval*1.5f,false);
+                GetWorldTimerManager().SetTimer(Recovery,[=]()
+                {
+                    P->NerveDamage->AdvanceRecovery(10.01f);P->Health=100;
+                    P->Fire();Check(P->ShotsFired==Shots+2,Key+TEXT(" firing resumes after nerve recovery"));
+                    P->NerveDamage->SetComponentTickEnabled(true);Target->Destroy();
+                },P->FireInterval*2.5f+.05f,false);
+            },P->FireInterval*2.5f+.05f,false);
+        });
+    At(34.f,[=]()
+    {
         Run->Report+=FString::Printf(TEXT("FAILURES=%d\n"),Run->Failures);
         FFileHelper::SaveStringToFile(Run->Report,*(FPaths::ProjectDir()/TEXT("Saved/weapon_test.txt")));
         UE_LOG(LogTemp,Display,TEXT("WEAPON_TEST\n%s"),*Run->Report);

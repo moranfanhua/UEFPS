@@ -1,9 +1,12 @@
 #include "BreachGame.h"
 #include "BreachVisuals.h"
+#include "BreachMovementComponent.h"
+#include "BreachEnemyAwareness.h"
 #include "AIController.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/PoseableMeshComponent.h"
+#include "Components/BoxComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimSequence.h"
@@ -14,6 +17,7 @@
 ABreachEnemy::ABreachEnemy()
 {
     PrimaryActorTick.bCanEverTick=true;
+    Awareness=CreateDefaultSubobject<UBreachEnemyAwareness>(TEXT("EnemyAwareness"));
     GetCapsuleComponent()->InitCapsuleSize(33,89);
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
     GetCharacterMovement()->MaxWalkSpeed=190;
@@ -27,23 +31,108 @@ ABreachEnemy::ABreachEnemy()
     Visual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     Visual->SetCastShadow(true);
     Visual->bCastCinematicShadow=true;
+    RunnerVisual=CreateDefaultSubobject<UPoseableMeshComponent>(TEXT("ShellSeaRunnerVisual"));
+    RunnerVisual->SetupAttachment(GetCapsuleComponent());
+    RunnerVisual->SetVisibility(false);
+    RunnerVisual->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    RunnerVisual->SetCastShadow(true);
+    RunnerHitbox=CreateDefaultSubobject<UBoxComponent>(TEXT("ShellSeaRunnerHitbox"));
+    RunnerHitbox->SetupAttachment(GetCapsuleComponent());
+    RunnerHitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    RunnerHitbox->SetCollisionResponseToAllChannels(ECR_Ignore);
+    RunnerHitbox->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
 }
 void ABreachEnemy::BeginPlay()
 {
     Super::BeginPlay();
     Breach::EnableToonStencil(Visual);
-    Configure(ModelIndex,1);
+    Breach::EnableToonStencil(RunnerVisual);
+    if(bShellSeaRunner) ConfigureShellSeaRunner(1);
+    else Configure(ModelIndex,1);
     if(bDisplayOnly)
     {
         GetCharacterMovement()->DisableMovement();
         GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     }
 }
+void ABreachEnemy::ConfigureShellSeaRunner(int32 Wave)
+{
+    bShellSeaRunner=true;
+    Health=MaxHealth=85+Wave*9;
+    GetCapsuleComponent()->SetCapsuleSize(43.f,70.f);
+    Awareness->Reset(UBreachMovementComponent::UnarmedSpeed);
+    GetCharacterMovement()->MaxAcceleration=2200.f;
+    GetCharacterMovement()->BrakingDecelerationWalking=6000.f;
+    Visual->SetVisibility(false);
+    RunnerVisual->SetVisibility(true);
+    // The skeletal FBX faces +X; retain the static study's scale and UVs.
+    RunnerVisual->SetRelativeScale3D(FVector(.65f));
+    RunnerVisual->SetRelativeLocation(FVector(0,0,-71.5f));
+    RunnerVisual->SetRelativeRotation(FRotator::ZeroRotator);
+    USkeletalMesh* RunnerMesh=LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/Enemies/Seaborn/ShellSeaRunner/Rig/SK_ShellSeaRunner.SK_ShellSeaRunner"));
+    RunnerRun=LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Enemies/Seaborn/ShellSeaRunner/Rig/A_ShellSeaRunner_Run.A_ShellSeaRunner_Run"));
+    RunnerAttack=LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Enemies/Seaborn/ShellSeaRunner/Rig/A_ShellSeaRunner_Attack.A_ShellSeaRunner_Attack"));
+    RunnerDie=LoadObject<UAnimSequence>(nullptr,TEXT("/Game/Enemies/Seaborn/ShellSeaRunner/Rig/A_ShellSeaRunner_Die.A_ShellSeaRunner_Die"));
+    if(!RunnerMesh || !RunnerRun || RunnerRun->GetSkeleton()!=RunnerMesh->GetSkeleton() || !RunnerPose.InitSkeleton(RunnerMesh))
+    {
+        UE_LOG(LogTemp,Warning,TEXT("ShellSeaRunner rig or run animation is missing; using the ordinary enemy visual"));
+        bShellSeaRunner=false;
+        RunnerVisual->SetVisibility(false);
+        RunnerHitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        Visual->SetVisibility(true);
+        GetCapsuleComponent()->SetCapsuleSize(33.f,89.f);
+        Configure(0,Wave);
+        return;
+    }
+    RunnerVisual->SetSkinnedAssetAndUpdate(RunnerMesh);
+    for(TObjectPtr<UAnimSequence>* Clip:{&RunnerAttack,&RunnerDie})
+        if(*Clip && (*Clip)->GetSkeleton()!=RunnerMesh->GetSkeleton()) *Clip=nullptr;
+    RunnerPose.Apply(RunnerVisual);
+    const FBoxSphereBounds Bounds=RunnerMesh->GetBounds();
+    RunnerHitbox->SetRelativeLocation(Bounds.Origin*.65f+RunnerVisual->GetRelativeLocation());
+    RunnerHitbox->SetBoxExtent(Bounds.BoxExtent*.65f);
+    RunnerHitbox->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+    RunnerTime=RunnerBlend=0.f;
+    RunnerAttackTime=-1.f;
+    RunnerActionStart.Reset();
+    AttackCooldown=.5f;
+    DeathAnimation=nullptr;
+    DeathBoneIndices.Reset();
+}
+bool ABreachEnemy::SampleRunnerPose(float Time,float Blend)
+{
+    if(!RunnerPose.Sample(RunnerRun,Time,true)) return false;
+    const float Alpha=FMath::Clamp(Blend,0.f,1.f);
+    for(int32 I=0;I<RunnerPose.Local.Num();++I)
+    {
+        FTransform Animated=RunnerPose.Local[I];
+        RunnerPose.Local[I].Blend(RunnerPose.Reference[I],Animated,Alpha);
+    }
+    RunnerPose.Rebuild();
+    RunnerPose.Apply(RunnerVisual);
+    return true;
+}
+bool ABreachEnemy::SampleRunnerAction(EBreachRunnerAction Action,float Time)
+{
+    UAnimSequence* Clip=Action==EBreachRunnerAction::Attack?RunnerAttack.Get():(Action==EBreachRunnerAction::Die?RunnerDie.Get():RunnerRun.Get());
+    if(!RunnerPose.Sample(Clip,Time,Action==EBreachRunnerAction::Run)) return false;
+    RunnerPose.Apply(RunnerVisual);
+    return true;
+}
+bool ABreachEnemy::StartRunnerAttack()
+{
+    if(!bShellSeaRunner || bDefeated || !RunnerAttack || IsRunnerAttacking()) return false;
+    RunnerActionStart=RunnerPose.Local;
+    RunnerAttackTime=0.f;
+    ConsumeMovementInputVector();
+    GetCharacterMovement()->StopMovementImmediately();
+    return true;
+}
 void ABreachEnemy::Configure(int32 Index,int32 Wave)
 {
     ModelIndex=FMath::Clamp(Index,0,3);
     Health=MaxHealth=85+Wave*9;
-    GetCharacterMovement()->MaxWalkSpeed=FMath::Min(310.f,165.f+Wave*13);
+    Awareness->Reset(FMath::Min(310.f,165.f+Wave*13));
     AttackCooldown=2.f+FMath::FRand();
     Phase=FMath::FRand()*2*PI;
     if(auto* CharacterAsset=Breach::CharacterMesh(ModelIndex))
@@ -79,6 +168,34 @@ void ABreachEnemy::Configure(int32 Index,int32 Wave)
 void ABreachEnemy::UpdatePose(float Dt)
 {
     float Speed=GetVelocity().Size2D();
+    if(bShellSeaRunner)
+    {
+        if(IsRunnerAttacking())
+        {
+            RunnerAttackTime+=FMath::Max(0.f,Dt);
+            SampleRunnerAction(EBreachRunnerAction::Attack,RunnerAttackTime);
+            const float Alpha=FMath::Clamp(RunnerAttackTime/.1f,0.f,1.f);
+            for(int32 I=0;I<RunnerPose.Local.Num() && RunnerActionStart.IsValidIndex(I);++I)
+            {
+                const FTransform Target=RunnerPose.Local[I];
+                RunnerPose.Local[I].Blend(RunnerActionStart[I],Target,Alpha);
+            }
+            RunnerPose.Rebuild(); RunnerPose.Apply(RunnerVisual);
+            if(RunnerAttackTime>=RunnerAttack->GetPlayLength())
+            {
+                RunnerAttackTime=-1.f;
+                RunnerBlend=0.f;
+                AttackCooldown=.5f;
+            }
+            return;
+        }
+        // The reference's 0.533 s in-place gallop is authored for 700 cm/s.
+        // CharacterMovement supplies all translation, so no root motion is added.
+        RunnerTime+=FMath::Max(Dt,0.f)*Speed/700.f;
+        RunnerBlend=FMath::FInterpTo(RunnerBlend,FMath::Clamp(Speed/180.f,0.f,1.f),Dt,10.f);
+        SampleRunnerPose(RunnerTime,RunnerBlend);
+        return;
+    }
     Phase+=Dt*(Speed>10?7.f:2.f);
     Pose.Walk(Phase,Speed);
     FBreachPose Display=Pose;Cloth.Update(Display,Visual->GetComponentTransform(),Dt,GetWorld(),this);Display.Apply(Visual);
@@ -92,41 +209,28 @@ void ABreachEnemy::Tick(float Dt)
         return;
     }
     UpdatePose(Dt);
-    if(bDisplayOnly) return;
+    if(bDisplayOnly || !HasAuthority()) return;
     auto* GM=GetWorld()->GetAuthGameMode<ABreachGameMode>();
-    auto* Player=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0));
-    if(!GM || GM->bGameOver || GM->bGallery || !Player) return;
-    FVector To=Player->GetActorLocation()-GetActorLocation(); To.Z=0;
-    const float Distance=To.Size();
-    const FVector Direction=To.GetSafeNormal();
-    SetActorRotation(FMath::RInterpTo(GetActorRotation(),Direction.Rotation(),Dt,5));
-    FCollisionQueryParams Params(SCENE_QUERY_STAT(EnemySight),false,this);
-    FHitResult Sight;
-    const FVector Eye=GetActorLocation()+FVector(0,0,50);
-    const bool HasSight=GetWorld()->LineTraceSingleByChannel(Sight,Eye,Player->GetActorLocation()+FVector(0,0,45),ECC_Visibility,Params) && Sight.GetActor()==Player;
-    if(Distance>430 || !HasSight)
-    {
-        FVector Move=Direction;
-        FHitResult Obstacle;
-        Params.AddIgnoredActor(Player);
-        if(GetWorld()->LineTraceSingleByChannel(Obstacle,GetActorLocation(),GetActorLocation()+Move*150,ECC_WorldStatic,Params))
-        {
-            const FVector Right=FVector::CrossProduct(FVector::UpVector,Move);
-            FVector LeftGoal=GetActorLocation()+(Move*.25f+Right)*190;
-            FHitResult SideHit;
-            const bool BlockRight=GetWorld()->LineTraceSingleByChannel(SideHit,GetActorLocation(),LeftGoal,ECC_WorldStatic,Params);
-            Move=(Move*.2f+Right*(BlockRight?-1.f:1.f)).GetSafeNormal();
-        }
-        AddMovementInput(Move);
-    }
-    else if(Distance>200)
-    {
-        AddMovementInput(FVector::CrossProduct(FVector::UpVector,Direction),FMath::Sin(Phase*.4f)*.45f);
-    }
+    if(!GM || GM->bGameOver || GM->bGallery || UGameplayStatics::IsGamePaused(this)) return;
+    Awareness->Advance(Dt);
     AttackCooldown-=Dt;
-    if(HasSight && Distance<1700 && AttackCooldown<=0)
+    if(bShellSeaRunner && IsRunnerAttacking()) return;
+    auto* Player=Awareness->GetVisibleTarget();
+    const FVector To=Player?Player->GetActorLocation()-GetActorLocation():FVector::ZeroVector;
+    const float Distance=To.Size2D();
+    const FVector Direction=To.GetSafeNormal2D();
+    Awareness->MoveTowardDestination(Dt,bShellSeaRunner?165.f:430.f);
+    if(Player) SetActorRotation(FMath::RInterpTo(GetActorRotation(),Direction.Rotation(),Dt,5));
+    if(bShellSeaRunner)
+    {
+        if(Player && Distance<=175.f && GetVelocity().Size2D()<40.f && AttackCooldown<=0.f)
+            StartRunnerAttack();
+        return; // Bite animation only; contact and attack damage remain undefined.
+    }
+    if(Player && AttackCooldown<=0)
     {
         AttackCooldown=FMath::Max(.9f,2.3f-GM->Wave*.08f)+FMath::FRandRange(0.f,.6f);
+        const FVector Eye=GetActorLocation()+FVector(0,0,50);
         Breach::Beam(GetWorld(),Eye+Direction*35,Player->Camera->GetComponentLocation(),FLinearColor(1,.22f,.035f),2.5f,.14f);
         const float HitChance=Player->GetVelocity().Size2D()>400?.22f:.62f;
         if(FMath::FRand()<HitChance) UGameplayStatics::ApplyDamage(Player,7.f+GM->Wave,GetController(),this,UDamageType::StaticClass());
@@ -139,8 +243,17 @@ float ABreachEnemy::TakeDamage(float Damage,const FDamageEvent& Event,AControlle
     if(Health<=0)
     {
         bDefeated=true;
-        DeathStartPose=Pose.CS;
-        DeathScale=Visual->GetRelativeScale3D();
+        Awareness->Die();
+        if(bShellSeaRunner)
+        {
+            RunnerActionStart=RunnerPose.Local;
+            RunnerAttackTime=-1.f;
+        }
+        if(!bShellSeaRunner)
+        {
+            DeathStartPose=Pose.CS;
+            DeathScale=Visual->GetRelativeScale3D();
+        }
         if(Event.IsOfType(FPointDamageEvent::ClassID))
             DeathDirection=FVector::DotProduct(static_cast<const FPointDamageEvent&>(Event).ShotDirection,GetActorForwardVector())>0?-1.f:1.f;
         FHitResult Floor;
@@ -148,9 +261,11 @@ float ABreachEnemy::TakeDamage(float Damage,const FDamageEvent& Event,AControlle
         DeathFloorZ=GetWorld()->LineTraceSingleByChannel(Floor,GetActorLocation(),GetActorLocation()-FVector(0,0,500),ECC_WorldStatic,Params)?Floor.ImpactPoint.Z:GetActorLocation().Z-89;
         GetCharacterMovement()->StopMovementImmediately();
         GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+        if(bShellSeaRunner) RunnerHitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         GetCharacterMovement()->DisableMovement();
         if(auto* GM=GetWorld()->GetAuthGameMode<ABreachGameMode>()) GM->EnemyDefeated(this,Event.IsOfType(FPointDamageEvent::ClassID) && Damage>50);
     }
+    else if(Damage>0) Awareness->NotifyDamage(DamageInstigator,Causer);
     return Damage;
 }
 
@@ -158,6 +273,25 @@ void ABreachEnemy::UpdateDeathPose(float Dt)
 {
     DespawnTime+=Dt;
     if(DespawnTime>9.f) { Destroy(); return; }
+    if(bShellSeaRunner)
+    {
+        if(RunnerDie && SampleRunnerAction(EBreachRunnerAction::Die,DespawnTime))
+        {
+            const float Alpha=FMath::Clamp(DespawnTime/.12f,0.f,1.f);
+            for(int32 I=0;I<RunnerPose.Local.Num() && RunnerActionStart.IsValidIndex(I);++I)
+            {
+                const FTransform Target=RunnerPose.Local[I];
+                RunnerPose.Local[I].Blend(RunnerActionStart[I],Target,Alpha);
+            }
+            RunnerPose.Rebuild(); RunnerPose.Apply(RunnerVisual);
+            RunnerVisual->SetRelativeLocation(FVector(0,0,-71.5f+DeathFloorZ-(GetActorLocation().Z-70.f)));
+            return;
+        }
+        const float Fall=FMath::Clamp(DespawnTime/.55f,0.f,1.f);
+        RunnerVisual->SetRelativeLocation(FVector(0,0,FMath::Lerp(RunnerVisual->GetRelativeLocation().Z,-92.f,Fall)));
+        RunnerVisual->SetRelativeRotation(FRotator(Fall*22.f,0.f,Fall*28.f*DeathDirection));
+        return;
+    }
     if(Pose.ReferenceCS.IsEmpty()) return;
     if(DeathAnimation)
     {

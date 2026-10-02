@@ -10,6 +10,7 @@
 
 class UCameraComponent;
 class UStaticMeshComponent;
+class UBoxComponent;
 class UPointLightComponent;
 class UPoseableMeshComponent;
 class USoundBase;
@@ -18,6 +19,8 @@ class USkeleton;
 class UAnimSequence;
 class ABreachEnemy;
 class ABreachSelectionStage;
+class UBreachNerveDamageComponent;
+class UBreachEnemyAwareness;
 
 UCLASS()
 class UNDERTIDE_API ABreachPlayerController : public APlayerController
@@ -45,6 +48,8 @@ public:
     virtual bool CanJumpInternal_Implementation() const override;
     virtual float TakeDamage(float Damage, const FDamageEvent& Event, AController* Instigator, AActor* Causer) override;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UCameraComponent> Camera;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UBreachNerveDamageComponent> NerveDamage;
+    void OnNerveBurst();
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> WeaponRoot;
     UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> WorldWeaponRoot;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UStaticMeshComponent> AK;
@@ -79,7 +84,10 @@ public:
     UPROPERTY(EditAnywhere, Category="Sword", meta=(ClampMin="0.0", ClampMax="1.0")) float FirstPersonSwordMotionScale = .35f;
     UPROPERTY(EditAnywhere, Category="Sword", meta=(ClampMin="0.1")) float FirstPersonSwordAnchorSpeed = 4.f;
     UPROPERTY(EditAnywhere, Category="Sword") FVector SwordRunGripOffset = FVector(22.f,24.f,-38.f);
+    UPROPERTY(EditAnywhere, Category="Vitals", meta=(ClampMin="1.0")) float MaxHealth=100.f;
     float Health = 100.f;
+    float GetHealthFraction() const { return FMath::Clamp(Health/FMath::Max(1.f,MaxHealth),0.f,1.f); }
+    uint64 GetTargetSpawnOrder() const { return TargetSpawnOrder; }
     int32 Ammo = 30;
     int32 Reserve = 180;
     int32 OperatorIndex = 0;
@@ -129,6 +137,7 @@ public:
     bool HasFirstPersonRig() const { return bBodyRigReady; }
     float GripError(bool bOwnerView=true) const;
 private:
+    uint64 TargetSpawnOrder=0;
     int32 SelectedWeapons[4]={0,INDEX_NONE,0,0};
     int32 AKAmmo=25,M4Ammo=30,MP5Ammo=40,AA12Ammo=8;
     int32 ConfiguredGunIndex=INDEX_NONE;
@@ -207,6 +216,8 @@ private:
     UPROPERTY() TObjectPtr<USoundBase> ReloadSound;
 };
 
+enum class EBreachRunnerAction : uint8 { Run, Attack, Die };
+
 UCLASS()
 class UNDERTIDE_API ABreachEnemy : public ACharacter
 {
@@ -217,20 +228,37 @@ public:
     virtual void Tick(float DeltaSeconds) override;
     virtual float TakeDamage(float Damage, const FDamageEvent& Event, AController* Instigator, AActor* Causer) override;
     UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> Visual;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UPoseableMeshComponent> RunnerVisual;
+    UPROPERTY(VisibleAnywhere) TObjectPtr<UBoxComponent> RunnerHitbox;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UBreachEnemyAwareness> Awareness;
     UPROPERTY(EditAnywhere) int32 ModelIndex = 0;
     UPROPERTY(EditAnywhere) bool bDisplayOnly = false;
+    UPROPERTY(EditAnywhere) bool bShellSeaRunner = false;
     float Health = 100.f;
     float MaxHealth = 100.f;
     bool bDefeated = false;
     float AttackCooldown = 1.f;
-    float PathCooldown = 0.f;
     float Phase = 0.f;
     float DespawnTime = 0.f;
     void Configure(int32 Index, int32 Wave);
+    void ConfigureShellSeaRunner(int32 Wave);
+    bool SampleRunnerPose(float Time, float Blend=1.f);
+    bool SampleRunnerAction(EBreachRunnerAction Action, float Time);
+    bool StartRunnerAttack();
+    bool IsRunnerAttacking() const { return RunnerAttackTime>=0.f; }
+    bool HasRunnerAnimation() const { return RunnerRun!=nullptr; }
     void UpdatePose(float DeltaSeconds);
     void UpdateDeathPose(float DeltaSeconds);
-    bool HasDeathAnimation() const { return DeathAnimation!=nullptr; }
+    bool HasDeathAnimation() const { return bShellSeaRunner?RunnerDie!=nullptr:DeathAnimation!=nullptr; }
 private:
+    UPROPERTY() TObjectPtr<UAnimSequence> RunnerRun;
+    UPROPERTY() TObjectPtr<UAnimSequence> RunnerAttack;
+    UPROPERTY() TObjectPtr<UAnimSequence> RunnerDie;
+    FBreachPose RunnerPose;
+    float RunnerTime=0.f;
+    float RunnerBlend=0.f;
+    float RunnerAttackTime=-1.f;
+    TArray<FTransform> RunnerActionStart;
     UPROPERTY() TObjectPtr<UAnimSequence> DeathAnimation;
     TArray<int32> DeathBoneIndices;
     FBreachPose Pose;
@@ -259,13 +287,18 @@ public:
     float SpawnDelay = 0.f;
     FString Notice = TEXT("TRAINING LINK ESTABLISHED");
     float NoticeTime = 4.f;
-    void EnemyDefeated(ABreachEnemy* Enemy, bool bHeadshot);
+    void EnemyDefeated(AActor* Enemy, bool bHeadshot);
     void EndRun();
     void StartWave();
     void SpawnEnemy();
     void RunSmokeTest();
+    void RunRunnerTest();
     void RunMovementTest();
     void RunModelReview();
+    void RunSeabornReview();
+    void RunSeabornMechanismTest();
+    void RunEnemyAwarenessTest();
+    void RunSeabornWaveTest();
     void RunWeaponTest();
     void TickSelectionTest();
     TFunction<void()> SelectionTestStep;
@@ -290,6 +323,8 @@ public:
     UFUNCTION(BlueprintCallable) static bool ImportVMDExpressions(USkeletalMesh* Asset,const FString& SourceFile);
     void RunDeformationChecks(TFunctionRef<void(bool,const FString&)> Check);
     UPROPERTY() TArray<TObjectPtr<ABreachEnemy>> Displays;
+private:
+    TArray<uint8> WaveSpeciesPool;
 };
 
 UCLASS()

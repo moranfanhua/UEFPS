@@ -1,0 +1,11 @@
+float3 UnderTideNerveBlur(FMaterialPixelParameters Parameters,float3 SceneColor,float Strength)
+{
+    const float2 UV=GetDefaultSceneTextureUV(Parameters,14);
+    const float2 Step=GetSceneTextureViewSize(14).zw*4.0;
+    const float Weights[5]={1,4,6,4,1};
+    float3 Blurred=0;
+    [unroll] for(int Y=0;Y<5;++Y)
+        [unroll] for(int X=0;X<5;++X)
+            Blurred+=SceneTextureLookup(Parameters,saturate(UV+float2(X-2,Y-2)*Step),14,true).rgb*Weights[X]*Weights[Y];
+    return lerp(SceneColor,Blurred/256.0,saturate(Strength));
+}

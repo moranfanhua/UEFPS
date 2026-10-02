@@ -1,4 +1,5 @@
 #include "BreachGame.h"
+#include "BreachNerveDamageComponent.h"
 #include "BreachSelectionStage.h"
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
@@ -74,9 +75,13 @@ void ABreachHUD::DrawPlayerVitals(const ABreachCharacter* Player)
     }
     Text(PlayerID,X+111,Y+13,NameSize,White);
 
+    Box(X+107,Y+36,237,3,White);
+    const float Nerve=Player->NerveDamage->GetMeterFraction();
+    if(Nerve>0) Box(X+107,Y+36,237*Nerve,3,FLinearColor(.12f,.48f,1.f));
+
     Polygon({{104,44},{344,44},{351,61},{99,61}},FLinearColor(.42f,.40f,.38f));
     Polygon({{107,46},{342,46},{348,59},{103,59}},FLinearColor(.055f,.049f,.05f));
-    const float Health=FMath::Clamp(Player->Health/100.f,0.f,1.f);
+    const float Health=Player->GetHealthFraction();
     if(Health>0)
     {
         const float End=107+237*Health,Bevel=FMath::Min(4.f,237*Health*.5f);
