@@ -16,16 +16,16 @@
 
 ### 角色模型
 
-| 角色 | UE Skeletal Mesh | 原始模型文件 | 用途 |
+| 角色 | UE Skeletal Mesh | 模型来源 | 用途 |
 | --- | --- | --- | --- |
-| 优菈 | `/Game/Characters/Eula/SK_Eula` | `SourceAssets/Eula/优菈.pmx` | 玩家、敌人展示、选人页面 |
-| 黄泉 | `/Game/Characters/Acheron/SK_Acheron` | `model/` 中用户提供的黄泉模型（轴修复版 PMX） | 玩家、敌人展示、选人页面 |
-| 李织烟 | `/Game/Characters/Lizhiyan/SK_Lizhiyan` | `SourceAssets/Lizhiyan/李织烟.pmx` | 玩家、敌人展示、选人页面 |
-| 阿斯卡纶 | `/Game/Characters/Ascalon/SK_Ascalon` | `model/` 中用户提供的阿斯卡纶 `askl.pmx` | 玩家、敌人展示、选人页面 |
+| 优菈 | `/Game/Characters/Eula/SK_Eula` | 用户提供的优菈 PMX 模型 | 玩家、敌人展示、选人页面 |
+| 黄泉 | `/Game/Characters/Acheron/SK_Acheron` | 用户提供的黄泉模型（轴修复版 PMX） | 玩家、敌人展示、选人页面 |
+| 李织烟 | `/Game/Characters/Lizhiyan/SK_Lizhiyan` | 用户提供的李织烟 PMX 模型 | 玩家、敌人展示、选人页面 |
+| 阿斯卡纶 | `/Game/Characters/Ascalon/SK_Ascalon` | 用户提供的阿斯卡纶 PMX 模型 | 玩家、敌人展示、选人页面 |
 
 角色使用各自的 Skeleton、材质和纹理。当前第一人称实现使用上表中的完整 `SK_*` 模型；旧角色保留的 `FPArms` 辅助资源不参与运行。黄泉、阿斯卡纶替换了原索引 1、3 的联动优菈和木偶，旧模型和动画移出 Content，原始压缩包保留。
 
-角色、敌人和随身武器在常态下通过 Custom Stencil 1 接入 `/Game/Materials/PP_UnderTideToon_Normal` 风格化后处理。该 Shader 采用偏现代二次元的写实融合方向：保留原贴图、PBR 光照和粗糙度细节，仅在角色范围内轻量压缩明暗、给暗部加入冷色倾向、收束高光，并用低透明度屏幕空间轮廓帮助角色与环境分离；场景本身不做色阶化。主要参数在材质编辑器中集中调节，HLSL 源码位于 `UnderTide/Shaders/Private/UnderTideToonNormal.ush`，需要重建材质时运行 `UnderTide/Scripts/create_toon_shader.py`。`Normal` 后缀明确表示这是常态着色，后续特殊状态使用独立材质和 Shader 名称。
+角色、敌人和随身武器在常态下通过 Custom Stencil 1 接入 `/Game/Materials/PP_UnderTideToon_Normal` 风格化后处理。该 Shader 采用偏现代二次元的写实融合方向：保留原贴图、PBR 光照和粗糙度细节，仅在角色范围内轻量压缩明暗、给暗部加入冷色倾向、收束高光，并用低透明度屏幕空间轮廓帮助角色与环境分离；场景本身不做色阶化。主要参数在材质编辑器中集中调节，HLSL 源码位于 `UnderTide/Shaders/Private/UnderTideToonNormal.ush`。`Normal` 后缀明确表示这是常态着色，后续特殊状态使用独立材质和 Shader 名称。
 
 四张手工头像位于 `/Game/Characters/Portraits/T_<Key>_Portrait`，选人页保留用户修改的竖版卡片，战斗 HUD 使用同一套贴图。更换角色资源不会重新生成或覆盖这些头像。
 
@@ -35,13 +35,29 @@
 
 `model/gun/` 中用户提供的四个压缩包已分别导入为静态网格，各目录包含独立材质和贴图。选人页右侧提供 AK、M4、MP5、AA12 的模型预览卡片，点击后显示“已选择”，分别记住优菈、李织烟、阿斯卡纶在本局中的选择；切换角色或关闭后重开选人页不会丢失选择。黄泉不显示武器面板，也没有对应点击区域，仍固定持刀。重开整局会重置为默认 AK。
 
-AK 已接入实战：三名普通角色默认装备 AK，选人页选中 AK 后使用导入模型、对应枪口、双手握持和战斗参数。M4、MP5、AA12 卡片标注“仅预览”，选中它们暂时使用旧 VX-30 原型步枪，不冒充已完成枪械适配。黄泉保持固定持刀。预览使用独立场景中的模型捕获，不覆盖手工角色头像，也不重播或改变角色入场动作。`/Game/Weapons` 已加入始终烘焙目录。
+四把枪均已接入实战：三名普通角色默认装备 AK；选人页选择后，会使用对应的导入模型、枪口、双手握持和战斗参数。黄泉保持固定持刀。预览使用独立场景中的模型捕获，不覆盖手工角色头像，也不重播或改变角色入场动作。`/Game/Weapons` 已加入始终烘焙目录。
+
+持枪姿态参考用户放在 `UnderTide/TEMP/` 的四枪正面、侧面共八张图片：AK 和 MP5 左手托住护木，M4 左手前伸握住前部支撑位置，AA12 左手握弹鼓前方的垂直握把；右手保持扳机握持，双肘下收。四枪各自的握点、手腕朝向和第一人称位置集中在 `BreachWeapons.h` 的 `GunHolds`。外部模型按当前角色肩膀定位枪托，双手跟随世界枪械；第一人称沿用完整身体和稳定相机，使用自己的枪械构图，换弹与后坐时手腕随枪械旋转。
+
+开镜动作参考用户提供的 `UnderTide/TEMP/AK.mov`、`M4.mov`、`MP5.mov`、`AA12.mov` 中各两遍演示，适配到当前第一人称玩法：枪械从右下方沿弧线抬起，带轻微倾斜后摆正收稳；AK、M4、MP5、AA12 的进入时长分别为 0.30、0.30、0.24、0.26 秒，退出分别为 0.22、0.22、0.18、0.20 秒。抬枪和 110°→46° 视野变化使用同一个可逆进度，中途松开或再次按住右键沿当前姿势反向过渡；完全开镜后停止枪械步行浮动。各枪终点位置在 `GunHolds`，弧线、倾角、时长和瞄准俯仰在 `BreachWeapons.h` 的 `GunAims`；外部模型独立抬枪抵肩。AA12 的独立镜片材质 `M_AA12_01` 改为低透明度透视玻璃，避免黑面挡住目标，其余枪械材质和网格保留。视频仅作为视觉参考，没有提取原游戏动画或新增第三人称切换。
+
+正侧面对照可使用 `UnrealEditor-Cmd.exe <工程> /Game/Maps/Arena -game -BreachWeaponTest -BreachGunPoseReview -BreachWeaponCapture -RenderOffscreen -unattended -ResX=1600 -ResY=900`。它依次检查优菈、李织烟、阿斯卡纶的四枪握点、开镜缩放同步和中途反向，输出 `Saved/gun_pose_review.txt` 和 `Saved/GunPose_<角色索引>_<枪型>_<视角>.png`；视角包括 `Front`、`Side`、`Hip`、`Lift`、`Aim`、`Reverse`、`AimRepeat`、`HipReturn`、`AimFront`、`AimSide`。去掉截图参数并添加 `-nullrhi` 可只检查逻辑和握点距离。截图检查必须保留渲染，不能使用 `-nullrhi`。
 
 AK 的弹匣容量为 **25 发**，单发身体伤害 **38**（原型为 34），爆头 76；射击间隔仍为 0.105 秒，换弹仍为 1.55 秒。静止时腰射散射半角约 1.03°、瞄准约 0.29°，分别为原型的 4.5 和 5 倍；连射额外散射最高约 0.80°，瞄准仅叠加该扩散的 45%，停止射击后逐渐恢复。AK 的视角垂直后坐输入是原型的 3.8 倍（瞄准 2.8 倍），另有小幅随机水平后坐；枪身后坐可累积且恢复更慢。
 
-AK 与原型步枪分别记住弹匣剩余弹数，共享备用弹药；切换武器、角色、黄泉往返或收枪不会补弹。换弹中途切换枪械会取消未完成的换弹。按 `3` 收枪、`1` 重新持枪仍有效；隐藏的 AK 和原型零件同时关闭普通及隐藏投影，避免重复枪影。当前换弹沿用程序化压枪、左手动作与计时，静态网格没有独立弹匣拆装动画；武器状态尚未完成联机同步。
+M4 的弹匣容量为 **30 发**，单发身体伤害 **35**、爆头 70，射击间隔 **0.09 秒**（约 667 RPM），换弹仍为 1.55 秒。静止时腰射散射半角约 0.69°、瞄准约 0.20°；单发扩散、最大连射扩散、镜头垂直/水平后坐和枪身后坐都低于 AK，停止射击后的散射与枪身恢复更快。它以较低单发伤害换取更好的可控性和稍高射速。
 
-本地专项验证可运行 `UnderTide/Scripts/VerifyWeapon.ps1 -Render`，或通过 `-BreachWeaponTest -BreachWeaponCapture` 启动游戏；报告为 `Saved/weapon_test.txt`，截图为 `Saved/AK_Hip.png`、`AK_Aim.png`、`AK_Recoil.png`、`AK_Reload.png`。实现与参数分别位于 `BreachGun.cpp`、`BreachWeapons.h`，射击沿用 `BreachCharacter.cpp`。
+MP5 的弹匣容量为 **40 发**，10 米内单发身体伤害 **30**、爆头 60，射击间隔 **0.06 秒**（1000 RPM）。腰射散射半角约 0.52°、瞄准约 0.14°，连射扩散、镜头水平/垂直后坐和枪身后坐均低于 M4。伤害在超过 10 米后降至 23，使 10–30 米的理论身体 DPS 约为 383，与 AK 的约 362 和 M4 的约 389 大致持平；30–40 米继续线性衰减至 12，40 米后的理论身体 DPS 约为 200，显著低于两把步枪。10 米内理论身体 DPS 为 500，高于两把步枪。
+
+AA12 使用 **8 发**弹鼓，射击间隔 **0.22 秒**（约 273 RPM）。每发生成 **8 颗**独立弹丸，每颗分别计算散射、命中部位和距离伤害；10 米内单颗身体伤害 **14**，全部命中为 112 伤害、理论身体 DPS 约 509，只略高于 MP5 的 500。超过 10 米后单颗伤害快速线性衰减，15 米起最低为 1；腰射散射半角约 3.15°，瞄准约 2.01°，强调贴身全弹丸命中的收益。
+
+AK、M4、MP5、AA12 与资源缺失时的原型回退分别记住弹匣剩余弹数，共享备用弹药；切换武器、角色、黄泉往返或收枪不会补弹。换弹中途切换枪械会取消未完成的换弹。按 `3` 收枪、`1` 重新持枪仍有效；隐藏的四把导入枪械和原型零件同时关闭普通及隐藏投影，避免重复枪影。当前换弹沿用程序化压枪、左手动作与计时，静态网格没有独立弹匣拆装动画；武器状态尚未完成联机同步。
+
+射击时的枪口灯和曳光为暖橙色火光；每条曳光是一段最长 15 cm 的短光线，沿射击方向逐帧前移，到命中点结束。AA12 仍为 8 颗弹丸各绘制一条曳光；命中判定与各枪射程保持原有即时射线逻辑。
+
+AK、M4、MP5 和 AA12 现在分别使用 `/Game/Audio/Fire_AK`、`Fire_M4`、`Fire_MP5`、`Fire_AA12` 的枪声：AK 较厚重，M4 较短促，MP5 更轻快，AA12 有更明显的低频与机械声；连射时有轻微音高变化。单次射击只播放一次枪声，AA12 的八颗弹丸不会重复播放。音效是项目内程序合成的原创素材；新资源缺失时回退到原有 `/Game/Audio/Fire`。
+
+专项验证通过 `-BreachWeaponTest -BreachWeaponCapture` 启动游戏；报告为 `Saved/weapon_test.txt`，四枪各生成 `Hip`、`Aim`、`Tracer`、`Recoil`、`Reload` 五张第一人称截图，AK 另生成稍后飞行位置的 `TracerFlight`，M4、MP5 与 AA12 另生成外部视角截图。实现与参数分别位于 `BreachGun.cpp`、`BreachWeapons.h`，射击沿用 `BreachCharacter.cpp`。
 
 | 枪型 | UE Static Mesh | 原始压缩包 | 当前材质 |
 | --- | --- | --- | --- |
@@ -50,11 +66,17 @@ AK 与原型步枪分别记住弹匣剩余弹数，共享备用弹药；切换�
 | MP5（圆舞曲） | `/Game/Weapons/MP5/SM_MP5` | `圆舞曲_by_慕Qes_*.zip` | Blender 内嵌贴图及材质通道 |
 | AA12（鸣火） | `/Game/Weapons/AA12/SM_AA12` | `S000 AA12-鸣火_by_优姬在睡觉_*.zip` | 枪身、弹匣及附属件原包贴图 |
 
-M4 原包的 OBJ 引用了未提供的 MTL，导入时按材质槽匹配原皮贴图并重建基础材质，未还原原游戏的晶体、变色等特殊着色效果；粉皮贴图和 PSK 附件保留在原始包中。AK、AA12 的 PMX 骨架及蒙皮也保留在原始包中，静态网格不包含可驱动的骨骼或动画。MP5、M4 保留源文件尺寸，AK、AA12 按每 PMX 单位 8 cm 转换；AK 实战使用武器根节点的 0.8 倍缩放与独立握持偏移，其余枪械尚未适配握持。
+M4 原包的 OBJ 引用了未提供的 MTL，导入时按材质槽匹配原皮贴图并重建基础材质，未还原原游戏的晶体、变色等特殊着色效果；粉皮贴图和 PSK 附件保留在原始包中。AK、AA12 的 PMX 骨架及蒙皮也保留在原始包中，静态网格不包含可驱动的骨骼或动画。MP5、M4 保留源文件尺寸，AK、AA12 按每 PMX 单位 8 cm 转换；四把实战枪械共用武器根节点的 0.8 倍缩放，各自使用独立网格偏移和枪口位置。
 
 来源与使用条件：四个包均由用户提供；AK、AA12 包内注明模型来自《卡拉彼丘》、版权属于 Day1 工作室、配布者为“优姬在睡觉”，并限制商业使用、二次配布以及原说明列出的其他用途。M4、MP5 的包名分别标注“桃乐丝啊”和“慕Qes”，包内未找到明确的再分发许可。上述模型均不属于 Quaternius 的 CC0 动作授权范围，原始包和使用说明保留。
 
-本地转换、导入和独立双侧预览脚本分别为 `Tools/prepare_guns.py`、`UnderTide/Scripts/import_guns.py`、`UnderTide/Scripts/review_guns.py`，沿用本地工具忽略规则。中间文件位于 `SourceAssets/Converted/Guns/`，检查报告与截图位于 `UnderTide/Saved/GunImport/`；运行游戏不依赖这些工具或源文件。
+### 第一人称开镜准星
+
+按用户提供的四张截图绘制四枪独立准星：AA12 为橙色分段小圆环与红点，AK 为金色棱角冠形与红点，M4 为蓝色开口框线与红点，MP5 为青白色开口圆环、侧翼星形与红点。参考轮廓保留原有 20% 放大，并随实际相机视野同步缩放。按用户圈定的裁剪范围，将开镜视野从 76° 收紧至 46°，枪械、准星和场景整体约为上一版的 1.84 倍；常规视野仍为 110°。随屏幕高度等比缩放，不因宽屏拉伸；AA12 小环保持在实体镜框内。中心红点对齐相机射击中心，装饰外框不表示实际散射范围。
+
+仅当前玩家的第一人称开镜显示，抬枪接近完成时淡入；松开右键立即隐藏。腰射、换弹、收枪、黄泉持刀、外部相机、选人、暂停和死亡时隐藏。实现集中在 `BreachReticleHUD.cpp`，不需要新增贴图或重新导入枪械。
+
+专项检查：`UnrealEditor-Cmd.exe <工程> /Game/Maps/Arena -game -BreachWeaponTest -BreachReticleReview -BreachWeaponCapture -RenderOffscreen -ForceRes -windowed -ResX=1600 -ResY=900 -unattended`。输出 `Saved/reticle_review.txt` 与 `Saved/Reticle_<枪型>_<Hip/Aim/Release/Reload/Unarmed>.png`，覆盖四枪开镜、再次开镜、退出、换弹、外部视角、暂停/选人恢复、死亡和近战显隐。可修改分辨率复核缩放；无渲染运行去掉截图参数并加 `-nullrhi`。
 
 #### UE 海嗣资源
 
@@ -69,11 +91,13 @@ M4 原包的 OBJ 引用了未提供的 MTL，导入时按材质槽匹配原皮�
 | 05 | BowlSeaReaper v2，四触手 | `/Game/Enemies/Seaborn/BowlSeaReaper/SM_BowlSeaReaper` |
 | 06 | FirstSeaPiercer v2，长刺垂直花面 | `/Game/Enemies/Seaborn/FirstSeaPiercer/SM_FirstSeaPiercer` |
 
-六个静态网格保留源模型制作尺寸，可从内容浏览器打开或拖入关卡。战斗波次当前使用壳海狂奔者的独立骨骼版本：21 个骨骼节点包含身体、上下颌、四条上腿／下腿／脚爪链和四节尾部。依据用户提供的 `UnderTide/enemies/` 三个 WebM 侧视参考，骨骼版缩短颌部、收窄张口幅度并增加细长尾部；原 v2 静态模型、主体 UV 与贴图保留，原有骨骼的绑定姿态不变。四腿按前后及左右时差进行落脚、蹬地和收腿，约 0.533 秒原地疾跑循环按实际速度调整播放速率，停步平滑回到站姿；位移只由角色移动组件计算。其最高移速为 790 cm/s（普通角色空手移速），约 165 cm 处开始制动，进入近距且停稳后播放约 0.983 秒的扬尾、前探、咬合与恢复动作。死亡打断攻击，播放同长度的屈腿伏地动作并保持末帧，尸体沿用 9 秒清理。接触与攻击伤害尚未定义，因此它暂时不会伤害玩家。其余五个海嗣仍只作为静态资源，四名人物模型仍用于展示与既有检查。
+六个静态网格保留源模型制作尺寸，可从内容浏览器打开或拖入关卡。六种海嗣均有独立骨骼、动作和实战机制，常规波次使用 `ABreachSeabornEnemy` 混合生成，四名人物模型保留为后方展示与既有检查。壳海狂奔者有 21 个骨骼节点，包含身体、上下颌、四条上腿／下腿／脚爪链和四节尾部；依据用户提供的三个 WebM 侧视参考缩短颌部、收窄张口幅度并增加细长尾部，原 v2 静态模型、主体 UV、贴图和原有骨骼绑定姿态保留。四腿按前后及左右时差落脚、蹬地和收腿，约 0.533 秒原地疾跑循环按实际速度调整播放速率；位移只由角色移动组件计算。最高移速为 790 cm/s，近距停稳后播放约 0.983 秒的扬尾、前探、咬合与恢复动作。实战咬合造成 14 点伤害，旧 `ABreachEnemy` 诊断中的咬合仅播放动作。死亡打断攻击并保持伏地末帧，波次尸体沿用 9 秒清理。
 
-运行资源为 `/Game/Enemies/Seaborn/ShellSeaRunner/Rig/SK_ShellSeaRunner`、同目录 `SK_ShellSeaRunner_Skeleton` 和 `A_ShellSeaRunner_Run`、`A_ShellSeaRunner_Attack`、`A_ShellSeaRunner_Die`；骨骼版使用独立的 `M_ShellSeaRunner_Rig` 和两种尾部材质，原静态网格和材质保留。三段视频仅作为动作参考，UE 动画为按该模型骨长重制的三维动作，并非视频自带的骨骼数据。逐腿检查入口为 `-BreachRunnerTest`，添加 `-BreachRunnerCapture` 可生成侧面四帧、站姿、攻击三帧、死亡三帧及第一人称截图；本地封装为 `UnderTide/Scripts/VerifyRunner.ps1 -Render`，报告在 `Saved/runner_test.txt`。本地骨架准备及导入工具为 `Tools/rig_shell_runner.py`、`UnderTide/Scripts/import_shell_runner_rig.py`，可编辑骨架源文件为 `SourceAssets/Converted/ShellSeaRunner/ShellSeaRunner_Rig.blend`；这些本地辅助文件遵循忽略规则，游戏运行只读取 UE 资源。角色原型来自《明日方舟》／鹰角网络，不属于 CC0 素材。
+运行资源为 `/Game/Enemies/Seaborn/ShellSeaRunner/Rig/SK_ShellSeaRunner`、同目录 `SK_ShellSeaRunner_Skeleton` 和 `A_ShellSeaRunner_Run`、`A_ShellSeaRunner_Attack`、`A_ShellSeaRunner_Die`；骨骼版使用独立的 `M_ShellSeaRunner_Rig` 和两种尾部材质，原静态网格和材质保留。三段视频仅作为动作参考，UE 动画为按该模型骨长重制的三维动作，并非视频自带的骨骼数据。逐腿检查入口为 `-BreachRunnerTest`，添加 `-BreachRunnerCapture` 可生成侧面四帧、站姿、攻击三帧、死亡三帧及第一人称截图，报告在 `Saved/runner_test.txt`。生成和导入工具、源素材及结果说明仅保留在本地忽略目录，游戏运行只读取 UE 资源。角色原型来自《明日方舟》／鹰角网络，不属于 CC0 素材。
 
-本地导入工具为 `UnderTide/Scripts/import_seaborn.py`；导入报告与已生成的 UE 检查截图保存在 `UnderTide/Saved/SeabornImport/`。`Modeling/Seaborn*/` 内的 `.py` 生成工具与 `.json` 检查报告按根目录 `.gitignore` 排除，仅保留在本机；说明文档及 `Content` 下导入的 UE 资源不受该规则影响。上述独立资源导入不改变原图与角色外形的授权条件。
+海嗣的生成、导入、源素材和结果说明沿用根目录 `.gitignore` 的本地忽略规则，运行所需网格、动作、材质与贴图保留在 `Content`。上述独立资源导入不改变原图与角色外形的授权条件。
+
+海嗣受击沿用四枪的实战射击流程：MP5 和 AA12 按实际命中距离衰减，AA12 每颗弹丸独立结算，再由敌人应用防御；挥拳与黄泉挥刀也可命中海嗣。神经损伤爆发使当前等待中的射击及后续枪击间隔变为该枪正常值的 2.5 倍。`-BreachWeaponTest` 同时检查四枪实际命中海嗣、远距弹丸伤害及爆发后的射击节奏，报告为 `Saved/weapon_test.txt`。`/Game/Enemies/Seaborn`、`/Game/Weapons` 和神经模糊材质所在 `/Game/Effects` 均加入始终烘焙目录。
 
 资源核对包括六个网格的面数、尺寸及 23 张 2K 贴图，以及六个单体和 06 侧面的 UE 实际渲染。这里的验证为编辑器资源与渲染检查，不代表战斗逻辑、动画、联机或打包验证。
 
@@ -147,23 +171,18 @@ M4 原包的 OBJ 引用了未提供的 MTL，导入时按材质槽匹配原皮�
 - 阿斯卡纶：用户提供 `pose/Catwalk Sequence 03.fbx`，[Mixamo](https://www.mixamo.com/) 动作，遵循 Adobe Mixamo 条款，不是 CC0；资源为 `/Game/Animations/Entrance/Ascalon/A_Ascalon_Catwalk_Sequence_03`。
 - 黄泉人物和配刀来自用户提供的模型压缩包，原文件注明 miHoYo 版权、流云景编辑，并限制商业使用及二次配布；阿斯卡纶沿用用户提供素材的原作者条件。此项不改变 Quaternius 动作包的独立 CC0 授权。
 
-本地处理入口为 `Tools/inspect_roster_refresh.py`、`prepare_roster_refresh.py`、`prepare_eula_entrance.py` 和 `UnderTide/Scripts/import_roster_refresh.py`。只导入新角色及新入场，保留现有优菈、李织烟材质和手工头像。
-
 李织烟抱猫展示参考用户提供视频的前四秒：<https://www.bilibili.com/video/BV1VtNH6wEXL/>。视频只作为动作参考，没有从中提取模型或骨骼动画。`BreachSelectionCat.cpp` 编排抬抱、低头轻靠和收稳三个阶段，猫朝向角色，前爪靠近肩膀；双手 IK 始终跟随猫的两个支撑点。猫的头、四肢、耳朵和尾巴使用自己的骨架，3.5 秒结束后与人物一起定格。猫仅在李织烟的选人预览中显示，切换角色或关闭页面时隐藏，不是战斗宠物或联机复制实体。
 
-猫模型来自 Daily Lowpoly 的 [Lowpoly Cat + Run Animation](https://dailylowpoly.itch.io/lowpoly-cat-running)，作者明确允许用于商业项目；这是作者页面的许可，不是 CC0。源文件 `cat_rigged.fbx` 保留在本地 `SourceAssets/Converted/Cat/`，不作为独立素材包再分发。导入副本调整平滑法线，并配上白色材质、眼鼻和青色项圈；模型与参考视频中的猫不完全相同。
+猫模型来自 Daily Lowpoly 的 [Lowpoly Cat + Run Animation](https://dailylowpoly.itch.io/lowpoly-cat-running)，作者明确允许用于商业项目；这是作者页面的许可，不是 CC0。素材不作为独立素材包再分发。导入副本调整平滑法线，并配上白色材质、眼鼻和青色项圈；模型与参考视频中的猫不完全相同。
 
 - 猫网格：`/Game/Characters/SelectionCat/SK_SelectionCat`，骨架：`/Game/Characters/SelectionCat/SK_SelectionCat_Skeleton`。
 - 材质：`/Game/Characters/SelectionCat/M_CatFur`、`M_CatEye`、`M_CatPink`、`M_CatCollar`。
-- 本地重建：`Tools/prepare_selection_cat.cpp`、`Tools/BuildSelectionCatTool.bat`、`UnderTide/Scripts/import_selection_cat.py`。猫的抱持动作由选人舞台编排，不加载源文件里的奔跑动画。
 
 #### 滑铲动作
 
 使用用户确认并提供的 [Mixamo Running Slide](https://www.mixamo.com/#/?page=1&query=running%20slide)，源文件为 `pose/Running Slide.fbx`（带蒙皮、30 FPS，动作长 1.533 秒）。授权依照 [Adobe Mixamo FAQ](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html)，可免版税用于游戏，**不是 CC0**；原始动作不作为独立素材包再分发。
 
 四个角色分别使用 `/Game/Animations/Locomotion/<Key>/A_<Key>_Running_Slide`，`<Key>` 为 `Eula`、`Acheron`、`Lizhiyan`、`Ascalon`。转换保留腿部和上身动作，去除水平根位移，并按各模型蒙皮后的鞋底、下腿和手部轮廓计算贴地高度；滑行速度与碰撞继续由移动组件控制。播放时加快滑入，并把贴地段延长到实际滑铲时长；结束后混合到当前下蹲或站姿，低矮空间内不会播放强制起身。
-
-本地重建工具：`Tools/sample_mixamo_slide.cpp`、`Tools/BuildMixamoAnimationTool.bat`、`UnderTide/Scripts/retarget_mixamo_slide.py`；中间采样位于 `SourceAssets/Animations/MixamoSlide/Running_Slide.json`。工具和中间文件沿用项目的本地忽略规则。
 
 #### 惯性滑铲和速度过渡
 
@@ -183,7 +202,7 @@ M4 原包的 OBJ 引用了未提供的 MTL，导入时按材质槽匹配原皮�
 
 - 射击、枪口闪光、后坐力和射线命中。
 - 持枪时双手对准枪械握把的 IK。
-- 四名角色的第一人称常规视野统一为 110°，瞄准视野为 76°。
+- 四名角色的第一人称常规视野统一为 110°，瞄准视野为 46°。
 - 换弹计时、弹匣补充和空手近战状态；阿斯卡纶的直拳由程序化手臂 IK 生成。
 - 下蹲碰撞体缩放、镜头高度平滑和墙体防穿透。
 - 移动时的轻微武器摆动；角色镜头不会跟随动画产生大幅晃动。跳跃时第一人称双手固定在镜头下缘，且不复制世界模型的动态布料偏转；世界视角仍保留完整跳跃与布料动作。黄泉跑动时锁定持刀右手的位置，并将握点收在第一人称画面下缘，避免手掌脱离前臂单独露出；未攻击时本地带鞘刀不叠加步伐摆动，主动挥刀优先于跑动锁手和武器缓动，双手与刀柄同步；第一人称挥刀期间让左袖两条长布片垂向握点下方，并限制额外布料偏转，减少袖口遮挡刀路，世界模型保留布料物理、完整身体动作与双手斜劈轨迹。

@@ -42,12 +42,10 @@ GPT_UE_TEST/
 │  ├─ Config/                   项目、输入、地图和渲染配置
 │  ├─ Content/                  UE 二进制资源（uasset、umap）
 │  ├─ Shaders/                  项目 HLSL；常态角色风格化后处理位于 Private/UnderTideToonNormal.ush
-│  ├─ Scripts/                  构建、验证和编辑器资源生成脚本
 │  └─ Source/
 │     ├─ UnderTide.Target.cs   游戏目标构建配置
 │     ├─ UnderTideEditor.Target.cs 编辑器目标构建配置
 │     └─ UnderTide/            C++ 游戏模块
-├─ SourceAssets/                原始模型转换和骨骼审计产生的 JSON
 ├─ README.md                    项目简介和模型/动作清单
 └─ PROJECT_STRUCTURE.md         本文档
 ```
@@ -64,7 +62,7 @@ GPT_UE_TEST/
 | `UnderTide/Source/UnderTide/UnderTide.Build.cs` | 声明模块依赖：`Core`、`CoreUObject`、`Engine`、`InputCore`、`AIModule`、`NavigationSystem`、`SlateCore`；编辑器构建时额外使用网格、动画和 JSON 模块。 |
 | `UnderTide/Source/UnderTide/BreachGame.h` | 主要类的统一头文件，声明玩家控制器、玩家角色、敌人、GameMode 和 HUD。虽然类很多，但实现分别放在不同 `.cpp` 文件中。 |
 | `UnderTide/Source/UnderTide/BreachVisuals.h` | `Breach` 命名空间的资源入口：四个角色的 Key/显示名、角色网格与材质加载、角色 Toon Stencil、全局风格化后处理和激光束绘制。 |
-| `UnderTide/Source/UnderTide/CharacterRigData.h` | 四个角色的身体和手指骨骼映射表，由骨骼名称生成工具产生。 |
+| `UnderTide/Source/UnderTide/CharacterRigData.h` | 四个角色的身体和手指骨骼映射表。 |
 | `UnderTide/Source/UnderTide/CharacterBones.h` | PMX 模型中肩膀、手臂、腿和脊柱等关键骨骼的兼容名称表。 |
 
 角色 Key 的顺序固定为：
@@ -93,7 +91,7 @@ GPT_UE_TEST/
 | `BreachEnemyAwarenessTests.cpp` | 用 `-BreachEnemyAwarenessTest` 检查感知、受击来源快照、可见玩家优先、广播边界、遮挡、等待和地面／飞行实际移动，报告输出到 `Saved/enemy_awareness_test.txt`。 |
 | `BreachSeabornReview.cpp` | 独立加载海嗣骨骼资源，检查压缩数据就绪、原地根骨、尺度、动作变化、循环和死亡末帧；截图包含各动作阶段与玩家视线高度。使用 `-BreachModelReview -BreachSeabornReview -BreachReviewEnemy=<Key>`，截图另加 `-BreachSeabornCapture`。 |
 | `BreachAssets.cpp` | 编辑器资源处理：裁剪辅助第一人称手臂网格，以及从 JSON/动作文件烘焙死亡和角色动画。函数使用 `WITH_EDITOR`，打包后的游戏不会执行编辑器写入操作。 |
-| `BreachModelReview.cpp` | 阿斯卡纶正、侧、背离屏检查入口；只有显式使用 `-BreachModelReview` 才进入模型检查场景，附加 `-BreachReviewHead` 聚焦头部。`Scripts/VerifyModelReview.ps1 -Head` 封装该入口。保留原骨架的 `CopyCharacterGeometry` 位于 `BreachAssets.cpp`，网格更新仅允许编辑器构建执行。 |
+| `BreachModelReview.cpp` | 阿斯卡纶正、侧、背离屏检查入口；只有显式使用 `-BreachModelReview` 才进入模型检查场景，附加 `-BreachReviewHead` 聚焦头部。保留原骨架的 `CopyCharacterGeometry` 位于 `BreachAssets.cpp`，网格更新仅允许编辑器构建执行。 |
 | `BreachCharacter.cpp` | 玩家角色的构造、输入绑定、相机、完整人物模型、枪械组件、黄泉刀、射击/挥拳/挥刀、瞄准、换弹、受伤和重开。普通角色收枪后以 70 点伤害挥拳，黄泉固定持刀并以 180 点伤害攻击。 |
 | `BreachLocomotion.cpp` | 玩家移动状态和动画切换：待机、持枪移动、空手或黄泉持刀奔跑、起跳、空中、落地、下蹲和滑铲。滑铲使用四个角色各自的 Mixamo `Running_Slide` 资源，按实际滑行时长播放贴地段；状态切换使用短时间骨骼混合，减少动作跳变。 |
 | `BreachMovementComponent.h/.cpp` | 自定义角色移动组件：统一处理持枪/空手/黄泉持刀/瞄准/下蹲速度过渡，黄泉持刀速度为 870 cm/s；处理 Ctrl 惯性滑铲、有限转向、坡道加减速、滑铲跳和落地续滑，并保存客户端移动重演状态。 |
@@ -134,11 +132,11 @@ bGallery          是否处于展示或测试模式
 | `BreachSelectionSword.cpp` | 黄泉专属刀、鞘加载与双手绑定，左手持鞘 IK、收势角度适配和仅选人可见的管理。 |
 | `BreachLocalAnimation.cpp` | 编辑器 VMD 骨骼轨道烘焙入口，按优菈已有骨架写入姿势序列，避免重导入用户调整过的模型和贴图。 |
 | `BreachSelectionCat.cpp` | 同一选人舞台的拆分实现。为李织烟创建带骨骼的白猫，编排抱持和低头轻靠，双手 IK 跟随猫的支撑点；结束后人物与猫一同定格，离开预览时隐藏。 |
-| `BreachSelectionHUD.cpp` | 绘制选人界面、角色卡片和普通角色的四枪选择；角色保存本局武器选择，黄泉不显示或响应选枪；管理鼠标、相机及暂停恢复。AK 已装备到实战，其余三枪仅预览。 |
-| `BreachWeapons.h` | 四枪的名称、类型与网格资源入口，以及 AK 容量、伤害、散射与枪口参数。 |
-| `BreachGun.cpp` | AK 与旧原型枪的装备、独立弹匣缓存、散射计算、枪口与双份枪械显隐；未适配枪械回退原型枪。 |
-| `BreachWeaponTests.cpp` | AK 的实际命中伤害、25 发弹匣、后坐、散射、换弹取消、切枪及黄泉往返检查。 |
-| `BreachHUD.cpp` | 游戏内 HUD：生命值、弹药、波次、准星、命中提示、通知和操作提示。 |
+| `BreachSelectionHUD.cpp` | 绘制选人界面、角色卡片和普通角色的四枪选择；角色保存本局武器选择，黄泉不显示或响应选枪；管理鼠标、相机及暂停恢复。四枪均已装备到实战。 |
+| `BreachWeapons.h` | 四枪的名称、类型与网格资源入口，以及各枪容量、伤害、散射、距离和枪口参数。 |
+| `BreachGun.cpp` | 四枪的装备、独立弹匣缓存、散射与距离伤害计算、枪口和双份枪械显隐；资源缺失时安全回退原型枪。 |
+| `BreachWeaponTests.cpp` | 四枪的实际命中伤害、弹匣、射速、后坐、散射、距离衰减、AA12 独立弹丸、换弹取消、切枪及黄泉往返检查；同时检查海嗣实际受击、远距弹丸伤害和神经损伤爆发后的射击节奏。 |
+| `BreachHUD.cpp` | 游戏内 HUD：生命值、弹药、波次、命中提示、通知和操作提示。 |
 | `ABreachPlayerController` | 目前只有一个用于选人暂停期间继续 Tick 的小接口，方便预览动画在暂停世界时更新。 |
 
 选人界面的状态关系是：
@@ -187,7 +185,7 @@ UnderTide/Content/
 │  ├─ Death/                 四个角色各自的 Death01
 │  ├─ Entrance/              选人入场和待机动作
 │  └─ Locomotion/            每个角色的移动、奔跑、跳跃、下蹲和滑铲动作
-├─ Audio/                    Confirm、Fire、Reload 音效
+├─ Audio/                    Confirm、Reload、原有 Fire 与四把枪的 Fire_<枪型> 音效
 ├─ Characters/
 │  ├─ Eula/
 │  ├─ Acheron/
@@ -198,7 +196,7 @@ UnderTide/Content/
 │  └─ SelectionCat/           李织烟选人预览的猫模型、骨架和材质
 ├─ Maps/Arena.umap           编辑器启动地图和游戏默认地图
 ├─ Materials/                角色、枪械、竞技场、霓虹灯及 `PP_UnderTideToon_Normal` 常态后处理材质
-└─ Weapons/                  四枪静态网格、材质和贴图；AK 已实装，其余枪械仅预览
+└─ Weapons/                  四把已实装枪械的静态网格、材质和贴图
 ```
 
 ### 4.1 资源命名和 C++ 加载方式
@@ -239,7 +237,7 @@ ABreachCharacter
 | 文件 | 关键内容 |
 | --- | --- |
 | `DefaultEngine.ini` | 默认地图 `/Game/Maps/Arena`、全局 GameMode `BreachGameMode`、DX12、抗锯齿、阴影、帧率和导航网格设置。 |
-| `DefaultGame.ini` | 项目名称、版本、打包配置，以及始终烘焙的角色、材质、音频、动画和 `Enemies/Seaborn` 资源。 |
+| `DefaultGame.ini` | 项目名称、版本、打包配置，以及始终烘焙的角色、材质、音频、动画、`Weapons`、`Effects` 和 `Enemies/Seaborn` 资源。 |
 | `DefaultInput.ini` | 传统输入系统的 Action/Axis 映射。当前移动使用 WASD，视角使用鼠标，动作键包括 1、3、Space、Ctrl、R、H、Esc 和 Enter。 |
 | `DefaultEditor.ini` | 编辑器预览场景的共享灯光和后处理预设。 |
 
@@ -262,16 +260,11 @@ ABreachCharacter
 
 F1-F4 已经不在 `DefaultInput.ini` 的角色切换逻辑中；角色切换应该通过选人界面完成。
 
-## 6. SourceAssets 目录
+## 6. 运行时映射与资源
 
-```text
-SourceAssets/
-├─ character_rig_mapping.json  四个角色关键骨骼和手指映射
-├─ conversion_report.json       模型转换、骨骼、材质和纹理审计结果
-└─ marionette_fbx_audit.json    旧木偶模型的历史审计，不参与当前角色资源加载
-```
+`UnderTide/Source/UnderTide/CharacterRigData.h` 保存四个角色的关键骨骼和手指映射，运行时直接使用该 C++ 文件。模型、动画和音效使用 `UnderTide/Content/` 中已导入的 UE 资源。
 
-这些 JSON 是导入和排查模型问题时的参考资料，不是运行时必须加载的游戏资源。`CharacterRigData.h` 是从骨骼映射生成到 C++ 中的运行时版本。
+第一人称开镜准星独立位于 `BreachReticleHUD.cpp`，由 `BreachHUD.cpp` 调用，负责四枪矢量轮廓、屏幕缩放及开镜/选人/换弹等显隐条件；`BreachWeaponTests.cpp` 的 `-BreachReticleReview` 分支检查准星状态并输出截图。
 
 ## 7. 修改功能时从哪里开始
 

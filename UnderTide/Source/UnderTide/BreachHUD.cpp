@@ -41,26 +41,16 @@ void ABreachHUD::DrawHUD()
     if(!G->bGameOver && !G->bGallery && G->EnemiesAlive==0 && G->RemainingToSpawn==0)
         Text(FString::Printf(TEXT("NEXT WAVE IN %d"),FMath::CeilToInt(G->Intermission)),W*.5f-95,119,17,Cyan);
     if(G->NoticeTime>0 && !G->bGameOver) Text(G->Notice,W*.5f-G->Notice.Len()*4.1f,164,15,Cyan);
-    // Crosshair expands during movement and contracts while aiming.
     const float Cx=W*.5f,Cy=H*.5f;
-    const float Gap=P->bAiming?5:9+FMath::Clamp(P->GetVelocity().Size2D()/100.f,0.f,6.f);
-    if(!G->bGameOver)
+    DrawAimReticle(P);
+    if(!G->bGameOver && P->HitMarker>0)
     {
-        Box(Cx-1,Cy-1,2,2,White);
-        if(!P->bAiming && !P->UsesSword() && !P->bUnarmed)
-        {
-            Box(Cx-Gap-7,Cy-1,7,2,White); Box(Cx+Gap,Cy-1,7,2,White);
-            Box(Cx-1,Cy-Gap-7,2,7,White); Box(Cx-1,Cy+Gap,2,7,White);
-        }
-        if(P->HitMarker>0)
-        {
-            const FLinearColor Hit=P->bLastHeadshot?Orange:Cyan;
-            for(int32 X : {-1,1}) for(int32 Y : {-1,1}) DrawLine((Cx+X*7)*S,(Cy+Y*7)*S,(Cx+X*14)*S,(Cy+Y*14)*S,Hit,2*S);
-        }
+        const FLinearColor Hit=P->bLastHeadshot?Orange:Cyan;
+        for(int32 X : {-1,1}) for(int32 Y : {-1,1}) DrawLine((Cx+X*7)*S,(Cy+Y*7)*S,(Cx+X*14)*S,(Cy+Y*14)*S,Hit,2*S);
     }
     DrawPlayerVitals(P);
     Box(W-318,H-150,290,98,Panel); Box(W-31,H-150,3,98,Cyan);
-    Text(P->UsesSword()?TEXT("NODACHI   /   MELEE"):P->bUnarmed?TEXT("FISTS   /   MELEE"):TEXT("VX-30   /   PULSE RIFLE"),W-298,H-138,12,Muted);
+    Text(P->UsesSword()?TEXT("NODACHI   /   MELEE"):P->bUnarmed?TEXT("FISTS   /   MELEE"):P->UsesAK()?TEXT("AK   /   ASSAULT RIFLE"):P->UsesM4()?TEXT("M4   /   ASSAULT RIFLE"):P->UsesMP5()?TEXT("MP5   /   SUBMACHINE GUN"):P->UsesAA12()?TEXT("AA12   /   AUTO SHOTGUN"):TEXT("VX-30   /   PULSE RIFLE"),W-298,H-138,12,Muted);
     if(P->UsesSword())
     {
         Text(P->IsSwordAttacking()?TEXT("SLASH"):P->IsSliding()?TEXT("SLIDE"):(P->bIsCrouched?TEXT("CROUCH"):TEXT("BLADE READY")),W-298,H-118,27,White);
@@ -75,7 +65,7 @@ void ABreachHUD::DrawHUD()
     {
         Text(FString::Printf(TEXT("%02d"),P->Ammo),W-299,H-121,45,P->Ammo<=5?Orange:White);
         Text(FString::Printf(TEXT("/ %03d"),P->Reserve),W-225,H-101,20,Muted);
-        Text(P->bReloading?TEXT("RELOADING"):P->Ammo==0?TEXT("R  /  RELOAD"):TEXT("AUTO    /    5.56 ENERGY"),W-298,H-74,12,P->bReloading?Orange:Cyan);
+        Text(P->bReloading?TEXT("RELOADING"):P->Ammo==0?TEXT("R  /  RELOAD"):P->UsesAK()?TEXT("AUTO    /    25 ROUND MAG"):P->UsesM4()?TEXT("AUTO    /    30 ROUND MAG"):P->UsesMP5()?TEXT("AUTO    /    40 ROUND MAG"):P->UsesAA12()?TEXT("AUTO    /    8 SHELL DRUM"):TEXT("AUTO    /    5.56 ENERGY"),W-298,H-74,12,P->bReloading?Orange:Cyan);
     }
     if(P->bReloading)
     {

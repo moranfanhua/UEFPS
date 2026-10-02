@@ -8,6 +8,8 @@
 - 默认用中文与用户沟通。先检查实际代码和工作区，再实施修改；不要只给计划而停止已获授权的工作。
 - 保留用户已有改动。开始时执行 `git status --short`，记录本次任务开始前的修改；不要把它们当成自己的成果，也不要回退或覆盖。
 - 不擅自提交、推送、重置分支、清理未跟踪文件或批量重新导入资源。需要 Git 操作时以用户明确要求为准。
+- 所有用于生成、转换、导入或烘焙内容的脚本，以及针对生成结果创建的说明、清单、日志和报告文件，均不得新增到版本控制或提交历史。按用途判断，不限语言、扩展名、文件名或目录；不得通过更名、换目录或 `git add -f` 绕过。
+- 上述生成工具及结果说明仅保留在已被 Git 忽略的本地目录中，创建前确认目标路径的忽略规则。提交前逐项检查暂存清单，排除这些文件，并清理项目文档中指向未提交文件的引用。
 - 优先完成任务内可逆的必要工作；只有缺少会实质影响结果的信息或权限时才询问用户，不为常规实现选择反复要求确认。
 - 本文记录当前实现约束。用户要求改变行为时，应同步修改代码、验证和相关文档，不把旧约定当成禁止修改的理由。
 
@@ -20,7 +22,7 @@
 - C++ 构建需要兼容 UE 5.7 的 MSVC 工具链和 Windows SDK。模块依赖以 `UnderTide.Build.cs` 为准，插件以 `.uproject` 为准。
 - `Content/` 使用 Git LFS。新克隆若只含 LFS 指针，应先获取对应的大文件资源；指针文本不能作为有效 `.uasset` 使用，不要靠重新生成全部资源掩盖缺失。
 - 优先阅读 `README.md` 的资源、授权和操作说明；若存在 `PROJECT_STRUCTURE.md`，用它了解模块职责。文档与代码不一致时，核对源码并说明差异。
-- `Tools/`、`Scripts/*.py`、`Scripts/*.ps1`、部分源模型和转换中间文件被 `.gitignore` 忽略，可能只在本机存在。先检查文件是否存在，不要假设另一份克隆具备所有辅助工具。
+- 运行资源以 `UnderTide/Content/` 和 C++ 中的骨骼映射为准。
 
 ## 代码导航
 
@@ -55,23 +57,15 @@
 
 以下命令均在仓库根目录的 PowerShell 中执行。每一步检查退出码与日志，构建成功后再运行相关验证。
 
-```powershell
-# 默认构建编辑器目标 UnderTideEditor Win64 Development
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\UnderTide\Scripts\Build.ps1
-
-# 引擎位于其他目录时，传入实际路径
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\UnderTide\Scripts\Build.ps1 -EngineRoot 'E:\Unreal\UE_5.7'
-```
-
-`Build.ps1 -GameTarget` 构建 `UnderTide Win64 Development`；它和默认编辑器构建都不等于 Cook 或打包发布。自动化优先使用脚本，不使用失败后可能等待按键的快捷批处理。
-
-辅助脚本缺失时，可直接调用引擎构建工具。以下两段在同一个 PowerShell 会话执行；按本机情况修改 `$breachEngineRoot`：
+直接调用引擎构建工具。以下两段在同一个 PowerShell 会话执行；按本机情况修改 `$breachEngineRoot`：
 
 ```powershell
 $breachEngineRoot = 'D:\UE\UE_5.7'
 $breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
 & "$breachEngineRoot\Engine\Build\BatchFiles\Build.bat" UnderTideEditor Win64 Development "-Project=$breachProjectFile" -WaitMutex -NoHotReloadFromIDE
 ```
+
+游戏目标将上述 `UnderTideEditor` 替换为 `UnderTide`。编辑器或游戏目标的编译都不等于 Cook 或打包发布。
 
 ```powershell
 # 交互式打开编辑器
@@ -82,30 +76,35 @@ $breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
 
 ## 验证要求
 
-按本次改动选择验证，不必为纯文档修改启动 UE。下列脚本均支持 `-EngineRoot`：
+按本次改动选择验证，不必为纯文档修改启动 UE。以下命令沿用上面的引擎与工程变量，直接调用项目中的验证入口：
 
 ```powershell
 # 基础资源、死亡动作、VMD 表情及衣物约束；使用 null RHI
-& .\UnderTide\Scripts\Verify.ps1
+$breachEditorCmd = "$breachEngineRoot\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
+& $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachTest -nullrhi -unattended
 
 # 启动选人、切换、入场、定格、返回游戏及表情对照截图
-& .\UnderTide\Scripts\VerifySelection.ps1
+& $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachSelectionTest -RenderOffscreen -ForceRes -windowed -ResX=1600 -ResY=900 -unattended
 
 # 四个角色的移动逻辑；默认无渲染
-& .\UnderTide\Scripts\VerifyMovement.ps1 -Operators @(0,1,2,3)
+foreach ($breachOperator in 0..3) {
+    & $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachMovementTest "-BreachOperator=$breachOperator" -nullrhi -unattended
+}
 
 # 世界视角和第一人称低头画面
-& .\UnderTide\Scripts\VerifyMovement.ps1 -Operators @(0,1,2,3) -Render
-& .\UnderTide\Scripts\VerifyMovement.ps1 -Operators @(0,1,2,3) -Render -FirstPerson -LookPitch -80
+foreach ($breachOperator in 0..3) {
+    & $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachMovementTest "-BreachOperator=$breachOperator" -BreachMovementCapture -RenderOffscreen -ForceRes -windowed -ResX=1600 -ResY=900 -unattended
+    & $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachMovementTest "-BreachOperator=$breachOperator" -BreachMovementCapture -BreachMovementFirstPerson -BreachLookPitch=-80 -RenderOffscreen -ForceRes -windowed -ResX=1600 -ResY=900 -unattended
+}
 
 # 有模型修改时，检查模型与头部
-& .\UnderTide\Scripts\VerifyModelReview.ps1
-& .\UnderTide\Scripts\VerifyModelReview.ps1 -Head
+& $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachModelReview -RenderOffscreen -ForceRes -windowed -ResX=1000 -ResY=1200 -unattended
+& $breachEditorCmd $breachProjectFile /Game/Maps/Arena -game -BreachModelReview -BreachReviewHead -BreachReviewPrefix=Ascalon_Head -RenderOffscreen -ForceRes -windowed -ResX=1000 -ResY=1200 -unattended
 ```
 
-`VerifyModelReview.ps1` 默认检查阿斯卡纶；其他模型先检查该脚本的 `-Mesh` 参数及对应审查代码，不要把默认检查误当成四角色验证。
+`-BreachModelReview` 默认检查阿斯卡纶；其他模型通过 `-BreachReviewMesh=<网格对象路径>` 指定，并核对对应审查代码，不要把默认检查误当成四角色验证。
 
-辅助脚本不存在时，从 `BreachGameMode.cpp` 核对 `-BreachTest`、`-BreachSelectionTest`、`-BreachMovementTest` 等入口，再使用 `UnrealEditor-Cmd.exe <工程> /Game/Maps/Arena -game` 和相应参数执行。截图测试不能添加 `-nullrhi`；不要为运行测试先重新导入模型。
+从 `BreachGameMode.cpp` 核对验证入口及相应参数。截图测试不能添加 `-nullrhi`；不要为运行测试先重新导入模型。
 
 | 改动范围 | 最低验证范围 |
 | --- | --- |
@@ -118,7 +117,7 @@ $breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
 - 输出在 `UnderTide/Saved/`，日志在 `UnderTide/Saved/Logs/`。确认报告和截图的修改时间属于本次运行。
 - 检查进程退出码、报告中的 `FAILURES=0` 和日志错误；不能只看到旧报告或一条成功日志就宣布通过。
 - `-nullrhi` 无法证明渲染正确。修改画面后必须查看实际截图，特别是表情 GPU 权重、隐藏头部、手部 IK、衣物穿插和脚部朝向。
-- 图形环境不可用或验证脚本缺失时，明确报告限制。不要声称已经完成目视检查。
+- 图形环境或验证入口不可用时，明确报告限制。不要声称已经完成目视检查。
 - 不硬编码历史通过项数；测试数量随项目变化。功能回归应补充能发现实际错误的检查，不添加仅重复实现的测试。
 - 完成前运行 `git diff --check`；有暂存修改时另查 `git diff --cached --check`。新文件用 `git diff --no-index --check -- NUL <文件>` 检查，不为检查而暂存用户文件。
 
@@ -140,18 +139,22 @@ $breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
 - 不退回只有手臂的第一人称模型。修改时同时检查拥有者视角、外部视角和影子。
 - 切换离开黄泉时，刀和刀鞘须同时关闭可见性、普通投影与隐藏投影；缓存的武器网格不能给其他角色留下刀影。相关开关统一在 `UpdateSwordVisibility()` 更新，重新选中黄泉且武器骨架有效后恢复。
 - 相机独立保持稳定，不直接叠加大幅动画位移。拥有者模型的镜头补偿不能直接复制到世界模型。
-- 四名角色共用 110° 常规第一人称视野和 76° 瞄准视野；普通角色连续挥拳时左右拳逐拳交替，当前拳从画面下方推进到准心对应一侧，另一只手留在下方防守，保证主视角可见完整拳路；拳击时四指按实际骨长收向掌心、拇指横压拳面，不能保留张手或爪状手型；起跳、滞空和落地时第一人称双手固定在镜头下缘，并停止复制世界模型的动态布料偏转，主动攻击优先于该固定姿势；黄泉跑动时锁定持刀右手的位置并把握点收在第一人称画面下缘，避免手掌孤立露出，未攻击时本地带鞘刀不叠加步伐摆动；主视角只允许正确映射到右手的世界刀实例投射隐藏刀影，刀鞘复合网格不得重复投射隐藏刀片，世界模型保留完整跳跃、布料和攻击动作。
+- 四名角色共用 110° 常规第一人称视野和 46° 瞄准视野；普通角色连续挥拳时左右拳逐拳交替，当前拳从画面下方推进到准心对应一侧，另一只手留在下方防守，保证主视角可见完整拳路；拳击时四指按实际骨长收向掌心、拇指横压拳面，不能保留张手或爪状手型；起跳、滞空和落地时第一人称双手固定在镜头下缘，并停止复制世界模型的动态布料偏转，主动攻击优先于该固定姿势；黄泉跑动时锁定持刀右手的位置并把握点收在第一人称画面下缘，避免手掌孤立露出，未攻击时本地带鞘刀不叠加步伐摆动；主视角只允许正确映射到右手的世界刀实例投射隐藏刀影，刀鞘复合网格不得重复投射隐藏刀片，世界模型保留完整跳跃、布料和攻击动作。
 - `EBreachLocomotion` 枚举顺序必须与 `LoadLocomotionAnimations()` 的资源数组一致。根位移、动画采样和移动组件的位移职责不能重复。
 - 选人入场当前统一 3.5 秒，以上半身为画面主体，结束后保持最后姿态、表情和衣物状态，不恢复普通站姿。
+- 选人页普通角色右侧可预览并选择 AK、M4、MP5、AA12，按角色保存本局选择；黄泉不显示面板且拒绝武器选择。AK：25 发弹匣、38 点身体伤害，较大的散射和可累积枪身后坐。M4：30 发弹匣、35 点身体伤害、0.09 秒射击间隔，散射和后坐均低于 AK。MP5：40 发弹匣、10 米内 30 点身体伤害、0.06 秒射击间隔，散射和后坐均低于 M4；超过 10 米降至 23 点，30–40 米继续衰减至 12 点。AA12：8 发弹鼓、0.22 秒射击间隔，每发 8 颗独立弹丸；10 米内单颗 14 点，15 米起最低 1 点。参数和资源入口在 `BreachWeapons.h`，枪械状态、各枪独立弹匣缓存及显隐集中于 `BreachGun.cpp`；切枪不补弹，不重播角色入场，换弹中途切枪须取消旧计时器。第一人称和世界枪械使用各自一致的偏移，隐藏的旧零件与四把导入枪械同时关闭普通及隐藏投影。
 - 表情权重必须按网格完整 Morph Target 数组长度和索引传给渲染器；切换动作清除旧权重，不能仅提交非零权重的紧凑数组。
+- 四枪握点、左手朝向与镜头内位置集中于 `BreachWeapons.h` 的 `GunHolds`，依据 `UnderTide/TEMP/` 的正侧面参考图。世界枪托贴合当前角色肩膀，世界手臂跟随 `WorldWeaponRoot`；第一人称手臂跟随 `WeaponRoot`，不要把相机补偿或瞄准居中直接复制给世界枪械。调整后使用 `-BreachWeaponTest -BreachGunPoseReview -BreachWeaponCapture` 检查三名持枪角色的四枪正面、侧面、第一人称和瞄准截图，以及双份模型的握点误差。
+- 四枪开镜参考 `UnderTide/TEMP/<枪型>.mov`，`GunAims` 集中定义进入/退出时长、抬枪弧线、倾斜和瞄准俯仰。视野缩放与枪械共用可逆进度，完全开镜后停止步行浮动；世界枪械独立抬枪抵肩。AA12 的 `M_AA12_01` 是独立透视镜片，不恢复为不透明黑面。枪械审查同时覆盖抬枪中间帧、反向、重复开镜和外部瞄准姿态。
 - 当前 VMD 表情资源接入优菈；`BreachExpressions.cpp` 的入场资源路径仍针对 Eula。扩展到其他角色时需修改导入映射，不能假设该入口已经通用化。
+- 四枪仅第一人称开镜显示准星，样式与显隐集中在 `BreachReticleHUD.cpp`：AA12 橙环红点、AK 金色棱角、M4 蓝色框线、MP5 青白圆环。保留原轮廓 20% 放大，并按相机实际视野同步缩放；46° 开镜使枪械、准星和场景整体约为原 76° 画面的 1.84 倍。按屏幕高度等比缩放，红点对齐射击中心；不开镜、换弹、近战、外部相机、选人、暂停和死亡隐藏。使用 `-BreachWeaponTest -BreachReticleReview -BreachWeaponCapture` 检查显隐与截图。
 - 布料是 `FBreachCloth` 的骨骼链模拟，不是完整 MMD/Bullet 或 Chaos 网格布料，没有布料自碰撞。玩家只计算世界模型衣物物理，再复用局部旋转到拥有者身体；瞬移、换角色和长帧须安全重置。
 
 ## 角色与资源保护
 
 战斗波次使用 `ABreachSeabornEnemy` 混合生成壳海狂奔者、底海滑动者、脊海喷吐者、浮海飘航者、钵海收割者和始海穿刺者。每波重置随机顺序，每组连续六次生成各含一种；保留每波 `4 + Wave * 2` 个、同时最多 8 个、间隔 1.8 秒的规则。生成时检查地板、实际胶囊碰撞和距玩家至少 700 cm，失败不消耗待生成数量。现有攻击、神经损伤、钵海收割者唤醒及自损在实战生效；死亡计分并释放波次名额，尸体取消碰撞且 9 秒后清理。后方四个角色展示台保持原样。单独创建的海嗣仍须显式启用，默认不计入波次或奖励。
 
-壳海狂奔者的运行网格、21 节骨架和 Run／Attack／Die 动作位于 `/Game/Enemies/Seaborn/ShellSeaRunner/Rig/`；原静态网格及材质保留。骨骼版依据 `UnderTide/enemies/` 三段视频缩短颌部并增加四节尾部，原四腿绑定姿态保留。根骨动画不得重复驱动移动，死亡打断攻击并保持末帧。`ABreachEnemy` 保留为人物展示和旧动作诊断，其狂奔者咬合仅播放动作；实战伤害由 `ABreachSeabornEnemy` 处理。骨骼或动作修改后运行 `-BreachRunnerTest`，画面验证添加 `-BreachRunnerCapture`（本地封装 `Scripts/VerifyRunner.ps1 -Render`），检查四条腿、脚爪与尾部落地、循环衔接、攻击／死亡切换和第一人称画面。
+壳海狂奔者的运行网格、21 节骨架和 Run／Attack／Die 动作位于 `/Game/Enemies/Seaborn/ShellSeaRunner/Rig/`；原静态网格及材质保留。骨骼版依据用户提供的三段视频缩短颌部并增加四节尾部，原四腿绑定姿态保留。根骨动画不得重复驱动移动，死亡打断攻击并保持末帧。`ABreachEnemy` 保留为人物展示和旧动作诊断，其狂奔者咬合仅播放动作；实战伤害由 `ABreachSeabornEnemy` 处理。骨骼或动作修改后运行 `-BreachRunnerTest`，画面验证添加 `-BreachRunnerCapture`，检查四条腿、脚爪与尾部落地、循环衔接、攻击／死亡切换和第一人称画面。
 
 波次敌人与显式启用的海嗣使用 `UBreachEnemyAwareness`：默认视距 1600 cm、水平视野 120°，看见玩家时每 0.25 秒向 5000 cm 内敌人发送当前玩家坐标；信号接收者前往该坐标，不转发未亲眼看到的坐标。失去视线后前往最后已知位置，进入 80 cm 到达范围后等待，再次看见玩家或收到新信号时继续行动；死亡停止感知和广播。每次以当前位置为中心选取游荡目标，默认半径 500 cm，速度为该敌人追逐速度的 25%，到达游荡点后停留 2–4 秒。参数在敌人的 `Awareness` 组件上调整，行为决策只在服务器运行；钵海收割者原有的前 30 秒禁止移动、血量触发唤醒及唤醒后加速仍优先。当前使用角色碰撞和局部静态障碍转向，没有 NavMesh 全局路径规划。诊断 `-BreachEnemyAwarenessTest` 覆盖视野、遮挡、广播边界、最后位置、等待、死亡及地面／飞行实际移动，报告为 `Saved/enemy_awareness_test.txt`。
 
@@ -170,7 +173,7 @@ $breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
 - `LoadObject` 的对象路径需包含点号后的对象名，例如 `/Game/Characters/Eula/SK_Eula.SK_Eula`。资源缺失时保留安全回退，不解引用空对象。
 - 当前入场：优菈两段用户 VMD 拼接、黄泉挥刀、李织烟抱猫、阿斯卡纶 Catwalk。黄泉配刀来自其模型；刀网格、刀鞘和挥刀动作也用于黄泉实战近战，实战中刀鞘套在刀上，双手握住同一刀柄，从右上蓄势向左下斜劈并回收；主动攻击优先于跑动锁手与武器缓动，第一人称攻击期间不复制世界布料偏转，以免袖口遮挡刀路，命中在约 42% 的落刀阶段。刀与刀鞘整体显示为资源原尺寸的 50%，不绘制额外挥刀轨迹。猫仍只是选人展示实体，这些展示和武器状态尚未实现完整联机复制。
 - 不用自动捕获头像覆盖 `Portraits` 手工贴图，不覆盖用户修改的材质和竖版角色卡片。
-- 当前阿斯卡纶可能已有几何和材质修订，原 PMX 不能被默认当作最新网格。重新导入前检查当前资源；若存在 `Modeling/` 修订记录，一并阅读。
+- 当前阿斯卡纶可能已有几何和材质修订，原 PMX 不能被默认当作最新网格。重新导入前核对当前网格、材质和绑定姿态。
 - 修改二进制资源前备份受影响文件到 `Saved/`，限定导入范围。仅补充表情、动画或物理时，不重导入整个模型。
 - 使用 `CopyCharacterGeometry` 修改几何时保留并校验原骨架与绑定姿态；不要替换 Skeleton 导致已有动画失效。骨骼对应以名称和映射验证，不能假定原 PMX 索引等于 UE 骨骼数组索引。
 - 保留旧原始压缩包和用户资源；不为整理目录擅自删除。辅助生成文件、缓存、下载资源和原始模型不要因方便而强制加入 Git。
