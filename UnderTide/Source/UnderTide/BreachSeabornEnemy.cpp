@@ -1,9 +1,9 @@
 #include "BreachSeabornEnemy.h"
+#include "BreachSeabornProjectile.h"
 #include "BreachGame.h"
 #include "BreachNerveDamageComponent.h"
 #include "BreachMovementComponent.h"
 #include "BreachEnemyAwareness.h"
-#include "BreachVisuals.h"
 #include "BreachWeapons.h"
 #include "Animation/AnimSequence.h"
 #include "Components/CapsuleComponent.h"
@@ -155,12 +155,12 @@ void ABreachSeabornEnemy::SetProfile()
     else if(Species==EBreachSeabornSpecies::SpinalSeaSpitter)
     {
         Profile.Key=TEXT("SpinalSeaSpitter"); Profile.Health=4400; Profile.Defense=160;
-        Profile.Speed=.75f; Profile.Interval=3; Profile.Range=2.5f*FBreachSeabornProfile::TileSize; Profile.bRanged=true;
+        Profile.Speed=.75f; Profile.Interval=3; Profile.Range=2500; Profile.bRanged=true;
     }
     else if(Species==EBreachSeabornSpecies::SeaDrifter)
     {
         Profile.Key=TEXT("SeaDrifter"); Profile.Attack=220; Profile.Defense=200;
-        Profile.Speed=.75f; Profile.Interval=3; Profile.Range=2.5f*FBreachSeabornProfile::TileSize;
+        Profile.Speed=.75f; Profile.Interval=3; Profile.Range=2500;
         Profile.NerveFraction=.2f; Profile.bRanged=true; Profile.bFlying=true;
     }
     else if(Species==EBreachSeabornSpecies::BowlSeaReaper)
@@ -171,9 +171,11 @@ void ABreachSeabornEnemy::SetProfile()
     else if(Species==EBreachSeabornSpecies::FirstSeaPiercer)
     {
         Profile.Key=TEXT("FirstSeaPiercer"); Profile.Health=9000; Profile.Attack=550; Profile.Defense=240;
-        Profile.Speed=.75f; Profile.Interval=3.5f; Profile.Range=1.7f*FBreachSeabornProfile::TileSize;
+        Profile.Speed=.75f; Profile.Interval=3.5f; Profile.Range=2000;
         Profile.bRanged=true; Profile.bLowestHealthTarget=true;
     }
+    // Ranged actors need to see targets throughout their extended attack area.
+    if(Profile.bRanged) Awareness->SightRadius=FMath::Max(Awareness->SightRadius,Profile.Range);
 }
 
 void ABreachSeabornEnemy::SetAction(EBreachSeabornAction Next)
@@ -327,7 +329,18 @@ void ABreachSeabornEnemy::ResolveAttack()
     auto* Player=AttackTarget.Get();
     if(!CanHit(Player) || !Awareness->CanSee(Player) || IsDefeated() || Incapacitated>0 || Disarmed>0) return;
     if(Profile.bRanged)
-        Breach::Beam(GetWorld(),GetActorLocation(),Player->GetActorLocation(),FLinearColor(.3f,.7f,.65f),3.f,.12f);
+    {
+        const FVector Direction=(Player->GetActorLocation()-GetActorLocation()).GetSafeNormal();
+        const FTransform SpawnTransform(Direction.Rotation(),GetActorLocation());
+        auto* Projectile=GetWorld()->SpawnActorDeferred<ABreachSeabornProjectile>(ABreachSeabornProjectile::StaticClass(),SpawnTransform,this,this,ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+        if(Projectile)
+        {
+            Projectile->Launch(Direction,Profile.Attack*FBreachSeabornProfile::CombatScale,Profile.Attack*Profile.NerveFraction,
+                Profile.ProjectileSpeed,(Profile.Range+100.f)/Profile.ProjectileSpeed,bWaveEnemy);
+            UGameplayStatics::FinishSpawningActor(Projectile,SpawnTransform);
+        }
+        return;
+    }
     UGameplayStatics::ApplyDamage(Player,Profile.Attack*FBreachSeabornProfile::CombatScale,GetController(),this,UDamageType::StaticClass());
     Player->NerveDamage->ApplyNerveDamage(Profile.Attack*Profile.NerveFraction,this);
 }

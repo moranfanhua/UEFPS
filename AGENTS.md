@@ -39,6 +39,7 @@
 | `BreachRunnerTests.cpp` | 壳海狂奔者四腿疾跑、骨段长度、脚爪落地、循环及停步验证。 |
 | `BreachSeabornReview.cpp` | 海嗣独立资源审查；等待动画压缩后检查采样、根骨、尺度和循环，并输出动作与玩家视线高度截图，不接入敌人 AI。 |
 | `BreachSeabornEnemy.h/.cpp`、`BreachSeabornMechanismTests.cpp` | 六种海嗣的实战机制与独立诊断；常规波次由生成器启用，独立诊断入口为 `-BreachSeabornMechanismTest -BreachMechanismEnemy=<Key>`。 |
+| `BreachSeabornProjectile.h/.cpp` | 三种远程海嗣共用的实体弹丸、服务器飞行碰撞与一次命中伤害，位置复制与超时清理。 |
 | `BreachSeabornWaveTests.cpp` | 六种海嗣混合波次、生成碰撞、实战伤害、死亡计分及下一波验证；入口 `-BreachSeabornWaveTest`，截图另加 `-BreachSeabornWaveCapture`。 |
 | `BreachGameMode.cpp`、`BreachArena.cpp` | 游戏流程、波次、分数、测试入口及竞技场创建。 |
 | `BreachHUD.cpp`、`BreachVitalsHUD.cpp` | 战斗 HUD、头像、玩家显示名和生命条。 |
@@ -153,6 +154,8 @@ foreach ($breachOperator in 0..3) {
 ## 角色与资源保护
 
 战斗波次使用 `ABreachSeabornEnemy` 混合生成壳海狂奔者、底海滑动者、脊海喷吐者、浮海飘航者、钵海收割者和始海穿刺者。每波重置随机顺序，每组连续六次生成各含一种；保留每波 `4 + Wave * 2` 个、同时最多 8 个、间隔 1.8 秒的规则。生成时检查地板、实际胶囊碰撞和距玩家至少 700 cm，失败不消耗待生成数量。现有攻击、神经损伤、钵海收割者唤醒及自损在实战生效；死亡计分并释放波次名额，尸体取消碰撞且 9 秒后清理。后方四个角色展示台保持原样。单独创建的海嗣仍须显式启用，默认不计入波次或奖励。
+
+脊海喷吐者、浮海飘航者和始海穿刺者在攻击动作约 42% 时发射 `ABreachSeabornProjectile` 实体弹丸，取发射时的目标方向，以 1400 cm/s 直线飞行，不追踪且无重力；碰撞由服务器球体扫掠判定，掩体与角色可挡弹，只有实际撞到存活玩家才结算一次原有生命／神经损伤。前两者攻击范围为 2500 cm，穿刺者为 2000 cm，感知视距至少覆盖攻击范围；其余敌人的默认视距仍为 1600 cm。弹丸命中或到期清理，来源死亡／缴械不撤销已发射弹丸，波次结束游戏或进入展示模式时清理。弹丸位置复制不等于完整联机。修改后检查三种远程海嗣的机制诊断，包含延迟伤害、横向躲避、薄掩体碰撞和实际帧移动／超时；画面另加 `-BreachMechanismCapture` 检查 `Enemy_Projectile.png`。
 
 壳海狂奔者的运行网格、21 节骨架和 Run／Attack／Die 动作位于 `/Game/Enemies/Seaborn/ShellSeaRunner/Rig/`；原静态网格及材质保留。骨骼版依据用户提供的三段视频缩短颌部并增加四节尾部，原四腿绑定姿态保留。根骨动画不得重复驱动移动，死亡打断攻击并保持末帧。`ABreachEnemy` 保留为人物展示和旧动作诊断，其狂奔者咬合仅播放动作；实战伤害由 `ABreachSeabornEnemy` 处理。骨骼或动作修改后运行 `-BreachRunnerTest`，画面验证添加 `-BreachRunnerCapture`，检查四条腿、脚爪与尾部落地、循环衔接、攻击／死亡切换和第一人称画面。
 
