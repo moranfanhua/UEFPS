@@ -44,16 +44,35 @@ void ABreachGameMode::RunEnemyAwarenessTest()
     };
     auto* Runner=MakeRunner(Origin);
     auto* Sense=Runner->Awareness.Get();
-    const FVector WanderStart=Origin+FVector(2000,0,0);
+    Check(Sense->WanderMinRadius==700 && Sense->WanderRadius==3000,TEXT("Default wandering selects between seven and thirty meters"));
+    const FVector WanderStart=Origin+FVector(10000,0,0);
     Runner->SetActorLocation(WanderStart);
     Sense->Advance(.01f); Sense->MoveTowardDestination(.016f);
     Check(Sense->Intent==EBreachEnemyIntent::Wander && Runner->GetCharacterMovement()->MaxWalkSpeed==197.5f &&
-        FVector::Dist2D(Sense->Destination,WanderStart)<=500 && FVector::Dist2D(Sense->Destination,Origin)>1500 &&
+        FVector::Dist2D(Sense->Destination,WanderStart)>=700 && FVector::Dist2D(Sense->Destination,WanderStart)<=3000 && FVector::Dist2D(Sense->Destination,Origin)>=7000 &&
         !Runner->GetPendingMovementInputVector().IsNearlyZero(),TEXT("Unaware wave runner selects around its current position at one quarter speed"));
+    const FVector DistantPoint=Sense->Destination;
+    Sense->Advance(8.01f);
+    Check(Sense->Destination.Equals(DistantPoint) && Sense->MoveTowardDestination(.016f),TEXT("A distant wander trip is not abandoned after the old eight-second timeout"));
     const FVector NextCenter=Sense->Destination;
-    Runner->SetActorLocation(NextCenter); Sense->Advance(.01f); Sense->Advance(4.01f);
-    Check(FVector::Dist2D(Sense->Destination,NextCenter)>=160 && FVector::Dist2D(Sense->Destination,NextCenter)<=500,
+    Runner->SetActorLocation(NextCenter); Sense->Advance(.01f);
+    Check(!Sense->MoveTowardDestination(.016f) && Runner->GetPendingMovementInputVector().IsNearlyZero(),TEXT("Arriving at a wander point stops movement for the existing rest interval"));
+    Sense->Advance(4.01f);
+    Check(FVector::Dist2D(Sense->Destination,NextCenter)>=700 && FVector::Dist2D(Sense->Destination,NextCenter)<=3000,
         TEXT("Each subsequent wander point is centered on the new current position"));
+    bool WanderBounds=true;
+    for(int32 Sample=0;Sample<64;++Sample)
+    {
+        Runner->SetActorLocation(WanderStart); Sense->Reset(Sense->GetCombatSpeed()); Sense->Advance(.01f);
+        const float Distance=FVector::Dist2D(Sense->Destination,WanderStart);
+        WanderBounds&=Distance>=699.99f && Distance<=3000.01f;
+    }
+    Check(WanderBounds,TEXT("Repeated random wander points stay inside the seven-to-thirty-meter annulus"));
+    Sense->WanderRadius=700; Sense->Reset(Sense->GetCombatSpeed()); Sense->Advance(.01f);
+    Check(FMath::IsNearlyEqual(float(FVector::Dist2D(Sense->Destination,WanderStart)),700.f,.01f),TEXT("A collapsed wander interval selects its seven-meter boundary exactly"));
+    Sense->WanderRadius=3000; Sense->WanderMinRadius=3000; Sense->Reset(Sense->GetCombatSpeed()); Sense->Advance(.01f);
+    Check(FMath::IsNearlyEqual(float(FVector::Dist2D(Sense->Destination,WanderStart)),3000.f,.01f),TEXT("The configurable upper wander boundary can select a thirty-meter trip"));
+    Sense->WanderMinRadius=700;
     Runner->SetActorLocation(Origin); Runner->SetActorRotation(FRotator::ZeroRotator); Sense->Reset(Sense->GetCombatSpeed());
     Player->SetActorLocation(Origin+FVector(-400,0,0)); Sense->Advance(.01f);
     Check(!Sense->GetVisibleTarget(),TEXT("Players behind the enemy do not trigger sight"));
@@ -152,6 +171,9 @@ void ABreachGameMode::RunEnemyAwarenessTest()
         auto* Awareness=Enemy->Awareness.Get(); Awareness->Advance(.01f);
         Check(Awareness->Intent==EBreachEnemyIntent::Wander && FMath::IsNearlyEqual(Enemy->GetCharacterMovement()->MaxWalkSpeed,Awareness->GetCombatSpeed()*.25f),
             *FString::Printf(TEXT("%s starts with slow wandering"),*Enemy->GetProfile().Key));
+        const float WanderDistance=FVector::Dist2D(Awareness->Destination,Enemy->GetActorLocation());
+        Check(WanderDistance>=699.99f && WanderDistance<=3000.01f,
+            *FString::Printf(TEXT("%s selects its wander destination between seven and thirty meters"),*Enemy->GetProfile().Key));
 
         FDamageEvent True(UBreachTrueDamage::StaticClass());
         Witness->Awareness->Reset(790);
@@ -212,7 +234,8 @@ void ABreachGameMode::RunEnemyAwarenessTest()
     Live->SetActorTickEnabled(true); Live->GetCharacterMovement()->SetComponentTickEnabled(true);
     auto* Flyer=GetWorld()->SpawnActor<ABreachSeabornEnemy>(Origin+FVector(-500,300,72),FRotator::ZeroRotator,Params);
     Flyer->ActivateSpecies(EBreachSeabornSpecies::SeaDrifter);
-    Live->Awareness->WanderRadius=250; Flyer->Awareness->WanderRadius=250;
+    Live->Awareness->WanderMinRadius=160; Live->Awareness->WanderRadius=250;
+    Flyer->Awareness->WanderMinRadius=160; Flyer->Awareness->WanderRadius=250;
     const FVector Initial=Live->GetActorLocation(),InitialFlight=Flyer->GetActorLocation();
     auto* GroundSource=MakeSource(Initial+FVector(700,0,0)); auto* FlightSource=MakeSource(InitialFlight+FVector(700,0,0));
     bGallery=false; Intermission=1000;
