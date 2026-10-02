@@ -586,11 +586,11 @@ void ABreachGameMode::RunWeaponTest()
             const int32 Hits=P->ShotsHit,Ammo=P->Ammo;
             P->Fire();
             const int32 Pellets=Weapon==3?Breach::AA12PelletCount:1;
-            const float Damage=Weapon==0?1.9f:Weapon==1?1.75f:Weapon==2?1.15f:.05f;
+            const float Damage=Weapon==0?3.8f:Weapon==1?3.5f:Weapon==2?2.3f:.1f;
             Check(FMath::IsNearlyEqual(10000.f-Target->Health,Damage*Pellets,.01f) &&
                 P->ShotsHit-Hits==Pellets && P->Ammo==Ammo-1 && !P->bLastHeadshot,
-                Key+(Weapon==3?TEXT(" distant pellets retain range falloff and the physical damage floor after partial armor penetration"):
-                    TEXT(" actual Seaborn hit still applies armor and the physical damage floor")));
+                Key+(Weapon==3?TEXT(" distant pellets retain range falloff and the ten percent physical damage floor after partial armor penetration"):
+                    TEXT(" actual Seaborn hit still applies armor and the ten percent physical damage floor")));
             P->NerveDamage->SetComponentTickEnabled(false);
             P->NerveDamage->ApplyNerveDamage(1000,Target);
             const int32 Shots=P->ShotsFired;
@@ -635,9 +635,9 @@ void ABreachGameMode::RunWeaponTest()
             const float Health=Target->Health;
             const int32 Hits=P->ShotsHit,Ammo=P->Ammo;
             P->Fire();
-            Check(FMath::IsNearlyEqual(Health-Target->Health,HighDefense?5.6f:72.f,.01f) &&
+            Check(FMath::IsNearlyEqual(Health-Target->Health,HighDefense?11.2f:72.f,.01f) &&
                 P->ShotsHit-Hits==8 && P->Ammo==Ammo-1,
-                HighDefense?TEXT("AA12 close shot retains the 5.6 damage floor against 800 defense"):
+                HighDefense?TEXT("AA12 close shot retains the 11.2 damage floor against 800 defense"):
                     TEXT("AA12 close shot deals 72 damage against 200 defense with fifty percent penetration"));
             Target->Destroy();
         });

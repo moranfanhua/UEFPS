@@ -342,7 +342,7 @@ float ABreachSeabornEnemy::TakeDamage(float Damage,const FDamageEvent& Event,ACo
     {
         const float DefenseMultiplier=Type && Type->IsA<UBreachArmorPiercingDamage>()?1.f-Breach::AA12ArmorPenetration:1.f;
         const float Defense=Profile.Defense*FBreachSeabornProfile::CombatScale*DefenseMultiplier;
-        Applied=FMath::Max(Damage*.05f,Damage-Defense);
+        Applied=FMath::Max(Damage*.1f,Damage-Defense);
     }
     Applied=FMath::Min(Applied,Health);
     Health-=Applied;
