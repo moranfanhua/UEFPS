@@ -338,7 +338,7 @@ float ABreachSeabornEnemy::TakeDamage(float Damage,const FDamageEvent& Event,ACo
     const auto* Type=Event.DamageTypeClass?Event.DamageTypeClass->GetDefaultObject<UDamageType>():nullptr;
     float Applied=Damage;
     if(Type && Type->IsA<UBreachArtsDamage>()) Applied*=1.f-Profile.ArtsResistance/100.f;
-    else if(!Type || !Type->IsA<UBreachTrueDamage>())
+    else if(!Type || (!Type->IsA<UBreachTrueDamage>() && !Type->IsA<UBreachArmorIgnoringDamage>()))
     {
         const float DefenseMultiplier=Type && Type->IsA<UBreachArmorPiercingDamage>()?1.f-Breach::AA12ArmorPenetration:1.f;
         const float Defense=Profile.Defense*FBreachSeabornProfile::CombatScale*DefenseMultiplier;

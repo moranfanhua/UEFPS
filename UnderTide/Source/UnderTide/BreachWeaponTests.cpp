@@ -641,7 +641,44 @@ void ABreachGameMode::RunWeaponTest()
                     TEXT("AA12 close shot deals 72 damage against 200 defense with fifty percent penetration"));
             Target->Destroy();
         });
-    At(36.f,[=]()
+    for(int32 Melee=0;Melee<2;++Melee)
+        At(36.f+Melee*2.f,[=,this]()
+        {
+            const bool Sword=Melee==0;
+            const FString Key=Sword?TEXT("Acheron sword"):TEXT("Unarmed punch");
+            P->SelectOperator(Sword?1:0);
+            if(!Sword) P->HolsterRifle();
+            PC->SetControlRotation(FRotator::ZeroRotator);
+            const FVector HitLocation=P->Camera->GetComponentLocation()+FVector(150,0,0);
+            FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+            auto* Target=GetWorld()->SpawnActor<ABreachSeabornEnemy>(HitLocation,FRotator::ZeroRotator,Params);
+            Check(Target && Target->ActivateSpecies(EBreachSeabornSpecies::BowlSeaReaper),Key+TEXT(" armored target loads its combat rig"));
+            if(!Target) return;
+            Target->SetActorTickEnabled(false);Target->GetCharacterMovement()->DisableMovement();
+            Target->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility,ECR_Ignore);
+            Target->DamageHitbox->SetBoxExtent(FVector(1,80,80));
+            Target->DamageHitbox->SetWorldRotation(FRotator::ZeroRotator);
+            Target->DamageHitbox->SetWorldLocation(HitLocation+FVector(1,0,0));
+            const float Health=Target->Health,ExpectedDamage=Sword?180.f:30.f;
+            const float Interval=Sword?P->SwordAttackInterval:P->PunchAttackInterval;
+            const int32 Hits=P->ShotsHit,Shots=P->ShotsFired;
+            P->Fire();
+            Check(P->ShotsFired==Shots+1 && Target->Health==Health,Key+TEXT(" starts with a windup instead of immediate damage"));
+            FTimerHandle HitPhase,Recovery;
+            GetWorldTimerManager().SetTimer(HitPhase,[=]()
+            {
+                Check(FMath::IsNearlyEqual(Health-Target->Health,ExpectedDamage,.01f) && P->ShotsHit==Hits+1,
+                    Sword?TEXT("Acheron slash deals 180 damage through 800 physical defense at the real hit phase"):
+                        TEXT("Unarmed punch still subtracts full armor and deals 30 damage through 800 defense"));
+            },Interval*.5f,false);
+            GetWorldTimerManager().SetTimer(Recovery,[=]()
+            {
+                Check(FMath::IsNearlyEqual(Health-Target->Health,ExpectedDamage,.01f) && P->ShotsHit==Hits+1,
+                    Key+TEXT(" applies damage once per completed attack"));
+                Target->Destroy();
+            },Interval+.1f,false);
+        });
+    At(40.f,[=]()
     {
         Run->Report+=FString::Printf(TEXT("FAILURES=%d\n"),Run->Failures);
         FFileHelper::SaveStringToFile(Run->Report,*(FPaths::ProjectDir()/TEXT("Saved/weapon_test.txt")));

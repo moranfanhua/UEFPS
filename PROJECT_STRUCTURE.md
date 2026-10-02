@@ -92,7 +92,7 @@ GPT_UE_TEST/
 | `BreachSeabornReview.cpp` | 独立加载海嗣骨骼资源，检查压缩数据就绪、原地根骨、尺度、动作变化、循环和死亡末帧；截图包含各动作阶段与玩家视线高度。使用 `-BreachModelReview -BreachSeabornReview -BreachReviewEnemy=<Key>`，截图另加 `-BreachSeabornCapture`。 |
 | `BreachAssets.cpp` | 编辑器资源处理：裁剪辅助第一人称手臂网格，以及从 JSON/动作文件烘焙死亡和角色动画。函数使用 `WITH_EDITOR`，打包后的游戏不会执行编辑器写入操作。 |
 | `BreachModelReview.cpp` | 阿斯卡纶正、侧、背离屏检查入口；只有显式使用 `-BreachModelReview` 才进入模型检查场景，附加 `-BreachReviewHead` 聚焦头部。保留原骨架的 `CopyCharacterGeometry` 位于 `BreachAssets.cpp`，网格更新仅允许编辑器构建执行。 |
-| `BreachCharacter.cpp` | 玩家角色的构造、输入绑定、相机、完整人物模型、枪械组件、黄泉刀、射击/挥拳/挥刀、瞄准、换弹、受伤和重开。普通角色收枪后以 70 点伤害挥拳，黄泉固定持刀并以 180 点伤害攻击。 |
+| `BreachCharacter.cpp` | 玩家角色的构造、输入绑定、相机、完整人物模型、枪械组件、黄泉刀、射击/挥拳/挥刀、瞄准、换弹、受伤和重开。普通角色收枪后以 70 点原伤害挥拳并应用敌人防御，黄泉固定持刀并以无视物理防御的 180 点伤害攻击。 |
 | `BreachLocomotion.cpp` | 玩家移动状态和动画切换：待机、持枪移动、空手或黄泉持刀奔跑、起跳、空中、落地、下蹲和滑铲。滑铲使用四个角色各自的 Mixamo `Running_Slide` 资源，按实际滑行时长播放贴地段；状态切换使用短时间骨骼混合，减少动作跳变。 |
 | `BreachMovementComponent.h/.cpp` | 自定义角色移动组件：统一处理持枪/空手/黄泉持刀/瞄准/下蹲速度过渡，黄泉持刀速度为 870 cm/s；处理 Ctrl 惯性滑铲、有限转向、坡道加减速、滑铲跳和落地续滑，并保存客户端移动重演状态。 |
 

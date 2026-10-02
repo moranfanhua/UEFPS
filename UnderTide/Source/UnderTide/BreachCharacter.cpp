@@ -451,12 +451,12 @@ void ABreachCharacter::PerformSwordHit()
     if(auto* Enemy=bHit?Cast<ABreachEnemy>(Hit.GetActor()):nullptr; Enemy && !Enemy->bDisplayOnly && !Enemy->bDefeated)
     {
         ++ShotsHit; bLastHeadshot=false; HitMarker=.22f;
-        UGameplayStatics::ApplyDamage(Enemy,SwordDamage,Controller,this,UDamageType::StaticClass());
+        UGameplayStatics::ApplyDamage(Enemy,SwordDamage,Controller,this,UBreachArmorIgnoringDamage::StaticClass());
     }
     else if(auto* Seaborn=Cast<ABreachSeabornEnemy>(Hit.GetActor()); bHit && Seaborn && !Seaborn->IsDefeated() && Seaborn->bMechanicsEnabled)
     {
         ++ShotsHit; bLastHeadshot=false; HitMarker=.22f;
-        UGameplayStatics::ApplyDamage(Seaborn,SwordDamage,Controller,this,UDamageType::StaticClass());
+        UGameplayStatics::ApplyDamage(Seaborn,SwordDamage,Controller,this,UBreachArmorIgnoringDamage::StaticClass());
     }
 }
 
