@@ -78,7 +78,7 @@ void ABreachGameMode::RunSeabornMechanismTest()
     FDamageEvent True(UBreachTrueDamage::StaticClass());
     if(Reaper)
     {
-        Check(Enemy->Health==1000 && Profile.Attack==400 && Profile.Defense==800 && Profile.ArtsResistance==75,TEXT("Reaper uses its level-0 elite profile"));
+        Check(Enemy->Health==1000 && Profile.Attack==400 && Profile.Defense==600 && Profile.ArtsResistance==75,TEXT("Reaper uses its arena-balanced elite profile"));
         Enemy->AdvanceMechanics(29.9f);
         Check(Enemy->Action==EBreachSeabornAction::Idle && !Enemy->bAwake && Player->Health==100,TEXT("Dormant reaper is rooted and disarmed for the first thirty seconds"));
         Enemy->AdvanceMechanics(.2f);

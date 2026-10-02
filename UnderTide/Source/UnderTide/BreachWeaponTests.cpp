@@ -586,11 +586,11 @@ void ABreachGameMode::RunWeaponTest()
             const int32 Hits=P->ShotsHit,Ammo=P->Ammo;
             P->Fire();
             const int32 Pellets=Weapon==3?Breach::AA12PelletCount:1;
-            const float Damage=Weapon==0?3.8f:Weapon==1?3.5f:Weapon==2?2.3f:.1f;
+            const float Damage=Weapon==0?8.f:Weapon==1?5.f:Weapon==2?2.3f:.1f;
             Check(FMath::IsNearlyEqual(10000.f-Target->Health,Damage*Pellets,.01f) &&
                 P->ShotsHit-Hits==Pellets && P->Ammo==Ammo-1 && !P->bLastHeadshot,
                 Key+(Weapon==3?TEXT(" distant pellets retain range falloff and the ten percent physical damage floor after partial armor penetration"):
-                    TEXT(" actual Seaborn hit still applies armor and the ten percent physical damage floor")));
+                    TEXT(" actual Seaborn hit applies the species armor with a ten percent damage minimum")));
             P->NerveDamage->SetComponentTickEnabled(false);
             P->NerveDamage->ApplyNerveDamage(1000,Target);
             const int32 Shots=P->ShotsFired;
@@ -637,7 +637,7 @@ void ABreachGameMode::RunWeaponTest()
             P->Fire();
             Check(FMath::IsNearlyEqual(Health-Target->Health,HighDefense?11.2f:72.f,.01f) &&
                 P->ShotsHit-Hits==8 && P->Ammo==Ammo-1,
-                HighDefense?TEXT("AA12 close shot retains the 11.2 damage floor against 800 defense"):
+                HighDefense?TEXT("AA12 close shot retains the 11.2 damage floor against 600 defense"):
                     TEXT("AA12 close shot deals 72 damage against 200 defense with fifty percent penetration"));
             Target->Destroy();
         });
@@ -659,7 +659,7 @@ void ABreachGameMode::RunWeaponTest()
             Target->DamageHitbox->SetBoxExtent(FVector(1,80,80));
             Target->DamageHitbox->SetWorldRotation(FRotator::ZeroRotator);
             Target->DamageHitbox->SetWorldLocation(HitLocation+FVector(1,0,0));
-            const float Health=Target->Health,ExpectedDamage=Sword?180.f:30.f;
+            const float Health=Target->Health,ExpectedDamage=Sword?180.f:40.f;
             const float Interval=Sword?P->SwordAttackInterval:P->PunchAttackInterval;
             const int32 Hits=P->ShotsHit,Shots=P->ShotsFired;
             P->Fire();
@@ -668,8 +668,8 @@ void ABreachGameMode::RunWeaponTest()
             GetWorldTimerManager().SetTimer(HitPhase,[=]()
             {
                 Check(FMath::IsNearlyEqual(Health-Target->Health,ExpectedDamage,.01f) && P->ShotsHit==Hits+1,
-                    Sword?TEXT("Acheron slash deals 180 damage through 800 physical defense at the real hit phase"):
-                        TEXT("Unarmed punch still subtracts full armor and deals 30 damage through 800 defense"));
+                    Sword?TEXT("Acheron slash deals 180 damage through 600 physical defense at the real hit phase"):
+                        TEXT("Unarmed punch still subtracts full armor and deals 40 damage through 600 defense"));
             },Interval*.5f,false);
             GetWorldTimerManager().SetTimer(Recovery,[=]()
             {

@@ -165,7 +165,7 @@ void ABreachSeabornEnemy::SetProfile()
     }
     else if(Species==EBreachSeabornSpecies::BowlSeaReaper)
     {
-        Profile.Key=TEXT("BowlSeaReaper"); Profile.Health=20000; Profile.Attack=400; Profile.Defense=800;
+        Profile.Key=TEXT("BowlSeaReaper"); Profile.Health=20000; Profile.Attack=400; Profile.Defense=600;
         Profile.ArtsResistance=75; Profile.Speed=.3f; Profile.Interval=3; Profile.NerveFraction=.1f; Profile.bDormant=true;
     }
     else if(Species==EBreachSeabornSpecies::FirstSeaPiercer)
