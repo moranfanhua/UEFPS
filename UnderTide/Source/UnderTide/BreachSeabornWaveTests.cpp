@@ -1,5 +1,6 @@
 #include "BreachGame.h"
 #include "BreachSeabornEnemy.h"
+#include "BreachSeabornProjectile.h"
 #include "BreachEnemyAwareness.h"
 #include "BreachNerveDamageComponent.h"
 #include "Camera/CameraActor.h"
@@ -11,6 +12,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "EngineUtils.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/ProjectileMovementComponent.h"
 #include "GameFramework/HUD.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/CommandLine.h"
@@ -47,7 +49,7 @@ void ABreachGameMode::RunSeabornWaveTest()
     for(int32 I=0;I<6;++I) SpawnEnemy();
     auto Enemies=Collect(); TSet<uint8> Species;
     bool Activated=true,Spaced=true;
-    ABreachSeabornEnemy* Runner=nullptr; ABreachSeabornEnemy* Reaper=nullptr;
+    ABreachSeabornEnemy* Runner=nullptr; ABreachSeabornEnemy* Reaper=nullptr; ABreachSeabornEnemy* Spitter=nullptr;
     for(auto* Enemy:Enemies)
     {
         Species.Add(uint8(Enemy->Species));
@@ -55,6 +57,7 @@ void ABreachGameMode::RunSeabornWaveTest()
         Spaced&=FVector::Dist2D(Enemy->GetActorLocation(),Player->GetActorLocation())>=700;
         if(Enemy->Species==EBreachSeabornSpecies::ShellSeaRunner) Runner=Enemy;
         if(Enemy->Species==EBreachSeabornSpecies::BowlSeaReaper) Reaper=Enemy;
+        if(Enemy->Species==EBreachSeabornSpecies::SpinalSeaSpitter) Spitter=Enemy;
         if(Enemy->GetProfile().bFlying) Check(Enemy->GetCharacterMovement()->MovementMode==MOVE_Flying,TEXT("Wave drifter uses flying movement"));
         if(Enemy->GetProfile().bDormant) Check(!Enemy->bAwake && Enemy->Action==EBreachSeabornAction::Idle,TEXT("Wave reaper starts dormant"));
     }
@@ -87,6 +90,32 @@ void ABreachGameMode::RunSeabornWaveTest()
         bGallery=false; Runner->AdvanceMechanics(.01f); Runner->AdvanceMechanics(Runner->GetAttackDuration()*.42f+.01f);
         Check(Player->Health==86,TEXT("Wave runner's real attack deals damage instead of the legacy animation-only bite"));
         bGallery=true; Player->Health=100; Player->SetActorLocation(FVector(0,5000,10000));
+    }
+    if(Spitter)
+    {
+        const FVector Origin(0,0,14000);
+        const auto Shoot=[this,Spitter,Player,Origin]()
+        {
+            Spitter->ActivateSpecies(EBreachSeabornSpecies::SpinalSeaSpitter);
+            Spitter->SetActorLocation(Origin); Spitter->SetActorRotation(FRotator::ZeroRotator);
+            Player->SetActorLocation(Origin+FVector(2000,0,0)); Player->Health=100;
+            bGallery=false;
+            Spitter->AdvanceMechanics(.01f); Spitter->AdvanceMechanics(Spitter->GetAttackDuration()*.42f+.01f);
+            for(TActorIterator<ABreachSeabornProjectile> It(GetWorld());It;++It)
+                if(It->GetOwner()==Spitter) return *It;
+            return static_cast<ABreachSeabornProjectile*>(nullptr);
+        };
+        auto* Shot=Shoot();
+        Check(Shot && Player->Health==100,TEXT("Normal wave spitter launches a real projectile at twenty meters without instant damage"));
+        if(Shot) Shot->Movement->TickComponent(1.5f,LEVELTICK_All,nullptr);
+        Check(Player->Health==86 && (!Shot || Shot->IsActorBeingDestroyed()),TEXT("Normal wave projectile applies the original fourteen damage on collision"));
+        Shot=Shoot(); bGameOver=true;
+        if(Shot) { Shot->Tick(.01f); Shot->Movement->TickComponent(1.5f,LEVELTICK_All,nullptr); }
+        Check(Shot && Shot->IsActorBeingDestroyed() && Player->Health==100,TEXT("Game over removes an in-flight wave projectile without extra damage"));
+        bGameOver=false; Shot=Shoot(); bGallery=true;
+        if(Shot) Shot->Tick(.01f);
+        Check(Shot && Shot->IsActorBeingDestroyed() && Player->Health==100,TEXT("Entering gallery mode also clears in-flight wave projectiles"));
+        Player->SetActorLocation(FVector(0,5000,10000));
     }
     const int32 KillsBefore=Kills,ScoreBefore=Score;
     FDamageEvent True(UBreachTrueDamage::StaticClass());

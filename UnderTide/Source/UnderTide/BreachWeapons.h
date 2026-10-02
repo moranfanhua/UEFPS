@@ -24,6 +24,7 @@ namespace Breach
     inline constexpr float MP5CloseRange=1000.f,MP5FarRange=3000.f,MP5MinimumDamageRange=4000.f;
     inline constexpr int32 AA12MagazineSize=8,AA12PelletCount=8;
     inline constexpr float AA12PelletDamage=14.f,AA12MinimumPelletDamage=1.f,AA12FireInterval=.22f;
+    inline constexpr float AA12ArmorPenetration=.5f;
     inline constexpr float AA12HipSpread=.055f,AA12AimSpread=.035f;
     inline constexpr float AA12BloomPerShot=.006f,AA12MaxBloom=.018f,AA12BloomRecovery=.025f;
     inline constexpr float AA12CloseRange=1000.f,AA12MinimumDamageRange=1500.f;

@@ -564,8 +564,8 @@ void ABreachGameMode::RunWeaponTest()
         if(Run->Target.IsValid()) Run->Target->Destroy();
         P->SetActorLocation(FVector(0,0,13000));P->GetCharacterMovement()->DisableMovement();
     });
-    // Exercise the merged damage path with actual shots, including all shotgun
-    // pellets and range falloff, then verify the pending and subsequent burst cadence.
+    // Exercise actual shots against the highest-defense species, including shotgun
+    // partial armor penetration and range falloff, then verify burst cadence.
     for(int32 Weapon=0;Weapon<Breach::WeaponCount;++Weapon)
         At(26.f+Weapon*2.f,[=,this]()
         {
@@ -575,7 +575,7 @@ void ABreachGameMode::RunWeaponTest()
             FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
             auto* Target=GetWorld()->SpawnActor<ABreachSeabornEnemy>(P->Camera->GetComponentLocation()+FVector(Distance,0,0),FRotator::ZeroRotator,Params);
             const FString Key=Breach::WeaponNames[Weapon];
-            Check(Target && Target->ActivateSpecies(EBreachSeabornSpecies::ShellSeaRunner),Key+TEXT(" Seaborn target loads its combat rig"));
+            Check(Target && Target->ActivateSpecies(EBreachSeabornSpecies::BowlSeaReaper),Key+TEXT(" armored Seaborn target loads its combat rig"));
             if(!Target) return;
             Target->SetActorTickEnabled(false);Target->GetCharacterMovement()->DisableMovement();
             Target->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility,ECR_Ignore);
@@ -586,10 +586,11 @@ void ABreachGameMode::RunWeaponTest()
             const int32 Hits=P->ShotsHit,Ammo=P->Ammo;
             P->Fire();
             const int32 Pellets=Weapon==3?Breach::AA12PelletCount:1;
-            const float Damage=Weapon==0?38.f:Weapon==1?35.f:Weapon==2?23.f:1.f;
+            const float Damage=Weapon==0?8.f:Weapon==1?5.f:Weapon==2?2.3f:.1f;
             Check(FMath::IsNearlyEqual(10000.f-Target->Health,Damage*Pellets,.01f) &&
                 P->ShotsHit-Hits==Pellets && P->Ammo==Ammo-1 && !P->bLastHeadshot,
-                Key+TEXT(" actual Seaborn hit preserves pellet count and damage at the tested range"));
+                Key+(Weapon==3?TEXT(" distant pellets retain range falloff and the ten percent physical damage floor after partial armor penetration"):
+                    TEXT(" actual Seaborn hit applies the species armor with a ten percent damage minimum")));
             P->NerveDamage->SetComponentTickEnabled(false);
             P->NerveDamage->ApplyNerveDamage(1000,Target);
             const int32 Shots=P->ShotsFired;
@@ -614,7 +615,70 @@ void ABreachGameMode::RunWeaponTest()
                 },P->FireInterval*2.5f+.05f,false);
             },P->FireInterval*2.5f+.05f,false);
         });
-    At(34.f,[=]()
+    for(int32 Case=0;Case<2;++Case)
+        At(34.f+Case,[=]()
+        {
+            const bool HighDefense=Case==1;
+            P->SelectWeapon(3);P->DrawRifle();P->SetAim(false);P->Ammo=P->MagazineSize;
+            PC->SetControlRotation(FRotator::ZeroRotator);
+            const FVector HitLocation=P->Camera->GetComponentLocation()+FVector(500,0,0);
+            FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+            auto* Target=P->GetWorld()->SpawnActor<ABreachSeabornEnemy>(HitLocation,FRotator::ZeroRotator,Params);
+            Check(Target && Target->ActivateSpecies(HighDefense?EBreachSeabornSpecies::BowlSeaReaper:EBreachSeabornSpecies::SeaDrifter),
+                TEXT("AA12 close armored target loads its combat rig"));
+            if(!Target) return;
+            Target->SetActorTickEnabled(false);Target->GetCharacterMovement()->DisableMovement();
+            Target->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility,ECR_Ignore);
+            Target->DamageHitbox->SetBoxExtent(FVector(1,500,500));
+            Target->DamageHitbox->SetWorldRotation(FRotator::ZeroRotator);
+            Target->DamageHitbox->SetWorldLocation(HitLocation+FVector(1,0,0));
+            const float Health=Target->Health;
+            const int32 Hits=P->ShotsHit,Ammo=P->Ammo;
+            P->Fire();
+            Check(FMath::IsNearlyEqual(Health-Target->Health,HighDefense?11.2f:72.f,.01f) &&
+                P->ShotsHit-Hits==8 && P->Ammo==Ammo-1,
+                HighDefense?TEXT("AA12 close shot retains the 11.2 damage floor against 600 defense"):
+                    TEXT("AA12 close shot deals 72 damage against 200 defense with fifty percent penetration"));
+            Target->Destroy();
+        });
+    for(int32 Melee=0;Melee<2;++Melee)
+        At(36.f+Melee*2.f,[=,this]()
+        {
+            const bool Sword=Melee==0;
+            const FString Key=Sword?TEXT("Acheron sword"):TEXT("Unarmed punch");
+            P->SelectOperator(Sword?1:0);
+            if(!Sword) P->HolsterRifle();
+            PC->SetControlRotation(FRotator::ZeroRotator);
+            const FVector HitLocation=P->Camera->GetComponentLocation()+FVector(150,0,0);
+            FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+            auto* Target=GetWorld()->SpawnActor<ABreachSeabornEnemy>(HitLocation,FRotator::ZeroRotator,Params);
+            Check(Target && Target->ActivateSpecies(EBreachSeabornSpecies::BowlSeaReaper),Key+TEXT(" armored target loads its combat rig"));
+            if(!Target) return;
+            Target->SetActorTickEnabled(false);Target->GetCharacterMovement()->DisableMovement();
+            Target->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility,ECR_Ignore);
+            Target->DamageHitbox->SetBoxExtent(FVector(1,80,80));
+            Target->DamageHitbox->SetWorldRotation(FRotator::ZeroRotator);
+            Target->DamageHitbox->SetWorldLocation(HitLocation+FVector(1,0,0));
+            const float Health=Target->Health,ExpectedDamage=Sword?180.f:40.f;
+            const float Interval=Sword?P->SwordAttackInterval:P->PunchAttackInterval;
+            const int32 Hits=P->ShotsHit,Shots=P->ShotsFired;
+            P->Fire();
+            Check(P->ShotsFired==Shots+1 && Target->Health==Health,Key+TEXT(" starts with a windup instead of immediate damage"));
+            FTimerHandle HitPhase,Recovery;
+            GetWorldTimerManager().SetTimer(HitPhase,[=]()
+            {
+                Check(FMath::IsNearlyEqual(Health-Target->Health,ExpectedDamage,.01f) && P->ShotsHit==Hits+1,
+                    Sword?TEXT("Acheron slash deals 180 damage through 600 physical defense at the real hit phase"):
+                        TEXT("Unarmed punch still subtracts full armor and deals 40 damage through 600 defense"));
+            },Interval*.5f,false);
+            GetWorldTimerManager().SetTimer(Recovery,[=]()
+            {
+                Check(FMath::IsNearlyEqual(Health-Target->Health,ExpectedDamage,.01f) && P->ShotsHit==Hits+1,
+                    Key+TEXT(" applies damage once per completed attack"));
+                Target->Destroy();
+            },Interval+.1f,false);
+        });
+    At(40.f,[=]()
     {
         Run->Report+=FString::Printf(TEXT("FAILURES=%d\n"),Run->Failures);
         FFileHelper::SaveStringToFile(Run->Report,*(FPaths::ProjectDir()/TEXT("Saved/weapon_test.txt")));

@@ -21,7 +21,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Awareness", meta=(ClampMin="0")) float SignalRadius=5000;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Awareness", meta=(ClampMin="0.05")) float SignalInterval=.25f;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Awareness", meta=(ClampMin="0", ClampMax="1")) float WanderSpeedFraction=.25f;
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Awareness", meta=(ClampMin="0")) float WanderRadius=500;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Awareness", meta=(ClampMin="0")) float WanderMinRadius=700;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Awareness", meta=(ClampMin="0")) float WanderRadius=3000;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Awareness", meta=(ClampMin="1")) float ArrivalRadius=80;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Awareness") EBreachEnemyIntent Intent=EBreachEnemyIntent::Wander;
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Awareness") FVector Destination=FVector::ZeroVector;

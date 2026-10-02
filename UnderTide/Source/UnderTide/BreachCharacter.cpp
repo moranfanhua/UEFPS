@@ -328,6 +328,7 @@ void ABreachCharacter::Fire()
     else if(UsesAA12()) ShotBloom=FMath::Min(Breach::AA12MaxBloom,ShotBloom+Breach::AA12BloomPerShot);
     FCollisionQueryParams Params(SCENE_QUERY_STAT(BreachShot),true,this);
     const int32 PelletCount=UsesAA12()?Breach::AA12PelletCount:1;
+    const TSubclassOf<UDamageType> ShotDamageType=UsesAA12()?UBreachArmorPiercingDamage::StaticClass():UDamageType::StaticClass();
     const FVector Muzzle=GunMuzzleLocation();
     bLastHeadshot=false;
     for(int32 Pellet=0;Pellet<PelletCount;++Pellet)
@@ -352,12 +353,12 @@ void ABreachCharacter::Fire()
             ++ShotsHit;
             const bool Head=!Enemy->bShellSeaRunner && Hit.ImpactPoint.Z > Enemy->GetActorLocation().Z+47.f;
             bLastHeadshot|=Head; HitMarker=.18f;
-            UGameplayStatics::ApplyPointDamage(Enemy,GetShotDamage((Hit.ImpactPoint-Start).Size())*(Head?2.f:1.f),Direction,Hit,Controller,this,UDamageType::StaticClass());
+            UGameplayStatics::ApplyPointDamage(Enemy,GetShotDamage((Hit.ImpactPoint-Start).Size())*(Head?2.f:1.f),Direction,Hit,Controller,this,ShotDamageType);
         }
         else if(auto* Seaborn=Cast<ABreachSeabornEnemy>(Hit.GetActor()); Seaborn && !Seaborn->IsDefeated() && Seaborn->bMechanicsEnabled)
         {
             ++ShotsHit; HitMarker=.18f;
-            UGameplayStatics::ApplyPointDamage(Seaborn,GetShotDamage((Hit.ImpactPoint-Start).Size()),Direction,Hit,Controller,this,UDamageType::StaticClass());
+            UGameplayStatics::ApplyPointDamage(Seaborn,GetShotDamage((Hit.ImpactPoint-Start).Size()),Direction,Hit,Controller,this,ShotDamageType);
         }
         else if(bHit)
         {
@@ -450,12 +451,12 @@ void ABreachCharacter::PerformSwordHit()
     if(auto* Enemy=bHit?Cast<ABreachEnemy>(Hit.GetActor()):nullptr; Enemy && !Enemy->bDisplayOnly && !Enemy->bDefeated)
     {
         ++ShotsHit; bLastHeadshot=false; HitMarker=.22f;
-        UGameplayStatics::ApplyDamage(Enemy,SwordDamage,Controller,this,UDamageType::StaticClass());
+        UGameplayStatics::ApplyDamage(Enemy,SwordDamage,Controller,this,UBreachArmorIgnoringDamage::StaticClass());
     }
     else if(auto* Seaborn=Cast<ABreachSeabornEnemy>(Hit.GetActor()); bHit && Seaborn && !Seaborn->IsDefeated() && Seaborn->bMechanicsEnabled)
     {
         ++ShotsHit; bLastHeadshot=false; HitMarker=.22f;
-        UGameplayStatics::ApplyDamage(Seaborn,SwordDamage,Controller,this,UDamageType::StaticClass());
+        UGameplayStatics::ApplyDamage(Seaborn,SwordDamage,Controller,this,UBreachArmorIgnoringDamage::StaticClass());
     }
 }
 

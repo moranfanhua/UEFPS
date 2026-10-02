@@ -91,10 +91,12 @@ void UBreachEnemyAwareness::PickWanderPoint()
     // Recenter each new wander step on the owner's current position.
     const float Angle=FMath::FRandRange(-PI,PI);
     const float Maximum=FMath::Max(0.f,WanderRadius);
-    const float Minimum=FMath::Min(Maximum,FMath::Max(1.f,ArrivalRadius)*2.f);
+    const float Minimum=FMath::Clamp(WanderMinRadius,0.f,Maximum);
     const float Radius=FMath::Sqrt(FMath::Lerp(Minimum*Minimum,Maximum*Maximum,FMath::FRand()));
     Destination=GetOwner()->GetActorLocation()+FVector(FMath::Cos(Angle)*Radius,FMath::Sin(Angle)*Radius,0);
-    bWanderPoint=true; WanderTime=8.f; AvoidSide=0;
+    const float WanderSpeed=CombatSpeed*FMath::Clamp(WanderSpeedFraction,0.f,1.f);
+    // Allow the full trip to distant points, with eight extra seconds for local steering.
+    bWanderPoint=true; WanderTime=8.f+(WanderSpeed>UE_KINDA_SMALL_NUMBER?Radius/WanderSpeed:0.f); AvoidSide=0;
 }
 
 void UBreachEnemyAwareness::Advance(float Dt)

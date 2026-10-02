@@ -1,5 +1,6 @@
 #include "BreachGame.h"
 #include "BreachSeabornEnemy.h"
+#include "BreachSeabornProjectile.h"
 #include "BreachEnemyAwareness.h"
 #include "BreachNerveDamageComponent.h"
 #include "Camera/CameraComponent.h"
@@ -12,6 +13,8 @@
 #include "Engine/DamageEvents.h"
 #include "Engine/SkeletalMesh.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/ProjectileMovementComponent.h"
+#include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
@@ -58,10 +61,24 @@ void ABreachGameMode::RunSeabornMechanismTest()
     Enemy->GetCharacterMovement()->DisableMovement();
     const float Duration=Enemy->GetAttackDuration();
     const float AfterHit=Piercer?72.5f:(Reaper?100.f:(Drifter?89.f:86.f));
+    const auto Projectiles=[this,Enemy]()
+    {
+        TArray<ABreachSeabornProjectile*> Result;
+        for(TActorIterator<ABreachSeabornProjectile> It(GetWorld());It;++It)
+            if(It->GetOwner()==Enemy && !It->IsActorBeingDestroyed()) Result.Add(*It);
+        return Result;
+    };
+    const auto Fly=[Projectiles](float Seconds)
+    {
+        for(auto* Projectile:Projectiles())
+            for(float Time=0;Time<Seconds && !Projectile->IsActorBeingDestroyed();Time+=.01f)
+                Projectile->Movement->TickComponent(FMath::Min(.01f,Seconds-Time),LEVELTICK_All,nullptr);
+    };
+    const auto ClearProjectiles=[Projectiles]() { for(auto* Projectile:Projectiles()) Projectile->Destroy(); };
     FDamageEvent True(UBreachTrueDamage::StaticClass());
     if(Reaper)
     {
-        Check(Enemy->Health==1000 && Profile.Attack==400 && Profile.Defense==800 && Profile.ArtsResistance==75,TEXT("Reaper uses its level-0 elite profile"));
+        Check(Enemy->Health==1000 && Profile.Attack==400 && Profile.Defense==600 && Profile.ArtsResistance==75,TEXT("Reaper uses its arena-balanced elite profile"));
         Enemy->AdvanceMechanics(29.9f);
         Check(Enemy->Action==EBreachSeabornAction::Idle && !Enemy->bAwake && Player->Health==100,TEXT("Dormant reaper is rooted and disarmed for the first thirty seconds"));
         Enemy->AdvanceMechanics(.2f);
@@ -110,13 +127,19 @@ void ABreachGameMode::RunSeabornMechanismTest()
     Enemy->AdvanceMechanics(.01f);
     Check(Enemy->Action==EBreachSeabornAction::Attack && Player->Health==100,TEXT("Attack starts with a visible windup"));
     Enemy->AdvanceMechanics(Duration*.42f+.01f);
+    if(Profile.bRanged)
+    {
+        Check(Projectiles().Num()==1 && Player->Health==100 && Player->NerveDamage->GetAccumulated()==0,
+            TEXT("Ranged hit phase launches one physical projectile without immediate HP or nerve damage"));
+        Fly(.15f);
+    }
     Check(FMath::IsNearlyEqual(Player->Health,AfterHit),TEXT("Attack hit phase deals the species physical damage"));
     Enemy->AdvanceMechanics(.05f);
     Check(FMath::IsNearlyEqual(Player->Health,AfterHit),TEXT("An attack hits once"));
     Check(FMath::IsNearlyEqual(Player->NerveDamage->GetAccumulated(),Drifter?44.f:(Slider?42.f:0.f)),TEXT("Attack adds the specified raw-scale nerve damage once"));
     Check(Enemy->GetAttackCooldown()>0,TEXT("Attack interval includes recovery"));
     Enemy->ActivateSpecies(Kind); Enemy->AdvanceMechanics(.01f);
-    Player->SetActorLocation(Origin+FVector(1000,0,0));
+    Player->SetActorLocation(Origin+FVector(Profile.Range+100,0,0));
     Enemy->AdvanceMechanics(Duration*.42f+.01f);
     Check(FMath::IsNearlyEqual(Player->Health,AfterHit),TEXT("Leaving attack range avoids the queued hit"));
     Player->SetActorLocation(Origin+FVector(100,0,0));
@@ -131,16 +154,69 @@ void ABreachGameMode::RunSeabornMechanismTest()
     Blocker->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
     Blocker->SetCollisionResponseToAllChannels(ECR_Ignore);
     Blocker->SetCollisionResponseToChannel(ECC_Visibility,ECR_Block);
+    Blocker->SetCollisionResponseToChannel(ECC_WorldDynamic,ECR_Block);
     Blocker->RegisterComponent(); Blocker->SetWorldLocation(Origin+FVector(50,0,0));
     Enemy->ActivateSpecies(Kind); Enemy->AdvanceMechanics(.01f); Enemy->AdvanceMechanics(Duration);
     Check(!Enemy->CanHit(Player) && Player->Health==AfterHit,TEXT("Opaque cover prevents attacks and damage"));
-    Wall->Destroy();
-    if(Spitter)
+    Blocker->SetCollisionEnabled(ECollisionEnabled::NoCollision); Wall->Destroy();
+    if(Profile.bRanged)
     {
-        Player->SetActorLocation(Origin+FVector(490,0,0));
-        Check(Enemy->CanHit(Player),TEXT("Spitter can attack within its 2.5-tile ranged area"));
-        Player->SetActorLocation(Origin+FVector(501,0,0));
-        Check(!Enemy->CanHit(Player) && Profile.NerveFraction==0,TEXT("Spitter respects 500cm range and has no invented neural talent"));
+        Check(Profile.Range==(Piercer?2000.f:2500.f),TEXT("All three ranged species use the enlarged twenty/twenty-five meter ranges"));
+        Enemy->SetActorRotation(FRotator::ZeroRotator);
+        Player->SetActorLocation(Origin+FVector(Profile.Range-10,0,0));
+        if(!Enemy->CanHit(Player) || !Enemy->Awareness->CanSee(Player))
+        {
+            FHitResult Hit; FCollisionQueryParams Query(SCENE_QUERY_STAT(ProjectileRangeDiagnostic),false,Enemy);
+            GetWorld()->LineTraceSingleByChannel(Hit,Enemy->GetActorLocation(),Player->GetActorLocation(),ECC_Visibility,Query);
+            *Report+=FString::Printf(TEXT("RANGE_DIAGNOSTIC sight=%.1f distance=%.1f blocker=%s component=%s\n"),
+                Enemy->Awareness->SightRadius,FVector::Distance(Enemy->GetActorLocation(),Player->GetActorLocation()),
+                *GetNameSafe(Hit.GetActor()),*GetNameSafe(Hit.GetComponent()));
+        }
+        Check(Enemy->CanHit(Player) && Enemy->Awareness->CanSee(Player),TEXT("Ranged enemies can see and attack at the extended range boundary"));
+        Player->SetActorLocation(Origin+FVector(Profile.Range+1,0,0));
+        Check(!Enemy->CanHit(Player),TEXT("Targets beyond the extended range cannot start an attack"));
+        Player->SetActorLocation(Origin+FVector(Profile.Range*.9f,0,0));
+        Player->Health=100; Player->NerveDamage->RecoverNerveDamage(10000);
+        Enemy->ActivateSpecies(Kind); Enemy->SetActorLocation(Origin);
+        Enemy->SetActorRotation(FRotator::ZeroRotator);
+        Enemy->AdvanceMechanics(.01f); Enemy->AdvanceMechanics(Duration*.42f+.01f);
+        Check(Projectiles().Num()==1 && Player->Health==100,TEXT("A distant real enemy attack launches without instant damage"));
+        Fly(Profile.Range*.4f/Profile.ProjectileSpeed);
+        Check(Player->Health==100 && Projectiles().Num()==1,TEXT("Distant projectile has measurable flight time before reaching its target"));
+        Fly(Profile.Range*.6f/Profile.ProjectileSpeed);
+        Check(FMath::IsNearlyEqual(Player->Health,AfterHit) && Projectiles().IsEmpty(),TEXT("Flying projectile collides with the player once and is destroyed"));
+        Check(FMath::IsNearlyEqual(Player->NerveDamage->GetAccumulated(),Drifter?44.f:0.f),TEXT("Projectile collision preserves each ranged species' nerve damage"));
+
+        const auto Shoot=[Enemy,Player,Kind,Origin,Duration]()
+        {
+            Player->SetActorLocation(Origin+FVector(1000,0,0)); Player->Health=100;
+            Player->NerveDamage->RecoverNerveDamage(10000);
+            Enemy->ActivateSpecies(Kind); Enemy->SetActorLocation(Origin);
+            Enemy->SetActorRotation(FRotator::ZeroRotator);
+            Enemy->AdvanceMechanics(.01f); Enemy->AdvanceMechanics(Duration*.42f+.01f);
+        };
+        Shoot();
+        Player->SetActorLocation(Origin+FVector(1000,300,0)); Fly(1);
+        Check(Player->Health==100 && Player->NerveDamage->GetAccumulated()==0,TEXT("Moving sideways after launch dodges the fixed projectile trajectory"));
+        ClearProjectiles();
+        Shoot();
+        auto* Cover=GetWorld()->SpawnActor<AActor>(); auto* Box=NewObject<UBoxComponent>(Cover); Cover->SetRootComponent(Box);
+        Box->SetBoxExtent(FVector(2,100,150)); Box->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+        Box->SetCollisionResponseToAllChannels(ECR_Ignore); Box->SetCollisionResponseToChannel(ECC_WorldDynamic,ECR_Block);
+        Box->RegisterComponent(); Box->SetWorldLocation(Origin+FVector(500,0,0));
+        // A long movement step must still sweep the sphere against thin cover added after launch.
+        for(auto* Projectile:Projectiles()) Projectile->Movement->TickComponent(1,LEVELTICK_All,nullptr);
+        Check(Player->Health==100 && Player->NerveDamage->GetAccumulated()==0 && Projectiles().IsEmpty(),TEXT("Thin cover intercepts an in-flight projectile even during a long frame"));
+        Cover->Destroy();
+        Shoot(); Enemy->ApplyDisarm(1); Fly(1);
+        Check(FMath::IsNearlyEqual(Player->Health,AfterHit),TEXT("Disarming the source after launch does not erase an already flying projectile"));
+        Shoot(); Enemy->TakeDamage(10000,True,nullptr,Player); Fly(1);
+        Check(FMath::IsNearlyEqual(Player->Health,AfterHit),TEXT("An already fired projectile retains its damage after the source dies"));
+        Shoot();
+        Enemy->AdvanceMechanics(Duration);
+        Check(Projectiles().Num()==1,TEXT("Recovery never launches a second projectile from the same attack"));
+        ClearProjectiles();
+        Player->Health=AfterHit; Player->NerveDamage->RecoverNerveDamage(10000);
         Player->SetActorLocation(Origin+FVector(100,0,0));
     }
     if(Piercer)
@@ -153,8 +229,8 @@ void ABreachGameMode::RunSeabornMechanismTest()
         Check(Enemy->SelectTarget()==Other,TEXT("Piercer selects the lowest HP ratio rather than lowest absolute HP or nearest target"));
         Other->Health=320;
         Check(Enemy->SelectTarget()==Player,TEXT("Equal health ratios prefer the player who appeared first"));
-        Other->Health=1; Other->SetActorLocation(Origin+FVector(341,0,0));
-        Check(Enemy->SelectTarget()==Player && !Enemy->CanHit(Other),TEXT("A critically injured target outside 1.7 tiles cannot displace an eligible target"));
+        Other->Health=1; Other->SetActorLocation(Origin+FVector(Profile.Range+1,0,0));
+        Check(Enemy->SelectTarget()==Player && !Enemy->CanHit(Other),TEXT("A critically injured target outside twenty meters cannot displace an eligible target"));
         Other->SetActorLocation(Origin+FVector(200,200,0)); Other->Health=360; Player->Health=1;
         auto* Cover=GetWorld()->SpawnActor<AActor>(); auto* Box=NewObject<UBoxComponent>(Cover); Cover->SetRootComponent(Box);
         Box->SetBoxExtent(FVector(5,30,150)); Box->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
@@ -206,7 +282,33 @@ void ABreachGameMode::RunSeabornMechanismTest()
         UE_LOG(LogTemp,Display,TEXT("SEABORN_MECHANISMS %s\n%s"),*Key,**Report);
         FPlatformMisc::RequestExitWithStatus(false,*Failures?1:0);
     };
-    if(!FParse::Param(FCommandLine::Get(),TEXT("BreachMechanismCapture"))) { Finish(); return; }
+    if(!FParse::Param(FCommandLine::Get(),TEXT("BreachMechanismCapture")))
+    {
+        if(!Profile.bRanged) { Finish(); return; }
+        // Let the real component tick and world lifespan timer run, beyond the manual collision fixtures.
+        Player->SetActorLocation(Origin+FVector(1000,0,0)); Player->Health=100;
+        Enemy->ActivateSpecies(Kind); Enemy->SetActorLocation(Origin);
+        Enemy->SetActorRotation(FRotator::ZeroRotator);
+        Enemy->AdvanceMechanics(.01f); Enemy->AdvanceMechanics(Duration*.42f+.01f);
+        auto Shots=Projectiles();
+        Check(Shots.Num()==1,TEXT("Live-world fixture launches one projectile"));
+        if(Shots.IsEmpty()) { Finish(); return; }
+        TWeakObjectPtr<ABreachSeabornProjectile> Shot=Shots[0];
+        const FVector Start=Shot->GetActorLocation();
+        Player->SetActorLocation(Origin+FVector(1000,300,0));
+        FTimerHandle FlightCheck,ExpireCheck;
+        GetWorldTimerManager().SetTimer(FlightCheck,[Shot,Start,Player,Check]()
+        {
+            Check(Shot.IsValid() && Shot->GetActorLocation().X>Start.X+100 && Player->Health==100,
+                TEXT("Actual world frames move the visible projectile along its fixed trajectory"));
+        },.2f,false);
+        GetWorldTimerManager().SetTimer(ExpireCheck,[Shot,Player,Check,Finish]()
+        {
+            Check(!Shot.IsValid() && Player->Health==100,TEXT("A missed projectile expires automatically without damaging the dodging player"));
+            Finish();
+        },(Profile.Range+100.f)/Profile.ProjectileSpeed+.3f,false);
+        return;
+    }
     Enemy->Destroy();
     if(!Slider)
     {
@@ -253,13 +355,23 @@ void ABreachGameMode::RunSeabornMechanismTest()
         const FVector Scale=Subject->Visual->GetRelativeScale3D();
         const FVector StartRoot=Subject->GetActorLocation();
         const auto Shot=[Output](const TCHAR* Name) { FScreenshotRequest::RequestScreenshot(Output/(FString(Name)+TEXT(".png")),false,false); };
-        FTimerHandle Idle,Attack,AttackShot,Death,DeathShot,Hold,View,ViewShot,Exit;
+        FTimerHandle Idle,Attack,AttackShot,ProjectileShot,Death,DeathShot,Hold,View,ViewShot,Exit;
         GetWorldTimerManager().SetTimer(Idle,[Shot]() { Shot(TEXT("Enemy_Idle")); },3.f,false);
         GetWorldTimerManager().SetTimer(Attack,[Subject,Duration,Reaper,True,Player]()
         {
             if(Reaper) { Subject->TakeDamage(1,True,nullptr,Player); Subject->AdvanceMechanics(Subject->GetWakeDuration()); }
+            if(Subject->GetProfile().bRanged) Player->SetActorLocation(Subject->GetActorLocation()+FVector(1200,0,0));
             Subject->AdvanceMechanics(.01f); Subject->AdvanceMechanics(Duration*.42f); Subject->Tick(0);
+            if(Subject->GetProfile().bRanged)
+                for(TActorIterator<ABreachSeabornProjectile> It(Subject->GetWorld());It;++It)
+                    if(It->GetOwner()==Subject)
+                    {
+                        It->Movement->TickComponent(.18f,LEVELTICK_All,nullptr);
+                        It->Movement->SetComponentTickEnabled(false);
+                    }
         },4.f,false);
+        if(Profile.bRanged)
+            GetWorldTimerManager().SetTimer(ProjectileShot,[Shot]() { Shot(TEXT("Enemy_Projectile")); },4.3f,false);
         GetWorldTimerManager().SetTimer(AttackShot,[Shot]() { Shot(TEXT("Enemy_Attack")); },5.f,false);
         GetWorldTimerManager().SetTimer(Death,[Subject,True,Player]() { Subject->TakeDamage(10000,True,nullptr,Player); Subject->Tick(2); },6.f,false);
         GetWorldTimerManager().SetTimer(DeathShot,[Shot]() { Shot(TEXT("Enemy_Death")); },7.f,false);

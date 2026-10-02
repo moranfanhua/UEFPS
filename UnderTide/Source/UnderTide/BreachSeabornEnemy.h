@@ -22,6 +22,7 @@ struct FBreachSeabornProfile
     FString Key;
     float Health=3000, Attack=280, Defense=0, ArtsResistance=20;
     float Speed=1.9f, Interval=1.3f, Range=160, NerveFraction=0;
+    float ProjectileSpeed=1400;
     bool bFlying=false, bRanged=false, bLowestHealthTarget=false, bDormant=false;
     static constexpr float CombatScale=.05f;
     static constexpr float TileSize=200.f;
@@ -31,6 +32,10 @@ UCLASS()
 class UNDERTIDE_API UBreachArtsDamage : public UDamageType { GENERATED_BODY() };
 UCLASS()
 class UNDERTIDE_API UBreachTrueDamage : public UDamageType { GENERATED_BODY() };
+UCLASS()
+class UNDERTIDE_API UBreachArmorPiercingDamage : public UDamageType { GENERATED_BODY() };
+UCLASS()
+class UNDERTIDE_API UBreachArmorIgnoringDamage : public UDamageType { GENERATED_BODY() };
 
 // Six arena enemy species; standalone actors still require explicit activation.
 UCLASS()
