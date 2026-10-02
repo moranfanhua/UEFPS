@@ -32,7 +32,7 @@ class UNDERTIDE_API UBreachArtsDamage : public UDamageType { GENERATED_BODY() };
 UCLASS()
 class UNDERTIDE_API UBreachTrueDamage : public UDamageType { GENERATED_BODY() };
 
-// Opt-in actor. Regular arena waves deliberately continue using ABreachEnemy.
+// Six arena enemy species; standalone actors still require explicit activation.
 UCLASS()
 class UNDERTIDE_API ABreachSeabornEnemy : public ACharacter
 {
@@ -48,6 +48,7 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UBreachEnemyAwareness> Awareness;
     UPROPERTY(EditAnywhere, ReplicatedUsing=OnRepSpecies, Category="Seaborn") EBreachSeabornSpecies Species=EBreachSeabornSpecies::ShellSeaRunner;
     UPROPERTY(EditAnywhere, ReplicatedUsing=OnRepSpecies, Category="Seaborn") bool bMechanicsEnabled=false;
+    UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category="Seaborn") bool bWaveEnemy=false;
     UPROPERTY(Replicated, BlueprintReadOnly, Category="Seaborn") float Health=0;
     UPROPERTY(Replicated, BlueprintReadOnly, Category="Seaborn") float MaxHealth=0;
     UPROPERTY(ReplicatedUsing=OnRepAction, BlueprintReadOnly, Category="Seaborn") EBreachSeabornAction Action=EBreachSeabornAction::Idle;
@@ -90,5 +91,5 @@ private:
     void ResolveAttack();
     void TryWake();
     void ApplyNerveAura(float DeltaSeconds);
-    void Die();
+    void Die(bool bHeadshot=false);
 };

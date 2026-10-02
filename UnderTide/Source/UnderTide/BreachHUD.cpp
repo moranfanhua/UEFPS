@@ -1,5 +1,7 @@
 #include "BreachGame.h"
 #include "BreachVisuals.h"
+#include "BreachSeabornEnemy.h"
+#include "Components/CapsuleComponent.h"
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "CanvasItem.h"
@@ -91,6 +93,18 @@ void ABreachHUD::DrawHUD()
             const float X=Screen.X/S,Y=Screen.Y/S;
             if(Y<200 || Y>H-200 || X<40 || X>W-40) continue;
             Box(X-29,Y,58,4,Panel); Box(X-29,Y,58*It->Health/It->MaxHealth,4,Orange);
+        }
+    }
+    for(TActorIterator<ABreachSeabornEnemy> It(GetWorld());It;++It)
+    {
+        if(!It->bWaveEnemy || It->IsDefeated() || It->IsHidden() || It->MaxHealth<=0) continue;
+        FVector2D Screen;
+        const FVector Above=It->GetActorLocation()+FVector(0,0,It->GetCapsuleComponent()->GetScaledCapsuleHalfHeight()+20);
+        if(UGameplayStatics::ProjectWorldToScreen(GetOwningPlayerController(),Above,Screen,true))
+        {
+            const float X=Screen.X/S,Y=Screen.Y/S;
+            if(Y<200 || Y>H-200 || X<40 || X>W-40) continue;
+            Box(X-29,Y,58,4,Panel); Box(X-29,Y,58*FMath::Clamp(It->Health/It->MaxHealth,0.f,1.f),4,Orange);
         }
     }
     if(P->DamageFlash>0)

@@ -82,7 +82,8 @@ void ABreachSeabornEnemy::LoadPresentation()
     Visual->SetSkinnedAssetAndUpdate(Asset);
     const float Scale=Species==EBreachSeabornSpecies::ShellSeaRunner?.65f:1.f;
     Visual->SetRelativeScale3D(FVector(Scale));
-    Visual->SetRelativeRotation(FRotator(0,-90,0));
+    // The runner FBX faces +X; the other Seaborn rigs face +Y.
+    Visual->SetRelativeRotation(Species==EBreachSeabornSpecies::ShellSeaRunner?FRotator::ZeroRotator:FRotator(0,-90,0));
     const auto Bounds=Asset->GetBounds();
     const float HalfHeight=FMath::Max(40.f,float(Bounds.BoxExtent.Z)*Scale);
     const float Radius=FMath::Clamp(float(FMath::Min(Bounds.BoxExtent.X,Bounds.BoxExtent.Y))*Scale,25.f,FMath::Min(60.f,HalfHeight));
@@ -234,6 +235,8 @@ void ABreachSeabornEnemy::AdvanceMechanics(float Dt)
 {
     if(!HasAuthority() || !bMechanicsEnabled || IsDefeated() || !FMath::IsFinite(Dt) || Dt<=0) return;
     if(UGameplayStatics::IsGamePaused(this)) return;
+    if(bWaveEnemy)
+        if(const auto* Mode=GetWorld()->GetAuthGameMode<ABreachGameMode>(); Mode && (Mode->bGameOver || Mode->bGallery)) { Awareness->Stop(); return; }
     Awareness->Advance(Dt);
     AttackCooldown=FMath::Max(0.f,AttackCooldown-Dt);
     Disarmed=FMath::Max(0.f,Disarmed-Dt);
@@ -337,13 +340,13 @@ float ABreachSeabornEnemy::TakeDamage(float Damage,const FDamageEvent& Event,ACo
     else if(!Type || !Type->IsA<UBreachTrueDamage>()) Applied=FMath::Max(Damage*.05f,Damage-Profile.Defense*FBreachSeabornProfile::CombatScale);
     Applied=FMath::Min(Applied,Health);
     Health-=Applied;
-    if(Health<=0) Die();
+    if(Health<=0) Die(Event.IsOfType(FPointDamageEvent::ClassID) && Damage>50);
     else TryWake();
     ForceNetUpdate();
     return Applied;
 }
 
-void ABreachSeabornEnemy::Die()
+void ABreachSeabornEnemy::Die(bool bHeadshot)
 {
     Health=0; AttackTarget.Reset(); bHitApplied=true;
     Awareness->Die();
@@ -352,6 +355,11 @@ void ABreachSeabornEnemy::Die()
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     DamageHitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     SetAction(EBreachSeabornAction::Dead);
+    if(bWaveEnemy)
+    {
+        if(auto* Mode=GetWorld()->GetAuthGameMode<ABreachGameMode>()) Mode->EnemyDefeated(this,bHeadshot);
+        SetLifeSpan(9.f);
+    }
 }
 
 void ABreachSeabornEnemy::UpdatePresentation(float Dt)
@@ -389,6 +397,7 @@ void ABreachSeabornEnemy::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME(ABreachSeabornEnemy,Species);
     DOREPLIFETIME(ABreachSeabornEnemy,bMechanicsEnabled);
+    DOREPLIFETIME(ABreachSeabornEnemy,bWaveEnemy);
     DOREPLIFETIME(ABreachSeabornEnemy,Health);
     DOREPLIFETIME(ABreachSeabornEnemy,MaxHealth);
     DOREPLIFETIME(ABreachSeabornEnemy,Action);

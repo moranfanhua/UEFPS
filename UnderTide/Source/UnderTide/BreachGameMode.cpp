@@ -1,6 +1,7 @@
 #include "BreachGame.h"
 #include "BreachMovementComponent.h"
 #include "BreachEnemyAwareness.h"
+#include "BreachSeabornEnemy.h"
 #include "BreachVisuals.h"
 #include "CharacterRigData.h"
 #include "Camera/CameraComponent.h"
@@ -148,6 +149,12 @@ void ABreachGameMode::BeginPlay()
         FTimerHandle AwarenessTimer;
         GetWorldTimerManager().SetTimer(AwarenessTimer,this,&ABreachGameMode::RunEnemyAwarenessTest,.6f,false);
     }
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachSeabornWaveTest")))
+    {
+        bGallery=true;
+        FTimerHandle WaveTimer;
+        GetWorldTimerManager().SetTimer(WaveTimer,this,&ABreachGameMode::RunSeabornWaveTest,.6f,false);
+    }
     if(FParse::Param(FCommandLine::Get(),TEXT("BreachSeabornMechanismTest")))
     {
         bGallery=true;
@@ -204,11 +211,11 @@ void ABreachGameMode::Tick(float Dt)
         if(auto* P=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0)))
         {
             P->Health=100;
-            ABreachEnemy* Target=nullptr;
-            for(TActorIterator<ABreachEnemy> It(GetWorld());It;++It) if(!It->bDisplayOnly && !It->bDefeated) { Target=*It; break; }
+            ABreachSeabornEnemy* Target=nullptr;
+            for(TActorIterator<ABreachSeabornEnemy> It(GetWorld());It;++It) if(It->bWaveEnemy && !It->IsDefeated()) { Target=*It; break; }
             if(Target)
             {
-                const FVector Aim=Target->GetActorLocation()+FVector(0,0,25)-P->Camera->GetComponentLocation();
+                const FVector Aim=Target->GetActorLocation()-P->Camera->GetComponentLocation();
                 P->GetController()->SetControlRotation(Aim.Rotation());
                 P->Fire();
                 // Move slightly to test collision/movement while firing.
@@ -226,6 +233,8 @@ void ABreachGameMode::Tick(float Dt)
 }
 void ABreachGameMode::StartWave()
 {
+    if(!HasAuthority() || bGameOver) return;
+    WaveSpeciesPool.Reset();
     ++Wave; RemainingToSpawn=4+Wave*2; SpawnDelay=0; Intermission=6;
     Notice=FString::Printf(TEXT("WAVE %02d  /  HOSTILE PROJECTIONS ACTIVE"),Wave); NoticeTime=3.5f;
     if(auto* P=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0)))
@@ -236,21 +245,43 @@ void ABreachGameMode::StartWave()
 }
 void ABreachGameMode::SpawnEnemy()
 {
+    if(!HasAuthority() || bGameOver || RemainingToSpawn<=0 || EnemiesAlive>=8) return;
+    if(WaveSpeciesPool.IsEmpty())
+    {
+        for(uint8 Kind=0;Kind<=uint8(EBreachSeabornSpecies::FirstSeaPiercer);++Kind) WaveSpeciesPool.Add(Kind);
+        for(int32 I=WaveSpeciesPool.Num()-1;I>0;--I) WaveSpeciesPool.Swap(I,FMath::RandRange(0,I));
+    }
+    const auto Kind=static_cast<EBreachSeabornSpecies>(WaveSpeciesPool.Last());
     auto* P=UGameplayStatics::GetPlayerPawn(this,0);
     const FVector Points[]={FVector(1900,-1150,100),FVector(1900,1150,100),FVector(1000,-1400,100),FVector(1000,1400,100),FVector(-600,-1450,100),FVector(-600,1450,100)};
-    FVector Location=Points[FMath::RandRange(0,5)];
-    for(int32 i=0;i<6 && P && FVector::Dist2D(Location,P->GetActorLocation())<700;++i) Location=Points[i];
-    const FTransform SpawnTransform(FRotator(0,180,0),Location);
-    auto* E=GetWorld()->SpawnActorDeferred<ABreachEnemy>(ABreachEnemy::StaticClass(),SpawnTransform,nullptr,nullptr,ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding);
-    if(E)
+    const int32 First=FMath::RandRange(0,5);
+    for(int32 I=0;I<6;++I)
     {
-        E->bShellSeaRunner=true;
+        FVector Location=Points[(First+I)%6];
+        if(P && FVector::Dist2D(Location,P->GetActorLocation())<700) continue;
+        FHitResult Ground;
+        if(!GetWorld()->LineTraceSingleByObjectType(Ground,Location+FVector(0,0,400),Location-FVector(0,0,2000),
+            FCollisionObjectQueryParams(ECC_WorldStatic),FCollisionQueryParams(SCENE_QUERY_STAT(SeabornSpawnFloor),false)) || Ground.bStartPenetrating) continue;
+        Location.Z=Ground.ImpactPoint.Z+72.5f;
+        const FTransform SpawnTransform(FRotator(0,180,0),Location);
+        auto* E=GetWorld()->SpawnActorDeferred<ABreachSeabornEnemy>(ABreachSeabornEnemy::StaticClass(),SpawnTransform,nullptr,nullptr,ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+        if(!E) continue;
         UGameplayStatics::FinishSpawningActor(E,SpawnTransform);
-        if(IsValid(E)) { E->ConfigureShellSeaRunner(Wave); --RemainingToSpawn; ++EnemiesAlive; }
+        if(!IsValid(E) || !E->ActivateSpecies(Kind)) { if(IsValid(E)) E->Destroy(); continue; }
+        FVector SafeLocation=E->GetActorLocation();
+        if(!GetWorld()->FindTeleportSpot(E,SafeLocation,E->GetActorRotation()) || FVector::DistSquared(SafeLocation,E->GetActorLocation())>FMath::Square(150.f) ||
+            (P && FVector::Dist2D(SafeLocation,P->GetActorLocation())<700)) { E->Destroy(); continue; }
+        E->SetActorLocation(SafeLocation,false,nullptr,ETeleportType::TeleportPhysics);
+        E->bWaveEnemy=true; E->ForceNetUpdate();
+        WaveSpeciesPool.Pop(); --RemainingToSpawn; ++EnemiesAlive;
+        UE_LOG(LogTemp,Display,TEXT("SEABORN_WAVE_SPAWN wave=%d species=%s active=%d inbound=%d"),Wave,*E->GetProfile().Key,EnemiesAlive,RemainingToSpawn);
+        return;
     }
 }
-void ABreachGameMode::EnemyDefeated(ABreachEnemy* E,bool Head)
+void ABreachGameMode::EnemyDefeated(AActor* E,bool Head)
 {
+    if(!HasAuthority() || !IsValid(E)) return;
+    if(const auto* Seaborn=Cast<ABreachSeabornEnemy>(E); Seaborn && !Seaborn->bWaveEnemy) return;
     EnemiesAlive=FMath::Max(0,EnemiesAlive-1); ++Kills; Score+=Head?150:100;
     Notice=Head?TEXT("PRECISION HIT  +150"):TEXT("PROJECTION CLEARED  +100"); NoticeTime=1.3f;
     if(auto* P=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0)))

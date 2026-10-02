@@ -26,7 +26,7 @@ ABreachGameMode::BeginPlay()
 玩家按 Enter 开始游戏
         |
         +--> 输入绑定 -> ABreachCharacter
-        +--> 射线或近战扫掠命中 -> ABreachEnemy::TakeDamage()
+        +--> 射线或近战扫掠命中 -> ABreachSeabornEnemy::TakeDamage()
         +--> 敌人倒地 -> ABreachGameMode::EnemyDefeated()
         +--> 波次结束 -> ABreachGameMode::StartWave()
 ```
@@ -84,7 +84,10 @@ GPT_UE_TEST/
 | --- | --- |
 | `BreachGameMode.cpp` | 游戏总流程。启动时调用 `BuildArena()`，创建展示角色；运行时管理波次、分数、击杀数、敌人数量、胜负状态和自动演示。 |
 | `BreachArena.cpp` | 创建竞技场几何、地板、围墙、掩体、中央反应堆、角色展示台、文字标牌、灯光和后处理。已有带 `BreachArena` 标签的物体时不会重复创建。 |
-| `BreachEnemy.cpp` | 敌人移动、朝向玩家、视线检测、受伤和死亡。壳海狂奔者用独立骨骼网格和逐腿疾跑循环，播放速率随实际移速变化，停步混合回站姿；近距停稳后扬尾前探咬合，死亡打断攻击并屈腿伏地保持末帧，暂不造成伤害；人物敌人仍用 `Pose.Walk()` 和对应的 `Death01` 动画。 |
+| `BreachEnemy.cpp` | 后方人物展示及旧敌人诊断。旧狂奔者实现保留逐腿疾跑、停步、无伤害咬合及死亡动作检查；人物敌人仍用 `Pose.Walk()` 和对应的 `Death01` 动画。常规战斗波次使用 `BreachSeabornEnemy`。 |
+| `BreachSeabornEnemy.h/.cpp` | 六种海嗣的资源加载、属性、移动、攻击、神经损伤、唤醒和死亡；波次敌人启用机制并通知 GameMode 计分，独立诊断敌人不影响波次。 |
+| `BreachSeabornMechanismTests.cpp` | 六种海嗣独立机制检查，入口 `-BreachSeabornMechanismTest -BreachMechanismEnemy=<Key>`。 |
+| `BreachSeabornWaveTests.cpp` | 混合生成、碰撞失败重试、场上数量上限、实战伤害、唤醒自损、暂停、死亡奖励、清场及下一波集成验证。入口 `-BreachSeabornWaveTest`，截图另加 `-BreachSeabornWaveCapture`。 |
 | `BreachRunnerTests.cpp` | 狂奔者四腿与尾部骨骼、脚爪行程、骨段长度、循环衔接、根骨原地、停步、咬合恢复及死亡打断检查，提供奔跑、攻击、死亡侧面与第一人称截图。入口为 `-BreachRunnerTest`，截图另加 `-BreachRunnerCapture`。 |
 | `BreachEnemyAwareness.h/.cpp` | 波次敌人与独立海嗣共用感知和移动意图；低速游荡、接收坐标前进、视野内追逐及 50 米广播，失去视线后到最后已知位置等待。 |
 | `BreachEnemyAwarenessTests.cpp` | 用 `-BreachEnemyAwarenessTest` 检查感知、广播边界、遮挡、等待和地面／飞行实际移动，报告输出到 `Saved/enemy_awareness_test.txt`。 |
@@ -107,9 +110,9 @@ bGameOver         玩家是否死亡/本局结束
 bGallery          是否处于展示或测试模式
 ```
 
-每波敌人数为 `4 + Wave * 2`，同时场上最多保持 8 个敌人。敌人被击败后，GameMode 更新分数、弹药和少量生命值；最后一个敌人倒地且没有待生成敌人时，进入下一波间歇。
+每波敌人数为 `4 + Wave * 2`，同时场上最多保持 8 个敌人，生成间隔 1.8 秒。六种海嗣按每组六种各一次的随机顺序混合生成，每波重新洗牌；首波六个正好覆盖全部种类。属性使用各自现有机制配置。生成点保留在竞技场外围，先查地板，再按实际胶囊检查碰撞，距玩家至少 700 cm；位置堵塞或资源加载失败时保留计划中的种类和待生成数量，下一次重试。敌人被击败后，GameMode 更新分数、弹药和少量生命值；包括钵海收割者自损死亡在内，每个敌人只结算一次。尸体取消碰撞，9 秒后清理；最后一个敌人倒地且没有待生成敌人时，进入 6 秒下一波间歇。后方四个角色展示台保持原样。
 
-敌人尚未发现玩家时，以追逐速度的 25% 游荡，每次以当前位置为中心，在 500 cm 内重新选取目标。水平视野为 120°，视距为 1600 cm，遮挡射线通过后才读取玩家位置；看见玩家时每 0.25 秒向 5000 cm 内敌人广播该坐标。收到信号的敌人前往信号位置，自己看见玩家后开始追逐与广播。失去视线时只保留最后已知位置，进入 80 cm 范围后停下等待，直到再次看见玩家或收到新信号；接收者不会转发未看见的坐标。参数由 `Awareness` 组件设置，决策仅在服务器执行。移动仍使用局部障碍转向与 `CharacterMovement` 碰撞，尚未接入 NavMesh 全局路径规划。独立海嗣仍需显式启用，不加入常规波次；钵海收割者的休眠和唤醒限制保留。
+敌人尚未发现玩家时，以追逐速度的 25% 游荡，每次以当前位置为中心，在 500 cm 内重新选取目标。水平视野为 120°，视距为 1600 cm，遮挡射线通过后才读取玩家位置；看见玩家时每 0.25 秒向 5000 cm 内敌人广播该坐标。收到信号的敌人前往信号位置，自己看见玩家后开始追逐与广播。失去视线时只保留最后已知位置，进入 80 cm 范围后停下等待，直到再次看见玩家或收到新信号；接收者不会转发未看见的坐标。参数由 `Awareness` 组件设置，决策仅在服务器执行。移动仍使用局部障碍转向与 `CharacterMovement` 碰撞，尚未接入 NavMesh 全局路径规划。常规波次启用六种海嗣的现有攻击、神经损伤和唤醒机制；独立诊断仍需显式启用且不参与波次奖励。钵海收割者的休眠和唤醒限制保留。
 
 ### 3.3 骨骼姿势和动画采样
 
@@ -165,6 +168,8 @@ bSelectionOpen
 -BreachTest             基础烟雾测试
 -BreachMovementTest     移动、跳跃、下蹲和镜头测试
 -BreachSelectionTest    选人流程测试
+-BreachSeabornWaveTest  六种海嗣战斗波次集成测试
+-BreachSeabornWaveCapture  配合波次测试输出六种敌人的第一人称 HUD 与外部视角截图
 -BreachGallery          进入展示模式
 -BreachAutoPlay         自动射击和移动演示
 -BreachCapture          延时截图并退出
@@ -232,7 +237,7 @@ ABreachCharacter
 | 文件 | 关键内容 |
 | --- | --- |
 | `DefaultEngine.ini` | 默认地图 `/Game/Maps/Arena`、全局 GameMode `BreachGameMode`、DX12、抗锯齿、阴影、帧率和导航网格设置。 |
-| `DefaultGame.ini` | 项目名称、版本、打包配置，以及始终烘焙的 `Characters`、`Materials`、`Audio`、`Animations`、`Weapons` 目录。 |
+| `DefaultGame.ini` | 项目名称、版本、打包配置，以及始终烘焙的角色、材质、音频、动画和 `Enemies/Seaborn` 资源。 |
 | `DefaultInput.ini` | 传统输入系统的 Action/Axis 映射。当前移动使用 WASD，视角使用鼠标，动作键包括 1、3、Space、Ctrl、R、H、Esc 和 Enter。 |
 | `DefaultEditor.ini` | 编辑器预览场景的共享灯光和后处理预设。 |
 
@@ -274,7 +279,7 @@ SourceAssets/
 | 角色选择界面 | `BreachSelectionHUD.cpp`、`BreachSelectionStage.cpp`。 |
 | 移动、跳跃、奔跑、下蹲 | `BreachCharacter.cpp` 的输入和速度，`BreachLocomotion.cpp` 的状态，`Content/Animations/Locomotion/<Key>` 的资源。 |
 | 枪械、射击、挥拳、挥刀、瞄准、换弹 | `BreachCharacter.cpp` 的 `Fire()`、`PerformPunchHit()`、`PerformSwordHit()`、`Reload()`、`SetAim()`。 |
-| 敌人行为和死亡 | `BreachEnemy.cpp`，以及 `Content/Animations/Death`。 |
+| 敌人行为和死亡 | `BreachSeabornEnemy.cpp`、`BreachEnemyAwareness.cpp`、`Content/Enemies/Seaborn`；旧人物诊断与展示另看 `BreachEnemy.cpp`。 |
 | 波次、分数和生成点 | `BreachGameMode.cpp` 的 `StartWave()`、`SpawnEnemy()`、`EnemyDefeated()`。 |
 | 骨骼方向、握枪、IK | `CharacterRigData.h`、`CharacterBones.h`、`BreachPose.cpp`。 |
 | 竞技场灯光和掩体 | `BreachArena.cpp::BuildArena()`、`Content/Materials`。 |

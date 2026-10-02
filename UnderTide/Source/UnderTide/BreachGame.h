@@ -248,7 +248,7 @@ public:
     float SpawnDelay = 0.f;
     FString Notice = TEXT("TRAINING LINK ESTABLISHED");
     float NoticeTime = 4.f;
-    void EnemyDefeated(ABreachEnemy* Enemy, bool bHeadshot);
+    void EnemyDefeated(AActor* Enemy, bool bHeadshot);
     void EndRun();
     void StartWave();
     void SpawnEnemy();
@@ -259,6 +259,7 @@ public:
     void RunSeabornReview();
     void RunSeabornMechanismTest();
     void RunEnemyAwarenessTest();
+    void RunSeabornWaveTest();
     void TickSelectionTest();
     TFunction<void()> SelectionTestStep;
     UFUNCTION(Exec) void BreachSmokeTest();
@@ -282,6 +283,8 @@ public:
     UFUNCTION(BlueprintCallable) static bool ImportVMDExpressions(USkeletalMesh* Asset,const FString& SourceFile);
     void RunDeformationChecks(TFunctionRef<void(bool,const FString&)> Check);
     UPROPERTY() TArray<TObjectPtr<ABreachEnemy>> Displays;
+private:
+    TArray<uint8> WaveSpeciesPool;
 };
 
 UCLASS()
