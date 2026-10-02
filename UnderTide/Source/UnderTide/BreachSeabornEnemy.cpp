@@ -4,6 +4,7 @@
 #include "BreachMovementComponent.h"
 #include "BreachEnemyAwareness.h"
 #include "BreachVisuals.h"
+#include "BreachWeapons.h"
 #include "Animation/AnimSequence.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/BoxComponent.h"
@@ -337,7 +338,12 @@ float ABreachSeabornEnemy::TakeDamage(float Damage,const FDamageEvent& Event,ACo
     const auto* Type=Event.DamageTypeClass?Event.DamageTypeClass->GetDefaultObject<UDamageType>():nullptr;
     float Applied=Damage;
     if(Type && Type->IsA<UBreachArtsDamage>()) Applied*=1.f-Profile.ArtsResistance/100.f;
-    else if(!Type || !Type->IsA<UBreachTrueDamage>()) Applied=FMath::Max(Damage*.05f,Damage-Profile.Defense*FBreachSeabornProfile::CombatScale);
+    else if(!Type || !Type->IsA<UBreachTrueDamage>())
+    {
+        const float DefenseMultiplier=Type && Type->IsA<UBreachArmorPiercingDamage>()?1.f-Breach::AA12ArmorPenetration:1.f;
+        const float Defense=Profile.Defense*FBreachSeabornProfile::CombatScale*DefenseMultiplier;
+        Applied=FMath::Max(Damage*.05f,Damage-Defense);
+    }
     Applied=FMath::Min(Applied,Health);
     Health-=Applied;
     if(Health<=0) Die(Event.IsOfType(FPointDamageEvent::ClassID) && Damage>50);

@@ -31,6 +31,8 @@ UCLASS()
 class UNDERTIDE_API UBreachArtsDamage : public UDamageType { GENERATED_BODY() };
 UCLASS()
 class UNDERTIDE_API UBreachTrueDamage : public UDamageType { GENERATED_BODY() };
+UCLASS()
+class UNDERTIDE_API UBreachArmorPiercingDamage : public UDamageType { GENERATED_BODY() };
 
 // Six arena enemy species; standalone actors still require explicit activation.
 UCLASS()

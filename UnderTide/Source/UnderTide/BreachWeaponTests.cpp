@@ -564,8 +564,8 @@ void ABreachGameMode::RunWeaponTest()
         if(Run->Target.IsValid()) Run->Target->Destroy();
         P->SetActorLocation(FVector(0,0,13000));P->GetCharacterMovement()->DisableMovement();
     });
-    // Exercise the merged damage path with actual shots, including all shotgun
-    // pellets and range falloff, then verify the pending and subsequent burst cadence.
+    // Exercise actual shots against the highest-defense species, including shotgun
+    // partial armor penetration and range falloff, then verify burst cadence.
     for(int32 Weapon=0;Weapon<Breach::WeaponCount;++Weapon)
         At(26.f+Weapon*2.f,[=,this]()
         {
@@ -575,7 +575,7 @@ void ABreachGameMode::RunWeaponTest()
             FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
             auto* Target=GetWorld()->SpawnActor<ABreachSeabornEnemy>(P->Camera->GetComponentLocation()+FVector(Distance,0,0),FRotator::ZeroRotator,Params);
             const FString Key=Breach::WeaponNames[Weapon];
-            Check(Target && Target->ActivateSpecies(EBreachSeabornSpecies::ShellSeaRunner),Key+TEXT(" Seaborn target loads its combat rig"));
+            Check(Target && Target->ActivateSpecies(EBreachSeabornSpecies::BowlSeaReaper),Key+TEXT(" armored Seaborn target loads its combat rig"));
             if(!Target) return;
             Target->SetActorTickEnabled(false);Target->GetCharacterMovement()->DisableMovement();
             Target->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility,ECR_Ignore);
@@ -586,10 +586,11 @@ void ABreachGameMode::RunWeaponTest()
             const int32 Hits=P->ShotsHit,Ammo=P->Ammo;
             P->Fire();
             const int32 Pellets=Weapon==3?Breach::AA12PelletCount:1;
-            const float Damage=Weapon==0?38.f:Weapon==1?35.f:Weapon==2?23.f:1.f;
+            const float Damage=Weapon==0?1.9f:Weapon==1?1.75f:Weapon==2?1.15f:.05f;
             Check(FMath::IsNearlyEqual(10000.f-Target->Health,Damage*Pellets,.01f) &&
                 P->ShotsHit-Hits==Pellets && P->Ammo==Ammo-1 && !P->bLastHeadshot,
-                Key+TEXT(" actual Seaborn hit preserves pellet count and damage at the tested range"));
+                Key+(Weapon==3?TEXT(" distant pellets retain range falloff and the physical damage floor after partial armor penetration"):
+                    TEXT(" actual Seaborn hit still applies armor and the physical damage floor")));
             P->NerveDamage->SetComponentTickEnabled(false);
             P->NerveDamage->ApplyNerveDamage(1000,Target);
             const int32 Shots=P->ShotsFired;
@@ -614,7 +615,33 @@ void ABreachGameMode::RunWeaponTest()
                 },P->FireInterval*2.5f+.05f,false);
             },P->FireInterval*2.5f+.05f,false);
         });
-    At(34.f,[=]()
+    for(int32 Case=0;Case<2;++Case)
+        At(34.f+Case,[=]()
+        {
+            const bool HighDefense=Case==1;
+            P->SelectWeapon(3);P->DrawRifle();P->SetAim(false);P->Ammo=P->MagazineSize;
+            PC->SetControlRotation(FRotator::ZeroRotator);
+            const FVector HitLocation=P->Camera->GetComponentLocation()+FVector(500,0,0);
+            FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+            auto* Target=P->GetWorld()->SpawnActor<ABreachSeabornEnemy>(HitLocation,FRotator::ZeroRotator,Params);
+            Check(Target && Target->ActivateSpecies(HighDefense?EBreachSeabornSpecies::BowlSeaReaper:EBreachSeabornSpecies::SeaDrifter),
+                TEXT("AA12 close armored target loads its combat rig"));
+            if(!Target) return;
+            Target->SetActorTickEnabled(false);Target->GetCharacterMovement()->DisableMovement();
+            Target->GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility,ECR_Ignore);
+            Target->DamageHitbox->SetBoxExtent(FVector(1,500,500));
+            Target->DamageHitbox->SetWorldRotation(FRotator::ZeroRotator);
+            Target->DamageHitbox->SetWorldLocation(HitLocation+FVector(1,0,0));
+            const float Health=Target->Health;
+            const int32 Hits=P->ShotsHit,Ammo=P->Ammo;
+            P->Fire();
+            Check(FMath::IsNearlyEqual(Health-Target->Health,HighDefense?5.6f:72.f,.01f) &&
+                P->ShotsHit-Hits==8 && P->Ammo==Ammo-1,
+                HighDefense?TEXT("AA12 close shot retains the 5.6 damage floor against 800 defense"):
+                    TEXT("AA12 close shot deals 72 damage against 200 defense with fifty percent penetration"));
+            Target->Destroy();
+        });
+    At(36.f,[=]()
     {
         Run->Report+=FString::Printf(TEXT("FAILURES=%d\n"),Run->Failures);
         FFileHelper::SaveStringToFile(Run->Report,*(FPaths::ProjectDir()/TEXT("Saved/weapon_test.txt")));
