@@ -9,6 +9,7 @@ namespace Breach
     extern const TCHAR* Keys[4];
     extern const TCHAR* Names[4];
     USkeletalMesh* CharacterMesh(int32 Index);
+    USkeletalMesh* SwordMesh();
     UMaterialInterface* Material(const TCHAR* Name);
     void EnableToonStencil(UPrimitiveComponent* Primitive, uint8 StencilValue=1);
     void InstallToonPostProcess(UWorld* World);

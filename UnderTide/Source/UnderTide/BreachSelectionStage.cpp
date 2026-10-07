@@ -18,8 +18,6 @@ namespace
         Mesh->SetSkinnedAssetAndUpdate(Asset);
         if(!Asset) return;
         for(int32 Slot:{10,11,12,13,14}) Mesh->SetMaterial(Slot,nullptr);
-        if(Index==0)
-            for(int32 Slot:{10,11,12,13,14}) Mesh->SetMaterial(Slot,Breach::Material(TEXT("M_Eula_CapeCorrect")));
         const auto Bounds=Asset->GetBounds();
         const float Scale=178.f/FMath::Max(1.f,float(Bounds.BoxExtent.Z*2));
         Mesh->SetRelativeScale3D(FVector(Scale));

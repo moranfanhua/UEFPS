@@ -5,14 +5,14 @@
 
 void ABreachSelectionStage::SetupSword()
 {
-    auto* Asset=LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/Characters/AcheronSword/SK_AcheronSword.SK_AcheronSword"));
+    auto* Asset=Breach::SwordMesh();
     bSwordReady=Asset && SwordPose.InitSkeleton(Asset);
     if(!bSwordReady) return;
     for(auto* Prop:{Sword.Get(),Scabbard.Get()})
     {
         Prop->SetSkinnedAssetAndUpdate(Asset);SwordPose.Apply(Prop);Prop->RefreshBoneTransforms();
     }
-    bSwordReady=Sword->GetBoneIndex(TEXT("bone_002"))!=INDEX_NONE && Sword->GetBoneIndex(TEXT("bone_003"))!=INDEX_NONE;
+    bSwordReady=Sword->GetBoneIndex(TEXT("刀柄"))!=INDEX_NONE && Sword->GetBoneIndex(TEXT("刀镡"))!=INDEX_NONE;
     Sword->SetMaterial(0,Breach::Material(TEXT("M_ShadowOverlay")));
     Scabbard->SetMaterial(1,Breach::Material(TEXT("M_ShadowOverlay")));
 }
@@ -40,7 +40,7 @@ void ABreachSelectionStage::UpdateSwordEntrance()
         const FVector Axis=ToStage.TransformVectorNoScale(Across).GetSafeNormal();
         const FQuat Rotation=FRotationMatrix::MakeFromYZ(Axis,ToStage.TransformVectorNoScale(Along)).ToQuat();
         const FVector Grip=ToStage.TransformPosition(HandPosition+Along*3.f+Normal*1.5f);
-        const int32 Handle=Prop->GetBoneIndex(Side?TEXT("bone_002"):TEXT("bone_003"));
+        const int32 Handle=Prop->GetBoneIndex(Side?TEXT("刀柄"):TEXT("刀镡"));
         const FVector Anchor=SwordPose.ReferenceCS[Handle].GetLocation();
         Prop->SetRelativeRotation(Rotation);Prop->SetRelativeLocation(Grip-Rotation.RotateVector(Anchor));
     }

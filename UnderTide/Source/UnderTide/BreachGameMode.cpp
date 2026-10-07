@@ -359,12 +359,16 @@ void ABreachGameMode::RunSmokeTest()
                 Check(P->bUnarmed && P->HasSwordRig() && P->Sword->IsVisible() && P->WorldSword->IsVisible() && P->Scabbard->IsVisible() && P->WorldScabbard->IsVisible() && !P->WeaponRoot->IsVisible(),TEXT("Acheron uses the supplied sword and scabbard and has no rifle"));
                 Check(P->SwordDamage>=180.f && P->SwordDamage>P->ShotDamage && Move->GetTargetMoveSpeed()==Move->SwordSpeed && Move->SwordSpeed>Move->UnarmedSpeed,TEXT("Acheron has high sword damage and enhanced movement speed"));
             }
-            FBreachPose Rig; Rig.Init(Breach::CharacterMesh(I),I);
+            FBreachPose Rig; bool CompleteRig=Rig.Init(Breach::CharacterMesh(I),I);
+            for(const auto& Hand:Rig.Fingers) for(int32 Finger:Hand) CompleteRig&=Finger!=INDEX_NONE;
+            Check(CompleteRig,*FString::Printf(TEXT("%s imported body and all finger bones resolve"),Breach::Keys[I]));
             const FName Head=P->WorldBody->GetBoneName(Rig.Bone(EBreachBone::Head));
             Check(P->WorldBody->bCastHiddenShadow && P->WorldBody->GetBoneTransformByName(Head,EBoneSpaces::ComponentSpace).GetScale3D().GetMin()>.1f && P->Body->GetBoneTransformByName(Head,EBoneSpaces::ComponentSpace).GetScale3D().IsNearlyZero(),*FString::Printf(TEXT("%s owner view hides head while complete world body casts shadow"),Breach::Keys[I]));
             // The first death frame must not inject a large hip tilt while
             // the upper body and feet are still standing upright.
             auto* Death=LoadObject<UAnimSequence>(nullptr,*FString::Printf(TEXT("/Game/Animations/Death/A_%s_Death01.A_%s_Death01"),Breach::Keys[I],Breach::Keys[I]));
+            Check(Death && Death->GetSkeleton()==Breach::CharacterMesh(I)->GetSkeleton(),
+                *FString::Printf(TEXT("%s death animation uses the current imported skeleton"),Breach::Keys[I]));
             if(Death)
             {
                 for(int32 B=0;B<Rig.Local.Num();++B)
