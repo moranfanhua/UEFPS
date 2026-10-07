@@ -16,20 +16,30 @@
 
 ### 角色模型
 
+四名角色的主要脸部、头发、皮肤与衣料默认使用 [blurfeng/arknights-endfield-npr](https://github.com/blurfeng/arknights-endfield-npr) 的 Endfield 材质适配，依据版本 `c5be997dab13b6b404d2476fcec97ec7c7872a31`。公共依赖位于 `/Game/Assets/Common`，适配父材质与按角色拆分的实例位于 `/Game/Materials/Endfield`，实例沿用原导入材质名，不添加编号或 Shader 后缀；直接赋给下表的当前网格，无需启动参数。使用新导入资源的 `Diffuse` 贴图和颜色；眼睛、口腔、特殊透明叠层保留原导入材质，优菈重复头发叠层使用同一新头发材质。现有骨架、绑定姿态、动画与 Morph Targets 保持不变。
+
+上游声明 GPL-3.0，许可证保留在 `ThirdParty/EndfieldNPR/LICENSE`；该授权不覆盖人物模型或用户动作。缺少专用属性贴图时使用中性输入，完整脸部遮罩、眼透、刘海投影及上游描边、边缘光尚未接入；项目继续关闭 Substrate。盐风城环境保持现有 PBR 材质。
+
 | 角色 | UE Skeletal Mesh | 模型来源 | 用途 |
 | --- | --- | --- | --- |
-| 优菈 | `/Game/Characters/Eula/SK_Eula` | 用户提供的优菈 PMX 模型 | 玩家、敌人展示、选人页面 |
-| 黄泉 | `/Game/Characters/Acheron/SK_Acheron` | 用户提供的黄泉模型（轴修复版 PMX） | 玩家、敌人展示、选人页面 |
-| 李织烟 | `/Game/Characters/Lizhiyan/SK_Lizhiyan` | 用户提供的李织烟 PMX 模型 | 玩家、敌人展示、选人页面 |
-| 阿斯卡纶 | `/Game/Characters/Ascalon/SK_Ascalon` | 用户提供的阿斯卡纶 PMX 模型 | 玩家、敌人展示、选人页面 |
+| 优菈 | `/Game/Characters/Eula/优菈` | 用户通过 MMD2Unreal 重新导入的优菈 PMX | 玩家、敌人展示、选人页面 |
+| 黄泉 | `/Game/Characters/Acheron/星穹铁道—黄泉（轴修复）` | 用户通过 MMD2Unreal 重新导入的黄泉轴修复版 PMX | 玩家、敌人展示、选人页面 |
+| 李织烟 | `/Game/Characters/Lizhiyan/李织烟` | 用户通过 MMD2Unreal 重新导入的李织烟 PMX | 玩家、敌人展示、选人页面 |
+| 阿斯卡纶 | `/Game/Characters/Ascalon/askl` | 用户通过 MMD2Unreal 重新导入的阿斯卡纶 PMX | 玩家、敌人展示、选人页面 |
 
-角色使用各自的 Skeleton、材质和纹理。当前第一人称实现使用上表中的完整 `SK_*` 模型；旧角色保留的 `FPArms` 辅助资源不参与运行。黄泉、阿斯卡纶替换了原索引 1、3 的联动优菈和木偶，旧模型和动画移出 Content，原始压缩包保留。
+角色使用新导入的 Skeleton、材质和纹理，第一人称与世界身体共用上表的完整人物网格。原有移动、入场、死亡动作保留原路径并迁移到新骨架；身体、手指与衣物映射按实际骨骼名称匹配。旧角色目录和旧 `FPArms` 辅助资源移出 Content，原始素材与替换前的本地备份保留。运行仍由 `FBreachPose` 和 `FBreachCloth` 驱动，导入生成的 Control Rig、Post Process Anim Blueprint 和 KawaiiPhysics 配置不替代现有游戏姿态流程。
+
+本机 MMD2Unreal 是没有源码模块定义的二进制导入插件。C++ 编译遇到 `Could not find definition for module 'MMD2UnrealCore'` 时，可在构建命令中加 `-DisablePlugin=MMD2Unreal`，仅将它从该次编译目标中排除；编辑器仍使用已安装的导入插件及其内容。该处理不等于已验证 Cook 或打包。
 
 角色、敌人和随身武器在常态下通过 Custom Stencil 1 接入 `/Game/Materials/PP_UnderTideToon_Normal` 风格化后处理。该 Shader 采用偏现代二次元的写实融合方向：保留原贴图、PBR 光照和粗糙度细节，仅在角色范围内轻量压缩明暗、给暗部加入冷色倾向、收束高光，并用低透明度屏幕空间轮廓帮助角色与环境分离；场景本身不做色阶化。主要参数在材质编辑器中集中调节，HLSL 源码位于 `UnderTide/Shaders/Private/UnderTideToonNormal.ush`。`Normal` 后缀明确表示这是常态着色，后续特殊状态使用独立材质和 Shader 名称。
 
 四张手工头像位于 `/Game/Characters/Portraits/T_<Key>_Portrait`，选人页保留用户修改的竖版卡片，战斗 HUD 使用同一套贴图。更换角色资源不会重新生成或覆盖这些头像。
 
-阿斯卡纶当前网格已删除 `MI_Ascalon_5` 中独立绑定左前臂的多余袖箭，保留该材质下的衣摆及已有模型修订。编辑器辅助入口 `RemoveAscalonSleeveBlade` 按材质、连通区域和现有骨骼映射定位，只修改当前网格，不重新导入原 PMX；默认仅检查，应用前需将当前 `SK_Ascalon.uasset` 备份至 `Saved/`。
+当前外观采用用户本次重新导入的版本，不将旧阿斯卡纶的脸部、头发与袖箭几何修订写回新网格。后续统一调整外观时，先备份当前资源，再按新网格的材质槽、骨骼和绑定姿态核对修改范围。
+
+优菈原导入的头发高光材质 `/Game/Characters/Eula/Materials/Mi_优菈_发+` 保留作原始资源；当前两个头发材质槽共用新的 `/Game/Materials/Endfield/Eula/Mi_优菈_发`，使用原头发贴图。
+
+黄泉的身体叠层材质 `/Game/Characters/Acheron/Materials/Mi_星穹铁道—黄泉（轴修复）_体+` 使用 `Z-Fighting=-0.01`，将内层向内偏移 0.1 毫米，避免大腿皮肤与蓝色内层因重合而闪烁。保留原贴图、混合模式及骨架。
 
 ### 枪械模型与选人页武器选择
 
@@ -171,7 +181,7 @@ M4 原包的 OBJ 引用了未提供的 MTL，导入时按材质槽匹配原皮�
 新入场资源与来源：
 
 - 优菈：`pose/优菈待机pose_by_truthabout_*.zip` 和 `pose/eula-v3_by_fantong_*.zip`。保留原作者使用条件；没有将用户提供的动作标记为 CC0。VMD 按原 PMX 骨骼名称匹配、30 FPS 采样，转换包含身体和手指骨骼，不包含 MMD 物理模拟及表情 morph。UE 路径为 `/Game/Animations/Entrance/Eula/A_Eula_Eula_VMD_Entry`、`A_Eula_Eula_VMD_Finish`。
-- 黄泉挥刀：[Quaternius Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html)，CC0；使用本地 Standard 包的 `Sword_Attack`，资源为 `/Game/Animations/Entrance/Acheron/A_Acheron_Sword_Attack`。左手持鞘和收势时的手腕朝向另作适配，配刀网格为 `/Game/Characters/AcheronSword/SK_AcheronSword`。选人页保留刀与刀鞘的分开展示；实战将刀鞘套在刀上，双手握住同一刀柄，从右上蓄势向左下斜劈并回收；身体继续使用该动作资源，双臂按握点和斜劈轨迹适配。刀与刀鞘统一缩至资源原尺寸的 50%，便于第一人称展示。
+- 黄泉挥刀：[Quaternius Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html)，CC0；使用本地 Standard 包的 `Sword_Attack`，资源为 `/Game/Animations/Entrance/Acheron/A_Acheron_Sword_Attack`。左手持鞘和收势时的手腕朝向另作适配，配刀网格为 `/Game/Characters/AcheronSword/星穹铁道—黄泉（刀）`。选人页保留刀与刀鞘的分开展示；实战将刀鞘套在刀上，双手握住同一刀柄，从右上蓄势向左下斜劈并回收；身体继续使用该动作资源，双臂按握点和斜劈轨迹适配。刀与刀鞘统一缩至资源原尺寸的 50%，便于第一人称展示。
 - 阿斯卡纶：用户提供 `pose/Catwalk Sequence 03.fbx`，[Mixamo](https://www.mixamo.com/) 动作，遵循 Adobe Mixamo 条款，不是 CC0；资源为 `/Game/Animations/Entrance/Ascalon/A_Ascalon_Catwalk_Sequence_03`。
 - 黄泉人物和配刀来自用户提供的模型压缩包，原文件注明 miHoYo 版权、流云景编辑，并限制商业使用及二次配布；阿斯卡纶沿用用户提供素材的原作者条件。此项不改变 Quaternius 动作包的独立 CC0 授权。
 

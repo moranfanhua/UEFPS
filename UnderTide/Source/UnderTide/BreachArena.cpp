@@ -145,7 +145,16 @@ namespace Breach
     USkeletalMesh* CharacterMesh(int32 Index)
     {
         Index=FMath::Clamp(Index,0,3);
-        return LoadObject<USkeletalMesh>(nullptr,*FString::Printf(TEXT("/Game/Characters/%s/SK_%s.SK_%s"),Keys[Index],Keys[Index],Keys[Index]));
+        static const TCHAR* Paths[]={
+            TEXT("/Game/Characters/Eula/优菈.优菈"),
+            TEXT("/Game/Characters/Acheron/星穹铁道—黄泉（轴修复）.星穹铁道—黄泉（轴修复）"),
+            TEXT("/Game/Characters/Lizhiyan/李织烟.李织烟"),
+            TEXT("/Game/Characters/Ascalon/askl.askl")};
+        return LoadObject<USkeletalMesh>(nullptr,Paths[Index]);
+    }
+    USkeletalMesh* SwordMesh()
+    {
+        return LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/Characters/AcheronSword/星穹铁道—黄泉（刀）.星穹铁道—黄泉（刀）"));
     }
     UMaterialInterface* Material(const TCHAR* Name)
     {

@@ -131,11 +131,11 @@ void ABreachGameMode::RunMovementTest()
     const auto SwordFrame=[=](const TCHAR* Name)
     {
         const FTransform ToView=P->Camera->GetComponentTransform().Inverse();
-        const FVector Tip=ToView.TransformPosition(P->Sword->GetBoneLocationByName(TEXT("bone_005"),EBoneSpaces::WorldSpace));
+        const FVector Tip=ToView.TransformPosition(P->Sword->GetBoneLocationByName(TEXT("刀身1"),EBoneSpaces::WorldSpace));
         for(auto* Mesh:{P->Body.Get(),P->WorldBody.Get()})
         {
             auto* Blade=Mesh==P->Body?P->Sword.Get():P->WorldSword.Get();
-            const FVector Grip=Blade->GetBoneLocationByName(TEXT("bone_002"),EBoneSpaces::WorldSpace);
+            const FVector Grip=Blade->GetBoneLocationByName(TEXT("刀柄"),EBoneSpaces::WorldSpace);
             const float Right=FVector::Distance(Grip,Mesh->GetBoneLocationByName(RightHandName,EBoneSpaces::WorldSpace));
             const float Left=FVector::Distance(Grip,Mesh->GetBoneLocationByName(LeftHandName,EBoneSpaces::WorldSpace));
             Check(Right<5.f && Left<14.f,FString::Printf(TEXT("%s %s both hands remain on the hilt (right %.1f, left %.1f cm)"),Name,Mesh==P->Body?TEXT("owner"):TEXT("world"),Right,Left));
@@ -176,11 +176,11 @@ void ABreachGameMode::RunMovementTest()
         if(Sword)
         {
             Check(P->HasSwordRig() && P->Sword->IsVisible() && P->WorldSword->IsVisible() && P->Scabbard->IsVisible() && P->WorldScabbard->IsVisible(),TEXT("Acheron carries the supplied blade and scabbard in both views"));
-            Check(FVector::Distance(P->Sword->GetBoneLocationByName(TEXT("bone_002"),EBoneSpaces::WorldSpace),P->Scabbard->GetBoneLocationByName(TEXT("bone_003"),EBoneSpaces::WorldSpace))<1.f && P->Sword->GetComponentScale().X<1.f,TEXT("Acheron swings the reduced-size sword with its scabbard fitted"));
+            Check(FVector::Distance(P->Sword->GetBoneLocationByName(TEXT("刀柄"),EBoneSpaces::WorldSpace),P->Scabbard->GetBoneLocationByName(TEXT("刀镡"),EBoneSpaces::WorldSpace))<1.f && P->Sword->GetComponentScale().X<1.f,TEXT("Acheron swings the reduced-size sword with its scabbard fitted"));
             FBreachPose SwordRig;SwordRig.Init(Breach::CharacterMesh(P->OperatorIndex),P->OperatorIndex);
             const FVector WorldHand=P->WorldBody->GetBoneLocationByName(P->WorldBody->GetBoneName(SwordRig.Bone(EBreachBone::RHand)),EBoneSpaces::WorldSpace);
-            Check(FVector::Distance(WorldHand,P->WorldSword->GetBoneLocationByName(TEXT("bone_002"),EBoneSpaces::WorldSpace))<5.f &&
-                FVector::Distance(WorldHand,P->WorldScabbard->GetBoneLocationByName(TEXT("bone_003"),EBoneSpaces::WorldSpace))<5.f,
+            Check(FVector::Distance(WorldHand,P->WorldSword->GetBoneLocationByName(TEXT("刀柄"),EBoneSpaces::WorldSpace))<5.f &&
+                FVector::Distance(WorldHand,P->WorldScabbard->GetBoneLocationByName(TEXT("刀镡"),EBoneSpaces::WorldSpace))<5.f,
                 TEXT("Acheron world sword and scabbard handles remain mapped to her right hand"));
             Check(P->WorldSword->bCastHiddenShadow && !P->WorldScabbard->bCastHiddenShadow,TEXT("Only Acheron's correctly mapped blade contributes to her first-person prop shadow"));
             Check(P->FirstPersonSwordMotionScale<.5f,TEXT("Acheron's owner-view sword motion is substantially reduced"));
@@ -235,7 +235,8 @@ void ABreachGameMode::RunMovementTest()
     At(.95f,[=]() { Screenshot(TEXT("Run")); });
     At(1.18f,[=]()
     {
-        Check(P->GetVelocity().Size2D()>(Sword?Move->UnarmedSpeed+10.f:700.f) && P->LocomotionState==EBreachLocomotion::Sprint,Sword?TEXT("W with Acheron's sword exceeds unarmed speed and uses the sprint animation"):TEXT("W in unarmed mode reaches sprint speed and animation"));
+        Check(P->GetVelocity().Size2D()>(Sword?Move->UnarmedSpeed+10.f:700.f) && P->LocomotionState==EBreachLocomotion::Sprint,
+            FString::Printf(TEXT("%s (speed %.1f cm/s, state %d)"),Sword?TEXT("W with Acheron's sword exceeds unarmed speed and uses the sprint animation"):TEXT("W in unarmed mode reaches sprint speed and animation"),P->GetVelocity().Size2D(),int32(P->LocomotionState)));
         if(Sword)
         {
             const FVector HandDrift=Results->SwordHandView.IsValid?Results->SwordHandView.GetSize():FVector(BIG_NUMBER);

@@ -1,6 +1,6 @@
 # UnderTide 项目结构说明
 
-这份文档说明项目中每个目录的作用、游戏启动后的调用关系，以及修改功能时应该从哪里入手。项目是 Unreal Engine 5.7 的 C++ 第一人称竞技场原型，核心玩法是枪械、挥拳或黄泉挥刀近战、快速移动、击杀敌人、波次刷新和角色选择。
+这份文档说明项目中每个目录的作用、游戏启动后的调用关系，以及修改功能时应该从哪里入手。项目是 Unreal Engine 5.8 的 C++ 第一人称竞技场原型，核心玩法是枪械、挥拳或黄泉挥刀近战、快速移动、击杀敌人、波次刷新和角色选择。
 
 ## 1. 先建立整体认识
 
@@ -38,7 +38,7 @@ ABreachGameMode::BeginPlay()
 ```text
 GPT_UE_TEST/
 ├─ UnderTide/
-│  ├─ UnderTide.uproject       UE 项目文件，EngineAssociation 为 5.7
+│  ├─ UnderTide.uproject       UE 项目文件，EngineAssociation 为 5.8
 │  ├─ Config/                   项目、输入、地图和渲染配置
 │  ├─ Content/                  UE 二进制资源（uasset、umap）
 │  ├─ Shaders/                  项目 HLSL；常态角色风格化后处理位于 Private/UnderTideToonNormal.ush
@@ -188,11 +188,11 @@ UnderTide/Content/
 │  └─ Locomotion/            每个角色的移动、奔跑、跳跃、下蹲和滑铲动作
 ├─ Audio/                    Confirm、Reload、原有 Fire 与四把枪的 Fire_<枪型> 音效
 ├─ Characters/
-│  ├─ Eula/
-│  ├─ Acheron/
-│  ├─ Lizhiyan/
-│  ├─ Ascalon/
-│  ├─ AcheronSword/          黄泉原模型附带的刀与鞘
+│  ├─ Eula/              用户重新导入的优菈
+│  ├─ Acheron/           用户重新导入的黄泉
+│  ├─ Lizhiyan/          用户重新导入的李织烟
+│  ├─ Ascalon/           用户重新导入的阿斯卡纶
+│  ├─ AcheronSword/      黄泉新导入的刀与鞘
 │  ├─ Portraits/             用户修改的四张静态头像贴图
 │  └─ SelectionCat/           李织烟选人预览的猫模型、骨架和材质
 ├─ Maps/Arena.umap           编辑器启动地图和游戏默认地图
@@ -205,7 +205,7 @@ UnderTide/Content/
 代码使用固定的 UE 路径约定加载资源：
 
 ```text
-/Game/Characters/<Key>/SK_<Key>                  角色 Skeletal Mesh
+/Game/Characters/<Key>/<导入对象名>            角色 Skeletal Mesh，具体入口见 Breach::CharacterMesh()
 /Game/Animations/Locomotion/<Key>/A_<Key>_<Clip> 移动动画
 /Game/Animations/Death/A_<Key>_Death01            死亡动画
 /Game/Animations/Entrance/<Key>/A_<Key>_<Clip>    选人动作
@@ -231,7 +231,7 @@ ABreachCharacter
 └─ WorldBody  本地玩家不可见；保留完整头部和身体，投射世界影子
 ```
 
-两份模型使用同一个 `SK_<Key>`，由 `FBreachPose` 同步姿势。枪械也有 `WeaponRoot` 和 `WorldWeaponRoot` 两套组件。普通角色按 `3` 收起武器时，两套枪械都隐藏并关闭世界枪械的阴影，同时左键切换为 70 点伤害的挥拳；按 `1` 恢复持枪。
+两份模型使用同一个新导入人物网格，由 `FBreachPose` 同步姿势。枪械也有 `WeaponRoot` 和 `WorldWeaponRoot` 两套组件。普通角色按 `3` 收起武器时，两套枪械都隐藏并关闭世界枪械的阴影，同时左键切换为 70 点伤害的挥拳；按 `1` 恢复持枪。
 
 ## 5. Config 目录
 

@@ -15,11 +15,11 @@
 
 ## 项目与环境
 
-- 项目：Unreal Engine 5.7 的 C++ FPS 竞技场原型；当前主要运行与验证平台为 Windows / Win64。
+- 项目：Unreal Engine 5.8 的 C++ FPS 竞技场原型；当前主要运行与验证平台为 Windows / Win64。
 - 工程：`UnderTide/UnderTide.uproject`；运行地图：`/Game/Maps/Arena`。
 - C++ 模块：`UnderTide/Source/UnderTide/`；配置：`UnderTide/Config/`；导入资源：`UnderTide/Content/`。
-- 本机默认引擎目录：`D:\UE\UE_5.7`。这是可替换的本地默认值，不要把本机用户目录写成项目必需条件。
-- C++ 构建需要兼容 UE 5.7 的 MSVC 工具链和 Windows SDK。模块依赖以 `UnderTide.Build.cs` 为准，插件以 `.uproject` 为准。
+- 本机默认引擎目录：`D:\UE\UE_5.8`。这是可替换的本地默认值，不要把本机用户目录写成项目必需条件。
+- C++ 构建需要兼容 UE 5.8 的 MSVC 工具链和 Windows SDK。模块依赖以 `UnderTide.Build.cs` 为准，插件以 `.uproject` 为准。
 - `Content/` 使用 Git LFS。新克隆若只含 LFS 指针，应先获取对应的大文件资源；指针文本不能作为有效 `.uasset` 使用，不要靠重新生成全部资源掩盖缺失。
 - 优先阅读 `README.md` 的资源、授权和操作说明；若存在 `PROJECT_STRUCTURE.md`，用它了解模块职责。文档与代码不一致时，核对源码并说明差异。
 - 运行资源以 `UnderTide/Content/` 和 C++ 中的骨骼映射为准。
@@ -61,7 +61,7 @@
 直接调用引擎构建工具。以下两段在同一个 PowerShell 会话执行；按本机情况修改 `$breachEngineRoot`：
 
 ```powershell
-$breachEngineRoot = 'D:\UE\UE_5.7'
+$breachEngineRoot = 'D:\UE\UE_5.8'
 $breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
 & "$breachEngineRoot\Engine\Build\BatchFiles\Build.bat" UnderTideEditor Win64 Development "-Project=$breachProjectFile" -WaitMutex -NoHotReloadFromIDE
 ```
@@ -169,13 +169,13 @@ foreach ($breachOperator in 0..3) {
 
 | 资源 | 路径约定 |
 | --- | --- |
-| 完整模型 | `/Game/Characters/<Key>/SK_<Key>` |
+| 完整模型 | `Breach::CharacterMesh()` 中列出的 `/Game/Characters/<Key>/` 新导入网格 |
 | 移动动画 | `/Game/Animations/Locomotion/<Key>/A_<Key>_<Clip>` |
 | 入场动画 | `/Game/Animations/Entrance/<Key>/A_<Key>_<Clip>` |
 | 敌人死亡 | `/Game/Animations/Death/A_<Key>_Death01` |
 | 手工头像 | `/Game/Characters/Portraits/T_<Key>_Portrait` |
 
-- `LoadObject` 的对象路径需包含点号后的对象名，例如 `/Game/Characters/Eula/SK_Eula.SK_Eula`。资源缺失时保留安全回退，不解引用空对象。
+- `LoadObject` 的对象路径需包含点号后的对象名，例如 `/Game/Characters/Eula/优菈.优菈`。资源缺失时保留安全回退，不解引用空对象。
 - 当前入场：优菈两段用户 VMD 拼接、黄泉挥刀、李织烟抱猫、阿斯卡纶 Catwalk。黄泉配刀来自其模型；刀网格、刀鞘和挥刀动作也用于黄泉实战近战，实战中刀鞘套在刀上，双手握住同一刀柄，从右上蓄势向左下斜劈并回收；主动攻击优先于跑动锁手与武器缓动，第一人称攻击期间不复制世界布料偏转，以免袖口遮挡刀路，命中在约 42% 的落刀阶段。刀与刀鞘整体显示为资源原尺寸的 50%，不绘制额外挥刀轨迹。猫仍只是选人展示实体，这些展示和武器状态尚未实现完整联机复制。
 - 不用自动捕获头像覆盖 `Portraits` 手工贴图，不覆盖用户修改的材质和竖版角色卡片。
 - 当前阿斯卡纶可能已有几何和材质修订，原 PMX 不能被默认当作最新网格。重新导入前核对当前网格、材质和绑定姿态。

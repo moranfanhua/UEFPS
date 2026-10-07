@@ -406,7 +406,7 @@ void ABreachCharacter::ConfigureSwordLoadout()
     }
     if(!bSwordRigReady)
     {
-        auto* Asset=LoadObject<USkeletalMesh>(nullptr,TEXT("/Game/Characters/AcheronSword/SK_AcheronSword.SK_AcheronSword"));
+        auto* Asset=Breach::SwordMesh();
         bSwordRigReady=Asset && SwordPose.InitSkeleton(Asset);
         if(bSwordRigReady)
         {
@@ -420,7 +420,7 @@ void ABreachCharacter::ConfigureSwordLoadout()
             WorldSword->SetMaterial(0,Breach::Material(TEXT("M_ShadowOverlay")));
             Scabbard->SetMaterial(1,Breach::Material(TEXT("M_ShadowOverlay")));
             WorldScabbard->SetMaterial(1,Breach::Material(TEXT("M_ShadowOverlay")));
-            bSwordRigReady=Sword->GetBoneIndex(TEXT("bone_002"))!=INDEX_NONE && Scabbard->GetBoneIndex(TEXT("bone_003"))!=INDEX_NONE;
+            bSwordRigReady=Sword->GetBoneIndex(TEXT("刀柄"))!=INDEX_NONE && Scabbard->GetBoneIndex(TEXT("刀镡"))!=INDEX_NONE;
         }
     }
     if(!SwordAttackAnimation)
@@ -561,7 +561,7 @@ void ABreachCharacter::UpdateSwordVisual(const FBreachPose& Pose,UPoseableMeshCo
     if(!CharacterMesh || !SwordMesh || !bSwordRigReady) return;
     const int32 Hand=Pose.Bone(EBreachBone::RHand);
     const int32 Middle=Pose.Fingers[1][6],Index=Pose.Fingers[1][3],Pinky=Pose.Fingers[1][12];
-    const int32 Handle=SwordMesh->GetBoneIndex(TEXT("bone_002"));
+    const int32 Handle=SwordMesh->GetBoneIndex(TEXT("刀柄"));
     if(!Pose.CS.IsValidIndex(Hand) || !Pose.CS.IsValidIndex(Middle) || !Pose.CS.IsValidIndex(Index) || !Pose.CS.IsValidIndex(Pinky) || !SwordPose.ReferenceCS.IsValidIndex(Handle)) return;
     const FVector HandPosition=Pose.CS[Hand].GetLocation();
     FVector Along=(Pose.CS[Middle].GetLocation()-HandPosition).GetSafeNormal();
@@ -606,7 +606,7 @@ void ABreachCharacter::UpdateScabbardVisual(const FBreachPose& Pose,UPoseableMes
     if(!CharacterMesh || !ScabbardMesh || !bSwordRigReady) return;
     const int32 Hand=Pose.Bone(EBreachBone::RHand);
     const int32 Middle=Pose.Fingers[1][6],Index=Pose.Fingers[1][3],Pinky=Pose.Fingers[1][12];
-    const int32 Handle=ScabbardMesh->GetBoneIndex(TEXT("bone_003"));
+    const int32 Handle=ScabbardMesh->GetBoneIndex(TEXT("刀镡"));
     if(!Pose.CS.IsValidIndex(Hand) || !Pose.CS.IsValidIndex(Middle) || !Pose.CS.IsValidIndex(Index) || !Pose.CS.IsValidIndex(Pinky) || !SwordPose.ReferenceCS.IsValidIndex(Handle)) return;
     const FVector HandPosition=Pose.CS[Hand].GetLocation();
     FVector Along=(Pose.CS[Middle].GetLocation()-HandPosition).GetSafeNormal();
@@ -677,11 +677,6 @@ void ABreachCharacter::SelectOperator(int32 Index)
             Body->SetMaterial(Slot,nullptr);
             WorldBody->SetMaterial(Slot,nullptr);
         }
-        // The source PMX assigns Eula's large cape panel to the clothing atlas.
-        // That atlas contains a warm yellow region, while the actual cape art is
-        // the dedicated blue snowflake texture.  Keep the original slot and
-        // remap only this cape material at runtime so both body representations
-        // show the supplied blue cape.
         const FBoxSphereBounds Bounds=CharacterAsset->GetBounds();
         const float Scale=178.f/FMath::Max(1.f,float(Bounds.BoxExtent.Z*2));
         Body->SetRelativeScale3D(FVector(Scale));
@@ -689,15 +684,6 @@ void ABreachCharacter::SelectOperator(int32 Index)
         Body->SetRelativeLocation(FVector(0,0,-92-(Bounds.Origin.Z-Bounds.BoxExtent.Z)*Scale));
         WorldBody->SetSkinnedAssetAndUpdate(CharacterAsset);
         WorldBody->SetRelativeTransform(Body->GetRelativeTransform());
-        if(OperatorIndex==0)
-        {
-            if(auto* Cape=Breach::Material(TEXT("M_Eula_CapeCorrect")))
-                for(int32 Slot : {10,11,12,13,14})
-                {
-                    Body->SetMaterial(Slot,Cape);
-                    WorldBody->SetMaterial(Slot,Cape);
-                }
-        }
         bBodyRigReady=BodyPose.Init(CharacterAsset,OperatorIndex);
         BodyCloth.Init(CharacterAsset,OperatorIndex);
         LoadLocomotionAnimations();
@@ -884,7 +870,7 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
                 // Let them hang below the grip instead of pointing at the eye;
                 // retain their attachment points, lengths and world simulation.
                 const FVector Down=ToMesh.TransformVectorNoScale(View.TransformVectorNoScale(FVector(.2f,-.15f,-1.f))).GetSafeNormal();
-                for(const auto Pair:{TPair<FName,FName>(TEXT("bone_209"),TEXT("bone_210")),{TEXT("bone_223"),TEXT("bone_224")}})
+                for(const auto Pair:{TPair<FName,FName>(TEXT("左袖一1"),TEXT("左袖一2")),{TEXT("左袖二1"),TEXT("左袖二2")}})
                     Attack.Aim(Body->GetBoneIndex(Pair.Key),Body->GetBoneIndex(Pair.Value),Down);
             }
             const float Blend=FMath::SmoothStep(0.f,.18f,Progress)*(1.f-FMath::SmoothStep(.76f,1.f,Progress));
@@ -1015,7 +1001,7 @@ float ABreachCharacter::GripError(bool bOwnerView) const
     {
         if(!bSwordRigReady || !Sword) return BIG_NUMBER;
         const int32 Hand=BodyPose.Bone(EBreachBone::RHand);
-        return FVector::Distance(Sword->GetBoneLocationByName(TEXT("bone_002"),EBoneSpaces::WorldSpace),Body->GetBoneLocationByName(Body->GetBoneName(Hand),EBoneSpaces::WorldSpace));
+        return FVector::Distance(Sword->GetBoneLocationByName(TEXT("刀柄"),EBoneSpaces::WorldSpace),Body->GetBoneLocationByName(Body->GetBoneName(Hand),EBoneSpaces::WorldSpace));
     }
     float Error=0;
     auto* GripMesh=bOwnerView?Body.Get():WorldBody.Get();

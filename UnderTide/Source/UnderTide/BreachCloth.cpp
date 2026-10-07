@@ -1,5 +1,6 @@
 #include "BreachCloth.h"
 #include "BreachPose.h"
+#include "CharacterRigData.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/World.h"
 
@@ -8,20 +9,18 @@ void FBreachCloth::Init(USkeletalMesh* Asset,int32 ModelIndex)
     Joints.Reset();bInitialized=false;
     if(!Asset) return;
     const auto& Ref=Asset->GetRefSkeleton();TSet<int32> Selected;
-    // Supplied PMX cloth-chain indices. Find by exported name, never UE array index.
-    const auto Select=[&](int32 First,int32 Last)
+    // Find authored chains by imported name, never by the UE bone array index.
+    if(ModelIndex>=0 && ModelIndex<4)
     {
-        for(int32 I=First;I<=Last;++I)
-        {
-            const int32 B=Ref.FindBoneIndex(FName(*FString::Printf(TEXT("bone_%03d"),I)));
-            if(B!=INDEX_NONE) Selected.Add(B);
-        }
-    };
-    if(ModelIndex==0) { Select(113,138);Select(171,187);Select(198,203); }
-    if(ModelIndex==1) { Select(112,120);Select(209,235);Select(238,358); }
-    if(ModelIndex==2) Select(313,492);
-    // Ascalon's revised mesh retains these original coat bones but has no PMX rigid bodies.
-    if(ModelIndex==3) Select(294,343);
+        for(const TCHAR* Name:BreachClothRoots[ModelIndex])
+            if(Name)
+            {
+                const int32 B=Ref.FindBoneIndex(FName(Name));
+                if(B!=INDEX_NONE) Selected.Add(B);
+            }
+        for(int32 I=0;I<Ref.GetNum();++I)
+            if(Selected.Contains(Ref.GetParentIndex(I))) Selected.Add(I);
+    }
     for(int32 I=0;I<Ref.GetNum();++I) if(Selected.Contains(I))
         for(int32 C=I+1;C<Ref.GetNum();++C) if(Ref.GetParentIndex(C)==I && Selected.Contains(C))
         { FJoint Joint;Joint.Bone=I;Joint.Child=C;Joints.Add(Joint);break; }
