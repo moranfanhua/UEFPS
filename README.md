@@ -16,6 +16,10 @@
 
 ### 角色模型
 
+四名角色的主要脸部、头发、皮肤与衣料默认使用 [blurfeng/arknights-endfield-npr](https://github.com/blurfeng/arknights-endfield-npr) 的 Endfield 材质适配，依据版本 `c5be997dab13b6b404d2476fcec97ec7c7872a31`。公共依赖位于 `/Game/Assets/Common`，适配父材质与按角色拆分的实例位于 `/Game/Materials/Endfield`，实例沿用原导入材质名，不添加编号或 Shader 后缀；直接赋给下表的当前网格，无需启动参数。使用新导入资源的 `Diffuse` 贴图和颜色；眼睛、口腔、特殊透明叠层保留原导入材质，优菈重复头发叠层使用同一新头发材质。现有骨架、绑定姿态、动画与 Morph Targets 保持不变。
+
+上游声明 GPL-3.0，许可证保留在 `ThirdParty/EndfieldNPR/LICENSE`；该授权不覆盖人物模型或用户动作。缺少专用属性贴图时使用中性输入，完整脸部遮罩、眼透、刘海投影及上游描边、边缘光尚未接入；项目继续关闭 Substrate。盐风城环境保持现有 PBR 材质。
+
 | 角色 | UE Skeletal Mesh | 模型来源 | 用途 |
 | --- | --- | --- | --- |
 | 优菈 | `/Game/Characters/Eula/优菈` | 用户通过 MMD2Unreal 重新导入的优菈 PMX | 玩家、敌人展示、选人页面 |
@@ -33,7 +37,7 @@
 
 当前外观采用用户本次重新导入的版本，不将旧阿斯卡纶的脸部、头发与袖箭几何修订写回新网格。后续统一调整外观时，先备份当前资源，再按新网格的材质槽、骨骼和绑定姿态核对修改范围。
 
-优菈的头发高光材质 `/Game/Characters/Eula/Materials/Mi_优菈_发+` 使用 `Z-Fighting=-0.01`，将重合叠层向内偏移，避免在游戏中覆盖浅蓝色头发。保留导入材质的遮罩混合模式和原贴图。
+优菈原导入的头发高光材质 `/Game/Characters/Eula/Materials/Mi_优菈_发+` 保留作原始资源；当前两个头发材质槽共用新的 `/Game/Materials/Endfield/Eula/Mi_优菈_发`，使用原头发贴图。
 
 黄泉的身体叠层材质 `/Game/Characters/Acheron/Materials/Mi_星穹铁道—黄泉（轴修复）_体+` 使用 `Z-Fighting=-0.01`，将内层向内偏移 0.1 毫米，避免大腿皮肤与蓝色内层因重合而闪烁。保留原贴图、混合模式及骨架。
 
