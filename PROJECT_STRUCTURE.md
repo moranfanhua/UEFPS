@@ -1,6 +1,6 @@
 # UnderTide 项目结构说明
 
-这份文档说明项目中每个目录的作用、游戏启动后的调用关系，以及修改功能时应该从哪里入手。项目是 Unreal Engine 5.7 的 C++ 第一人称竞技场原型，核心玩法是枪械、挥拳或黄泉挥刀近战、快速移动、击杀敌人、波次刷新和角色选择。
+这份文档说明项目中每个目录的作用、游戏启动后的调用关系，以及修改功能时应该从哪里入手。项目是 Unreal Engine 5.8 的 C++ 第一人称竞技场原型，核心玩法是枪械、挥拳或黄泉挥刀近战、快速移动、击杀敌人、波次刷新和角色选择。
 
 ## 1. 先建立整体认识
 
@@ -38,7 +38,7 @@ ABreachGameMode::BeginPlay()
 ```text
 GPT_UE_TEST/
 ├─ UnderTide/
-│  ├─ UnderTide.uproject       UE 项目文件，EngineAssociation 为 5.7
+│  ├─ UnderTide.uproject       UE 项目文件，EngineAssociation 为 5.8
 │  ├─ Config/                   项目、输入、地图和渲染配置
 │  ├─ Content/                  UE 二进制资源（uasset、umap）
 │  ├─ Shaders/                  项目 HLSL；常态角色风格化后处理位于 Private/UnderTideToonNormal.ush

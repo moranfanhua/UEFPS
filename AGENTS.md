@@ -15,11 +15,11 @@
 
 ## 项目与环境
 
-- 项目：Unreal Engine 5.7 的 C++ FPS 竞技场原型；当前主要运行与验证平台为 Windows / Win64。
+- 项目：Unreal Engine 5.8 的 C++ FPS 竞技场原型；当前主要运行与验证平台为 Windows / Win64。
 - 工程：`UnderTide/UnderTide.uproject`；运行地图：`/Game/Maps/Arena`。
 - C++ 模块：`UnderTide/Source/UnderTide/`；配置：`UnderTide/Config/`；导入资源：`UnderTide/Content/`。
-- 本机默认引擎目录：`D:\UE\UE_5.7`。这是可替换的本地默认值，不要把本机用户目录写成项目必需条件。
-- C++ 构建需要兼容 UE 5.7 的 MSVC 工具链和 Windows SDK。模块依赖以 `UnderTide.Build.cs` 为准，插件以 `.uproject` 为准。
+- 本机默认引擎目录：`D:\UE\UE_5.8`。这是可替换的本地默认值，不要把本机用户目录写成项目必需条件。
+- C++ 构建需要兼容 UE 5.8 的 MSVC 工具链和 Windows SDK。模块依赖以 `UnderTide.Build.cs` 为准，插件以 `.uproject` 为准。
 - `Content/` 使用 Git LFS。新克隆若只含 LFS 指针，应先获取对应的大文件资源；指针文本不能作为有效 `.uasset` 使用，不要靠重新生成全部资源掩盖缺失。
 - 优先阅读 `README.md` 的资源、授权和操作说明；若存在 `PROJECT_STRUCTURE.md`，用它了解模块职责。文档与代码不一致时，核对源码并说明差异。
 - 运行资源以 `UnderTide/Content/` 和 C++ 中的骨骼映射为准。
@@ -61,7 +61,7 @@
 直接调用引擎构建工具。以下两段在同一个 PowerShell 会话执行；按本机情况修改 `$breachEngineRoot`：
 
 ```powershell
-$breachEngineRoot = 'D:\UE\UE_5.7'
+$breachEngineRoot = 'D:\UE\UE_5.8'
 $breachProjectFile = (Resolve-Path '.\UnderTide\UnderTide.uproject').Path
 & "$breachEngineRoot\Engine\Build\BatchFiles\Build.bat" UnderTideEditor Win64 Development "-Project=$breachProjectFile" -WaitMutex -NoHotReloadFromIDE
 ```

@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.7",
+	"EngineAssociation": "5.8",
 	"Category": "Games",
 	"Description": "UnderTide - a C++ FPS arena using the supplied character models.",
 	"Modules": [
