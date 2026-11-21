@@ -33,6 +33,8 @@ Win64 编辑器需要安装与引擎版本匹配的完整 MMD2Unreal（本机 UE
 
 角色、敌人和随身武器在常态下通过 Custom Stencil 1 接入 `/Game/Materials/PP_UnderTideToon_Normal` 风格化后处理。该 Shader 采用偏现代二次元的写实融合方向：保留原贴图、PBR 光照和粗糙度细节，仅在角色范围内轻量压缩明暗、给暗部加入冷色倾向、收束高光，并用低透明度屏幕空间轮廓帮助角色与环境分离；场景本身不做色阶化。主要参数在材质编辑器中集中调节，HLSL 源码位于 `UnderTide/Shaders/Private/UnderTideToonNormal.ush`。`Normal` 后缀明确表示这是常态着色，后续特殊状态使用独立材质和 Shader 名称。
 
+四名角色的脸部共用 `/Game/Materials/Endfield/M_Endfield_Face`，使用 Default Lit 接收场景灯光。脸部材质实例保留少量自发光补光，让暗处的五官仍可辨认。脸部与裸露皮肤的色调由各自实例的 `BaseColor` 调整，`MSRE` 的 G、B、A 通道分别控制镜面反射、粗糙度和自发光强度。
+
 四张手工头像位于 `/Game/Characters/Portraits/T_<Key>_Portrait`，选人页保留用户修改的竖版卡片，战斗 HUD 使用同一套贴图。更换角色资源不会重新生成或覆盖这些头像。
 
 当前外观采用用户本次重新导入的版本，不将旧阿斯卡纶的脸部、头发与袖箭几何修订写回新网格。后续统一调整外观时，先备份当前资源，再按新网格的材质槽、骨骼和绑定姿态核对修改范围。
