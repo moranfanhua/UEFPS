@@ -14,6 +14,9 @@ void UBreachMovementComponent::SetLocomotionIntent(bool Unarmed,bool Aiming)
 
 float UBreachMovementComponent::GetTargetMoveSpeed() const
 {
+    if(bSlowWalk && !bWantsUnarmed)
+        if(const auto* Player=Cast<ABreachCharacter>(CharacterOwner); Player && !Player->UsesSword())
+            return IsCrouching()?115.f:155.f;
     if(IsCrouching()) return MaxWalkSpeedCrouched;
     if(const auto* Player=Cast<ABreachCharacter>(CharacterOwner); Player && Player->UsesSword()) return SwordSpeed;
     return bWantsAim?AimSpeed:(bWantsUnarmed?UnarmedSpeed:RifleSpeed);
@@ -82,6 +85,7 @@ void UBreachMovementComponent::EndSlide()
 void UBreachMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
 {
     Super::UpdateFromCompressedFlags(Flags);
+    bSlowWalk=(Flags&FSavedMove_Character::FLAG_Custom_2)!=0;
     SetLocomotionIntent((Flags&FSavedMove_Character::FLAG_Custom_0)!=0,(Flags&FSavedMove_Character::FLAG_Custom_1)!=0);
 }
 
@@ -147,23 +151,26 @@ void UBreachMovementComponent::UpdateCharacterStateAfterMovement(float Dt)
 class FSavedMove_Breach : public FSavedMove_Character
 {
     using Super=FSavedMove_Character;
+    bool bSavedSlowWalk=false;
     bool bSavedSliding=false,bSavedPreviousCrouch=false,bSavedUnarmed=false,bSavedAim=false;
     float SavedSlideElapsed=0,SavedSlideCooldown=0,SavedBoostCooldown=0,SavedBoostRemaining=0,SavedMoveSpeed=0;
 public:
     virtual void Clear() override
     {
         Super::Clear();
+        bSavedSlowWalk=false;
         bSavedSliding=false;bSavedPreviousCrouch=false;SavedSlideElapsed=0;SavedSlideCooldown=0;
         bSavedUnarmed=false;bSavedAim=false;SavedBoostCooldown=0;SavedBoostRemaining=0;SavedMoveSpeed=0;
     }
     virtual uint8 GetCompressedFlags() const override
     {
-        return Super::GetCompressedFlags()|(bSavedUnarmed?FLAG_Custom_0:0)|(bSavedAim?FLAG_Custom_1:0);
+        return Super::GetCompressedFlags()|(bSavedUnarmed?FLAG_Custom_0:0)|(bSavedAim?FLAG_Custom_1:0)|(bSavedSlowWalk?FLAG_Custom_2:0);
     }
     virtual void SetMoveFor(ACharacter* C,float Dt,const FVector& NewAccel,FNetworkPredictionData_Client_Character& Data) override
     {
         Super::SetMoveFor(C,Dt,NewAccel,Data);
         const auto* Move=CastChecked<UBreachMovementComponent>(C->GetCharacterMovement());
+        bSavedSlowWalk=Move->bSlowWalk;
         bSavedSliding=Move->bSliding;bSavedPreviousCrouch=Move->bPreviousCrouchRequest;SavedSlideElapsed=Move->SlideElapsed;
         SavedSlideCooldown=Move->SlideCooldown;
         SavedBoostCooldown=Move->SlideBoostCooldown;SavedBoostRemaining=Move->SlideBoostRemaining;
@@ -172,6 +179,7 @@ public:
     virtual bool CanCombineWith(const FSavedMovePtr& NewMove,ACharacter* C,float MaxDelta) const override
     {
         const auto* Other=static_cast<const FSavedMove_Breach*>(NewMove.Get());
+        if(bSavedSlowWalk!=Other->bSavedSlowWalk) return false;
         const auto* Move=CastChecked<UBreachMovementComponent>(C->GetCharacterMovement());
         if(bSavedSliding || Other->bSavedSliding || SavedSlideCooldown>0 || Other->SavedSlideCooldown>0 || SavedBoostCooldown>0 || Other->SavedBoostCooldown>0 ||
             bSavedPreviousCrouch!=Other->bSavedPreviousCrouch || bSavedUnarmed!=Other->bSavedUnarmed || bSavedAim!=Other->bSavedAim ||
@@ -182,6 +190,7 @@ public:
     {
         Super::PrepMoveFor(C);
         auto* Move=CastChecked<UBreachMovementComponent>(C->GetCharacterMovement());
+        Move->bSlowWalk=bSavedSlowWalk;
         Move->bSliding=bSavedSliding;Move->bPreviousCrouchRequest=bSavedPreviousCrouch;Move->SlideElapsed=SavedSlideElapsed;
         Move->SlideCooldown=SavedSlideCooldown;
         Move->SlideBoostCooldown=SavedBoostCooldown;Move->SlideBoostRemaining=SavedBoostRemaining;Move->SmoothedMoveSpeed=SavedMoveSpeed;

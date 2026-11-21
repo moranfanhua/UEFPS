@@ -22,6 +22,17 @@ class ABreachSelectionStage;
 class UBreachNerveDamageComponent;
 class UBreachEnemyAwareness;
 
+UENUM()
+enum class ECombatGirlsClip : uint8
+{
+    Idle, Walk, Run, Crouch_Idle, Crouch_Walk, Crouch_Jog,
+    AimIdle, AimJog, AimTurn_L90, AimTurn_R90, AimWalk_F, AimWalk_FL, AimWalk_FR, AimWalk_B, AimWalk_BL, AimWalk_BR,
+    Crouch_AimIdle, Crouch_AimTurn_L90, Crouch_AimTurn_R90,
+    Crouch_AimWalk_F, Crouch_AimWalk_FL, Crouch_AimWalk_FR, Crouch_AimWalk_B, Crouch_AimWalk_BL, Crouch_AimWalk_BR,
+    Shoot, AimIdle_AutoShoot, Crouch_Shoot, Crouch_AutoShoot, Reload, Crouch_Reload,
+    TakeGun, PutGun, Evade, Hit_Low, Hit_Upper, Stun, Die_B, Die_F, None
+};
+
 UCLASS()
 class UNDERTIDE_API ABreachPlayerController : public APlayerController
 {
@@ -136,7 +147,21 @@ public:
     void UpdateOperatorPose(float DeltaSeconds);
     bool HasFirstPersonRig() const { return bBodyRigReady; }
     float GripError(bool bOwnerView=true) const;
+    ECombatGirlsClip GetRiflePose() const { return RiflePose; }
+    bool HasCombatGirlsAnimations() const;
+    void Evade();
 private:
+    UPROPERTY() TArray<TObjectPtr<UAnimSequence>> RifleClips;
+    ECombatGirlsClip RiflePose=ECombatGirlsClip::None, RifleAction=ECombatGirlsClip::None;
+    float RifleCycle=0,ActionElapsed=0,TurnAnchor=0,NextEvade=0;
+    int32 TriggerShots=0;
+    void LoadRifleClips();
+    bool SampleRiflePose(EBreachLocomotion State,float Speed,float Dt);
+    void StartRifleAction(ECombatGirlsClip Clip);
+    void ClearRifleAction();
+    void SlowWalkOn();
+    void SlowWalkOff();
+    UFUNCTION(Server,Reliable) void ServerEvade();
     uint64 TargetSpawnOrder=0;
     int32 SelectedWeapons[4]={0,INDEX_NONE,0,0};
     int32 AKAmmo=25,M4Ammo=30,MP5Ammo=40,AA12Ammo=8;
@@ -300,6 +325,7 @@ public:
     void RunEnemyAwarenessTest();
     void RunSeabornWaveTest();
     void RunWeaponTest();
+    void RunCombatGirlsTest();
     void TickSelectionTest();
     TFunction<void()> SelectionTestStep;
     UFUNCTION(Exec) void BreachSmokeTest();

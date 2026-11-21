@@ -1,5 +1,7 @@
 # UnderTide 项目结构说明
 
+`BreachRifleAnimation.cpp` 管理三名普通角色的 CombatGirls 移动、方向、持枪动作和受击／死亡状态，叠加于 `BreachLocomotion.cpp` 的基础状态；`BreachRifleAnimationTests.cpp` 检查实际状态选择、武器事件、侧闪位移及角色资源隔离。
+
 这份文档说明项目中每个目录的作用、游戏启动后的调用关系，以及修改功能时应该从哪里入手。项目是 Unreal Engine 5.8 的 C++ 第一人称竞技场原型，核心玩法是枪械、挥拳或黄泉挥刀近战、快速移动、击杀敌人、波次刷新和角色选择。
 
 ## 1. 先建立整体认识

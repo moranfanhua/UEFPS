@@ -30,6 +30,7 @@ public:
     bool IsSliding() const { return bSliding; }
     void SetLocomotionIntent(bool Unarmed,bool Aiming);
     float GetTargetMoveSpeed() const;
+    bool bSlowWalk=false;
     float GetSmoothedMoveSpeed() const { return SmoothedMoveSpeed; }
     virtual float GetMaxSpeed() const override;
     virtual bool CanAttemptJump() const override;

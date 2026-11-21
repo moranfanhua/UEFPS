@@ -191,6 +191,8 @@ void ABreachCharacter::SetupPlayerInputComponent(UInputComponent* Input)
     Input->BindAction("Aim", IE_Pressed, this, &ABreachCharacter::AimOn);
     Input->BindAction("Aim", IE_Released, this, &ABreachCharacter::AimOff);
     Input->BindAction("Reload", IE_Pressed, this, &ABreachCharacter::Reload);
+    Input->BindAction("SlowWalk",IE_Pressed,this,&ABreachCharacter::SlowWalkOn);
+    Input->BindAction("SlowWalk",IE_Released,this,&ABreachCharacter::SlowWalkOff).bExecuteWhenPaused=true;
     Input->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
     Input->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
     Input->BindAction("Unarmed", IE_Pressed, this, &ABreachCharacter::HolsterRifle);
@@ -205,7 +207,7 @@ void ABreachCharacter::MoveForward(float V) { if(Health>0) AddMovementInput(FRot
 void ABreachCharacter::MoveRight(float V) { if(Health>0) AddMovementInput(FRotationMatrix(FRotator(0,GetControlRotation().Yaw,0)).GetUnitAxis(EAxis::Y), V); }
 void ABreachCharacter::Turn(float V) { if(Health>0) AddControllerYawInput(V * (bAiming ? .45f : .75f)); }
 void ABreachCharacter::LookUp(float V) { if(Health>0) AddControllerPitchInput(V * (bAiming ? .45f : .75f)); }
-void ABreachCharacter::StartFire() { if(Health>0) { bTrigger=true; Fire(); } }
+void ABreachCharacter::StartFire() { if(Health>0) { TriggerShots=0;bTrigger=true; Fire(); } }
 void ABreachCharacter::StopFire() { bTrigger=false; }
 void ABreachCharacter::SetAim(bool Value)
 {
@@ -304,6 +306,7 @@ void ABreachCharacter::Fire()
     }
     if(bUnarmed)
     {
+        ClearRifleAction();
         NextShot=Now+PunchAttackInterval;
         PunchAttackTime=0.f; bPunchDamageApplied=false;
         PunchAttackSide=NextPunchAttackSide;
@@ -316,6 +319,9 @@ void ABreachCharacter::Fire()
     if(Ammo<=0) { Reload(); return; }
     NextShot=Now+FireInterval*NerveDamage->GetFireIntervalMultiplier();
     --Ammo; ++ShotsFired;
+    const bool Automatic=bTrigger && ++TriggerShots>1;
+    StartRifleAction(bIsCrouched?(Automatic?ECombatGirlsClip::Crouch_AutoShoot:ECombatGirlsClip::Crouch_Shoot):
+        (Automatic?ECombatGirlsClip::AimIdle_AutoShoot:ECombatGirlsClip::Shoot));
     Recoil=UsesAK()?FMath::Min(3.f,Recoil+1.6f):UsesM4()?FMath::Min(2.2f,Recoil+1.05f):
         UsesMP5()?FMath::Min(1.7f,Recoil+.75f):UsesAA12()?FMath::Min(3.5f,Recoil+1.9f):1.f;
     MuzzleFlashTime=.045f;
@@ -631,6 +637,7 @@ void ABreachCharacter::Reload()
 {
     if(Health<=0 || bUnarmed || bReloading || Ammo>=MagazineSize || Reserve<=0) return;
     bReloading=true; ReloadStarted=GetWorld()->GetTimeSeconds(); ReloadProgress=0;
+    StartRifleAction(bIsCrouched?ECombatGirlsClip::Crouch_Reload:ECombatGirlsClip::Reload);
     if(ReloadSound) UGameplayStatics::PlaySound2D(this,ReloadSound,.5f);
     GetWorldTimerManager().SetTimer(ReloadTimer,this,&ABreachCharacter::FinishReload,1.55f,false);
 }
@@ -650,6 +657,23 @@ float ABreachCharacter::TakeDamage(float Damage,const FDamageEvent& Event,AContr
 {
     if(Health<=0) return 0;
     Health=FMath::Max(0.f,Health-Damage); DamageFlash=.45f;
+    if(Damage>0 && !UsesSword())
+    {
+        if(Health<=0)
+        {
+            const AActor* Source=DamageInstigator && DamageInstigator->GetPawn()?DamageInstigator->GetPawn():Causer;
+            const bool Front=!Source || FVector::DotProduct(Source->GetActorLocation()-GetActorLocation(),GetActorForwardVector())>=0.f;
+            StartRifleAction(Front?ECombatGirlsClip::Die_B:ECombatGirlsClip::Die_F);
+            SetAim(false);UpdateGunVisibility();
+        }
+        else if(!bUnarmed && !bReloading && !NerveDamage->IsBurstActive())
+        {
+            const bool Low=Event.IsOfType(FPointDamageEvent::ClassID)?
+                static_cast<const FPointDamageEvent&>(Event).HitInfo.ImpactPoint.Z<GetActorLocation().Z:
+                (Causer && Causer->GetActorLocation().Z<GetActorLocation().Z-15.f);
+            StartRifleAction(Low?ECombatGirlsClip::Hit_Low:ECombatGirlsClip::Hit_Upper);
+        }
+    }
     if(Health<=0)
     {
         StopFire(); GetWorldTimerManager().ClearTimer(ReloadTimer); bReloading=false;
@@ -748,13 +772,20 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
     const float BaseZ=-HalfHeight-Ground*Body->GetRelativeScale3D().Z+SlideFloorOffset;
     Body->SetRelativeLocation(FVector(0,0,BaseZ));
     WorldBody->SetRelativeLocation(Body->GetRelativeLocation());
+    if(Health<=0 && (RiflePose==ECombatGirlsClip::Die_B || RiflePose==ECombatGirlsClip::Die_F))
+    {
+        BodyPose.Apply(WorldBody);BodyPose.Apply(Body,true);
+        WorldBody->RefreshBoneTransforms();Body->RefreshBoneTransforms();
+        return;
+    }
     // Locomotion owns the unarmed torso; the head always looks where the
     // player aims. Rifle aiming also stabilizes the spine and chest.
     for(EBreachBone Joint:{EBreachBone::Spine,EBreachBone::Chest,EBreachBone::Neck,EBreachBone::Head})
         if(!bUnarmed || Joint==EBreachBone::Neck || Joint==EBreachBone::Head)
         {
             const int32 I=BodyPose.Bone(Joint);
-            BodyPose.Rotate(I,BodyPose.ReferenceCS[I].GetRotation()*BodyPose.CS[I].GetRotation().Inverse());
+            const bool KeepTorso=RiflePose!=ECombatGirlsClip::None && (Joint==EBreachBone::Spine || Joint==EBreachBone::Chest);
+            if(!KeepTorso) BodyPose.Rotate(I,BodyPose.ReferenceCS[I].GetRotation()*BodyPose.CS[I].GetRotation().Inverse());
         }
     const float Pitch=FMath::Clamp(FRotator::NormalizeAxis(GetControlRotation().Pitch),-80.f,80.f);
     BodyPose.Rotate(EBreachBone::Spine,FVector::ForwardVector,Pitch*.12f);
@@ -803,6 +834,13 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
         const float ReloadDrop=bReloading?FMath::Sin(ReloadProgress*PI):0.f;
         const FVector Seat=Shoulder+View.TransformVectorNoScale(FVector(3.f,-2.f,5.f+AimBlend*2.f-ReloadDrop*10.f));
         WorldWeaponRoot->SetWorldLocationAndRotation(Seat-Rotation.RotateVector((Hold.MeshOffset+Hold.Stock)*.8f),Rotation);
+        if(RiflePose==ECombatGirlsClip::TakeGun || bReloading)
+        {
+            const float Weight=bReloading?FMath::Sin(PI*ReloadProgress):FMath::Clamp(1.f-ActionElapsed/.95f,0.f,1.f);
+            const FVector Authored=WorldBody->GetComponentTransform().TransformPosition(BodyPose.CS[BodyPose.Bone(EBreachBone::RHand)].GetLocation());
+            WorldWeaponRoot->AddWorldOffset((Authored-OperatorGrip(this,1,false))*Weight);
+            if(!bReloading) WeaponRoot->AddLocalOffset(FVector(-6,3,-20)*Weight);
+        }
         // Bring the owner gun within this rig's actual arm reach, instead of
         // stretching short forearms or sliding a hand off its authored grip.
         // Both hands move with the same gun; reload retains its release arc.
@@ -921,6 +959,7 @@ void ABreachCharacter::UpdateOperatorPose(float Dt)
         }
         for(int32 Side=0;Side<2 && !bUnarmed;++Side)
         {
+            if(!Side && bReloading && !bOwnerView && ReloadProgress>.12f && ReloadProgress<.86f) continue;
             const bool bGun=ConfiguredGunIndex!=INDEX_NONE && !UsesSword();
             const FTransform Gun=(bOwnerView?WeaponRoot:WorldWeaponRoot)->GetComponentTransform();
             const FVector Hint=View.TransformPosition(bGun?FVector(8,Side?25.f:-22.f,-43):FVector(2,Side?39.f:-39.f,-40));

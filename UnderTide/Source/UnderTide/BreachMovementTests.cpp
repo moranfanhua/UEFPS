@@ -173,6 +173,9 @@ void ABreachGameMode::RunMovementTest()
         for(auto* Part:Parts) if(auto* WeaponPart=Cast<UStaticMeshComponent>(Part)) ShadowsOff&=!WeaponPart->CastShadow;
         Check(ShadowsOff,TEXT("Holstered rifle does not cast a ghost shadow"));
         const int32 Ammo=P->Ammo;
+        const FRotator CaptureRotation=PC->GetControlRotation();
+        PC->SetControlRotation(FRotator::ZeroRotator);
+        P->Camera->SetWorldRotation(FRotator::ZeroRotator);
         if(Sword)
         {
             Check(P->HasSwordRig() && P->Sword->IsVisible() && P->WorldSword->IsVisible() && P->Scabbard->IsVisible() && P->WorldScabbard->IsVisible(),TEXT("Acheron carries the supplied blade and scabbard in both views"));
@@ -185,12 +188,10 @@ void ABreachGameMode::RunMovementTest()
             Check(P->WorldSword->bCastHiddenShadow && !P->WorldScabbard->bCastHiddenShadow,TEXT("Only Acheron's correctly mapped blade contributes to her first-person prop shadow"));
             Check(P->FirstPersonSwordMotionScale<.5f,TEXT("Acheron's owner-view sword motion is substantially reduced"));
             Check(Move->GetTargetMoveSpeed()==Move->SwordSpeed && Move->SwordSpeed>Move->UnarmedSpeed,TEXT("Acheron sword speed is faster than unarmed running"));
-            PC->SetControlRotation(FRotator::ZeroRotator);
             FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
             auto* Target=GetWorld()->SpawnActor<ABreachEnemy>(P->GetActorLocation()+P->Camera->GetForwardVector()*180.f,P->GetActorRotation(),Params);
             Target->Configure(0,1);Target->AttackCooldown=999.f;Target->GetCharacterMovement()->DisableMovement();Results->SwordTarget=Target;
             P->Fire();P->Reload();P->SetAim(true);
-            PC->SetControlRotation(FRotator(LookPitch,0,0));
             Check(P->Ammo==Ammo && P->IsSwordAttacking() && !P->bAiming && !P->bReloading,TEXT("Acheron attacks without rifle ammo, aiming or reload"));
         }
         else
@@ -200,16 +201,16 @@ void ABreachGameMode::RunMovementTest()
                 !P->WorldSword->CastShadow && !P->WorldSword->bCastHiddenShadow &&
                 !P->WorldScabbard->CastShadow && !P->WorldScabbard->bCastHiddenShadow,
                 TEXT("Leaving Acheron removes cached sword and scabbard shadows"));
-            PC->SetControlRotation(FRotator::ZeroRotator);
             FActorSpawnParameters Params;Params.SpawnCollisionHandlingOverride=ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
             auto* Target=GetWorld()->SpawnActor<ABreachEnemy>(P->GetActorLocation()+P->Camera->GetForwardVector()*115.f,P->GetActorRotation(),Params);
             Target->Configure(0,1);Target->AttackCooldown=999.f;Target->GetCharacterMovement()->DisableMovement();
             if(Capture) Target->SetActorHiddenInGame(true);
             Results->PunchTarget=Target;Results->PunchTargetStartHealth=Target->Health;
             P->Fire(); P->Reload(); P->SetAim(true);
-            PC->SetControlRotation(FRotator(LookPitch,0,0));
             Check(P->Ammo==Ammo && P->IsPunchAttacking() && !P->bAiming && !P->bReloading,TEXT("Unarmed mode punches without rifle ammo, aiming or reload"));
         }
+        PC->SetControlRotation(CaptureRotation);
+        P->Camera->SetWorldRotation(CaptureRotation);
         Key(EKeys::W,IE_Pressed);
     });
     At(.4f,[=]()

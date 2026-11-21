@@ -23,6 +23,7 @@ void ABreachGameMode::RunWeaponTest()
     auto* P=Cast<ABreachCharacter>(UGameplayStatics::GetPlayerPawn(this,0));
     auto* PC=UGameplayStatics::GetPlayerController(this,0);
     if(!P || !PC) return;
+    if(FParse::Param(FCommandLine::Get(),TEXT("BreachCombatGirlsTest"))) {RunCombatGirlsTest();return;}
     if(FParse::Param(FCommandLine::Get(),TEXT("BreachReticleReview")))
     {
         auto* HUD=Cast<ABreachHUD>(PC->GetHUD());

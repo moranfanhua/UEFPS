@@ -117,6 +117,12 @@ M4 原包的 OBJ 引用了未提供的 MTL，导入时按材质槽匹配原皮�
 
 ### 动画来源
 
+**CombatGirls 步枪动作**：优菈、李织烟、阿斯卡纶各有 39 段独立重定向的动画，正式路径为 `/Game/Animations/CombatGirls/<Key>/A_<Key>_R_<动作>`。来自用户提供的 *CombatGirls Rifle Character Pack v1.2*（爱给网压缩包）；原包指向 [Unity Asset Store EULA](https://unity.com/legal/as-terms)，不是 CC0，发布前需确认实际取得的授权。未引入 Unity 模型、脚本或控制器。
+
+- 三名普通角色持枪默认跑动；按住左 Shift 慢走，蹲姿同样可慢走。开镜时按方向选前、后或四个斜向步态，纯侧移使用同侧斜向近似；正常速度正前开镜用慢跑。静止开镜累计转向约 48° 触发左右转步，不接管镜头。空手、跳跃、滑铲和黄泉沿用原动作。
+- 侧闪未绑定按键；保留向左侧闪的动画、碰撞移动和 1.5 秒冷却，不提供无敌。枪械单发、按住连射、站姿／蹲姿换弹、1 取枪和 3 收枪跟随实际状态；动作不生成子弹或补充弹药，换弹仍为 1.55 秒。枪使用项目现有网格和握点，没有独立可拆弹匣。
+- 受击按命中高度分上下身；无命中点时按伤害来源高度判断。神经爆发使用眩晕姿态，不额外锁定输入。来自前／后方的致命伤分别向后／前倒地；前述两段受击和闪避按 FBX 有效帧结束。专测：`-BreachWeaponTest -BreachCombatGirlsTest`，添加 `-BreachWeaponCapture` 保存画面。动画接入不等于完整联机支持。
+
 - 女性动作来源：Quaternius **Animated Women Pack**，官方页面：<https://quaternius.com/packs/animatedwomen.html>
 - 授权：CC0 1.0，可用于个人和商业项目。
 - 原始动作文件：`Female_Alternative.fbx`。

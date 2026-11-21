@@ -8,6 +8,7 @@ void ABreachCharacter::SelectWeapon(int32 Index)
 {
     if(UsesSword() || Index<0 || Index>=Breach::WeaponCount || Health<=0) return;
     if(SelectedWeapons[OperatorIndex]==Index) return;
+    ClearRifleAction();
     SelectedWeapons[OperatorIndex]=Index;
     ConfigureSelectedGun();
     UpdateOperatorPose(0);
@@ -60,7 +61,7 @@ void ABreachCharacter::ConfigureSelectedGun()
 
 void ABreachCharacter::UpdateGunVisibility()
 {
-    const bool Armed=!bUnarmed && !UsesSword();
+    const bool Armed=!bUnarmed && !UsesSword() && Health>0;
     WeaponRoot->SetVisibility(Armed);WorldWeaponRoot->SetVisibility(Armed);
     for(USceneComponent* Root:{WeaponRoot.Get(),WorldWeaponRoot.Get()})
     {

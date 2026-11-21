@@ -13,6 +13,7 @@ void ABreachCharacter::DrawRifle() { if(bUnarmed) SetUnarmed(false); }
 void ABreachCharacter::SetUnarmed(bool Enabled)
 {
     if(Health<=0) return;
+    const bool Changed=!UsesSword() && bUnarmed!=Enabled;
     bUnarmed=UsesSword() || Enabled;
     if(!bUnarmed) { PunchAttackTime=-1.f; bPunchDamageApplied=false; }
     bSprint=bUnarmed && !bIsCrouched;
@@ -20,6 +21,7 @@ void ABreachCharacter::SetUnarmed(bool Enabled)
     CastChecked<UBreachMovementComponent>(GetCharacterMovement())->SetLocomotionIntent(bUnarmed,bAiming);
     ReloadProgress=0; Recoil=0;MuzzleFlashTime=0;
     GetWorldTimerManager().ClearTimer(ReloadTimer);
+    if(Changed) StartRifleAction(Enabled?ECombatGirlsClip::PutGun:ECombatGirlsClip::TakeGun);
     MuzzleLight->SetIntensity(0);
     UpdateGunVisibility();
     UpdateSwordVisibility();
@@ -49,6 +51,7 @@ void ABreachCharacter::LoadLocomotionAnimations()
     LocomotionState=EBreachLocomotion::Idle;
     LocomotionTime=0; LocomotionBlendTime=0;
     LocomotionBlendFrom=BodyPose.Reference;
+    LoadRifleClips();
 }
 bool ABreachCharacter::HasLocomotionAnimations() const
 {
@@ -111,7 +114,7 @@ void ABreachCharacter::UpdateLocomotion(float Dt)
         Time=Progress*Animation->GetPlayLength();
     }
     if(Animation && Next==EBreachLocomotion::JumpLand) Time=FMath::Clamp(LandTime/.32f,0.f,1.f)*Animation->GetPlayLength();
-    if(!BodyPose.Sample(Animation,Time,!Once)) BodyPose.Walk(Bob,Speed);
+    if(!SampleRiflePose(Next,Speed,Dt) && !BodyPose.Sample(Animation,Time,!Once)) BodyPose.Walk(Bob,Speed);
     LocomotionBlendTime+=Dt;
     const float Blend=FMath::Clamp(LocomotionBlendTime/(bIsCrouched?.18f:.12f),0.f,1.f);
     if(Blend<1 && LocomotionBlendFrom.Num()==BodyPose.Local.Num())
