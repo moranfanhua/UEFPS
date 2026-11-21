@@ -29,7 +29,7 @@
 
 角色使用新导入的 Skeleton、材质和纹理，第一人称与世界身体共用上表的完整人物网格。原有移动、入场、死亡动作保留原路径并迁移到新骨架；身体、手指与衣物映射按实际骨骼名称匹配。旧角色目录和旧 `FPArms` 辅助资源移出 Content，原始素材与替换前的本地备份保留。运行仍由 `FBreachPose` 和 `FBreachCloth` 驱动，导入生成的 Control Rig、Post Process Anim Blueprint 和 KawaiiPhysics 配置不替代现有游戏姿态流程。
 
-本机 MMD2Unreal 是没有源码模块定义的二进制导入插件。C++ 编译遇到 `Could not find definition for module 'MMD2UnrealCore'` 时，可在构建命令中加 `-DisablePlugin=MMD2Unreal`，仅将它从该次编译目标中排除；编辑器仍使用已安装的导入插件及其内容。该处理不等于已验证 Cook 或打包。
+Win64 编辑器需要安装与引擎版本匹配的完整 MMD2Unreal（本机 UE 5.8 使用 2.3.399）及其依赖 KawaiiPhysics（1.21.0）。插件位于 `UnderTide/Plugins/`；新环境须从对应插件包安装匹配的二进制文件，仅复制 DLL 或模型不足以恢复材质。原导入眼部和黄泉皮肤叠层依赖 `/MMD2Unreal/Materials/MF_MMD_RedialC`，缺少插件描述或内容会导致黑眼、黑肤。正常打开工程无需临时插件参数。项目 C++ 构建自动跳过没有源码模块规则的 MMD2Unreal 发行包，不需要移动插件目录；此配置用于编辑器中的游戏验证，不代表已验证独立打包发布。
 
 角色、敌人和随身武器在常态下通过 Custom Stencil 1 接入 `/Game/Materials/PP_UnderTideToon_Normal` 风格化后处理。该 Shader 采用偏现代二次元的写实融合方向：保留原贴图、PBR 光照和粗糙度细节，仅在角色范围内轻量压缩明暗、给暗部加入冷色倾向、收束高光，并用低透明度屏幕空间轮廓帮助角色与环境分离；场景本身不做色阶化。主要参数在材质编辑器中集中调节，HLSL 源码位于 `UnderTide/Shaders/Private/UnderTideToonNormal.ush`。`Normal` 后缀明确表示这是常态着色，后续特殊状态使用独立材质和 Shader 名称。
 

@@ -12,6 +12,13 @@
 	],
 	"Plugins": [
 		{
+			"Name": "MMD2Unreal",
+			"Enabled": true,
+			"TargetAllowList": [
+				"Editor"
+			]
+		},
+		{
 			"Name": "PythonScriptPlugin",
 			"Enabled": true
 		},

@@ -1,0 +1,58 @@
+{
+	"FileVersion": 3,
+	"Version": 20699,
+	"VersionName": "2.3.399",
+	"FriendlyName": "MMD2Unreal",
+	"Description": "次世代MMD的新入口",
+	"Category": "Importers",
+	"CreatedBy": "MMD2Unreal contributors",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EngineVersion": "5.8.0",
+	"CanContainContent": true,
+	"Installed": true,
+	"SupportedTargetPlatforms": [
+		"Win64"
+	],
+	"Modules": [
+		{
+			"Name": "MMD2UnrealCore",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "MMD2UnrealEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "IKRig",
+			"Enabled": true
+		},
+		{
+			"Name": "ControlRig",
+			"Enabled": true
+		},
+		{
+			"Name": "SequencerScripting",
+			"Enabled": true
+		},
+		{
+			"Name": "LevelSequenceEditor",
+			"Enabled": true
+		},
+		{
+			"Name": "VRM4U",
+			"Enabled": true,
+			"Optional": true
+		},
+		{
+			"Name": "KawaiiPhysics",
+			"Enabled": true
+		}
+	]
+}
